@@ -28,7 +28,7 @@ CFLAGS += $(WARNINGS)
 CFLAGS += $(OPENMP)
 CFLAGS += $(STDCPP11)
 
-OBJECTS = main.o 
+OBJECTS = main.o
 
 TARGET = implicit_dpd.out
 all:$(TARGET)
