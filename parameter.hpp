@@ -1,11 +1,11 @@
 #pragma once
 
+#include <fstream>
 #include <string>
+#include <sstream>
 #include <limits>
 #include <map>
-#include <fstream>
 #include <cassert>
-#include "../../src/particle_simulator.hpp"
 
 class Parameter {
   std::string cdir;
@@ -26,73 +26,6 @@ class Parameter {
     }
   }
 
-  static void ReadTagValues(std::ifstream& fin, 
-			    std::map<std::string, std::vector<std::string> >& tag_val)
-  {
-    std::string line, tag;
-    std::string::size_type comment_start = 0;
-    while(std::getline(fin, line) ) {
-      if( (comment_start = line.find(';')) != std::string::size_type(-1) )
-	line = line.substr(0, comment_start);
-
-      if(line.empty() ) continue;
-
-      DeleteHeadSpace(line);
-      DeleteTailSpace(line);
-      
-      std::stringstream ss(line);
-      ss >> tag;
-      std::vector<PS::F64> values;
-      while(!ss.eof() ) {
-	std::string buf;
-	ss >> buf;
-	values.push_back(buf);
-      }
-      tag_val[tag] = values;
-    }
-  }
-
-  static void MatchingError(std::string tag, 
-			    std::map<std::string, std::vector<std::string> >& tag_val,
-			    const int num) {
-    if(tag_val.find(tag) == tag_val.end()){				
-      std::cerr << "Unmatching occurs." << std::endl;			
-      std::cerr << "File:" << __FILE__ << " Line:" << __LINE__ << std::endl;
-      PS::Abort();							
-    }									
-    assert(tag_val[tag].size() == num);					
-  }
-
-  static void Matching(PS::S32 val[],
-		       std::string tag,
-		       std::map<std::string, std::vector<std::string> >& tag_val,
-		       const int num)
-  {
-    MatchingError(tag, tag_val, num);
-    for(int i = 0; i < num; i++)
-      val[i] = std::stoi(tag_val[tag].at(i));
-  }
-
-  static void Matching(PS::F64 val[],
-		       std::string tag,
-		       std::map<std::string, std::vector<std::string> >& tag_val,
-		       const int num)
-  {
-    MatchingError(tag, tag_val, num);    
-    for(int i = 0; i < num; i++)
-      val[i] = std::stof(tag_val[tag].at(i));
-  }
-
-  static void Matching(std::string val[],
-		       std::string tag,
-		       std::map<std::string, std::vector<std::string> >& tag_val,
-		       const int num)
-  {
-    MatchingError(tag, tag_val, num);
-    for(int i = 0; i < num; i++)
-      val[i] = tag_val[tag].at(i);
-  }
-
   void FillUpperTri(std::vector<PS::F64>& buf, PS::F64 array[], const int dim) {
     int cnt = 0;
     for(int i = 0; i < dim; i++) {
@@ -105,21 +38,22 @@ class Parameter {
 
   void MatchingTagValues(std::map<std::string, std::vector<std::string> >& tag_val) 
   {
-    Matching(&(box_leng[0]) , "box_leng", 3);
-    Matching(&init_prtcl_num, "init_prtcl_num", 1);
-    Matching(&dt, "dt", 1);
+    Matching(&(box_leng[0]) , std::string("box_leng"), tag_val, 3);
+    Matching(&init_prtcl_num, std::string("init_prtcl_num"), tag_val, 1);
+    Matching(&dt, std::string("dt"), tag_val, 1);
     
     std::vector<PS::F64> cf_buf(prop_num * (prop_num + 1) / 2, 0.0);
-    Matching(cf_buf, "cf_c", prop_num * (prop_num + 1) / 2);
+    Matching(&(cf_buf[0]), std::string("cf_c"), tag_val, prop_num * (prop_num + 1) / 2);
     FillUpperTri(cf_buf, &(cf_c[0][0]), prop_num);
-    Matching(cf_buf, "cf_r", prop_num * (prop_num + 1) / 2);
+    Matching(&(cf_buf[0]), std::string("cf_r"), tag_val, prop_num * (prop_num + 1) / 2);
     FillUpperTri(cf_buf, &(cf_r[0][0]), prop_num);
 
-    Matching(&rc, "rc", 1);
+    Matching(&rc, std::string("rc"), tag_val, 1);
     rc2 = rc * rc;
+    irc = 1.0 / rc;
 
-    Matching(&cf_s, "cf_s", 1);
-    Matching(&cf_b, "cf_b", 1);
+    Matching(&cf_s, std::string("cf_s"), tag_val, 1);
+    Matching(&cf_b, std::string("cf_b"), tag_val, 1);
   }
 
   void CalcGammaWithHarmonicMean(const int i, const int j) {
@@ -151,34 +85,39 @@ class Parameter {
   }
 
 public:
-  static constexpr PS::F64 Tempera = 1.0;
-  static constexpr PS::S32 head_unit = 1;
-  static constexpr PS::S32 tail_unit = 3;
-  static constexpr PS::S32 all_unit = head_unit + tail_unit;
-  static constexpr PS::F64 bond_leng = 0.5;
-  static constexpr PS::F64 ibond = 1.0 / bond_leng;
+  static constexpr PS::F64 Tempera	= 1.0;
+  static constexpr PS::S32 head_unit	= 1;
+  static constexpr PS::S32 tail_unit	= 3;
+  static constexpr PS::S32 all_unit	= head_unit + tail_unit;
+  static constexpr PS::F64 bond_leng	= 0.5;
+  static constexpr PS::F64 ibond	= 1.0 / bond_leng;
+  static constexpr PS::S32 prop_num = 2;
   
   //interactions
-  static constexpr int prop_num = 2;
-  static PS::F64 cf_c[Parameter::prop_num][Parameter::prop_num];
-  static PS::F64 cf_g[Parameter::prop_num][Parameter::prop_num];
-  static PS::F64 cf_r[Parameter::prop_num][Parameter::prop_num];
-  static PS::F64 cf_s = std::numeric_limits<PS::F64>::quiete_NaN();
-  static PS::F64 cf_b = std::numeric_limits<PS::F64>::quiete_NaN();
+  static PS::F64 cf_c[prop_num][prop_num];
+  static PS::F64 cf_g[prop_num][prop_num];
+  static PS::F64 cf_r[prop_num][prop_num];
+  static PS::F64 cf_s;
+  static PS::F64 cf_b;
 
   //cutoff length
-  static PS::F64 rc = std::numeric_limits<PS::F64>::quiete_NaN(), rc2 = std::numeric_limits<PS::F64>::quiete_NaN();
+  static PS::F64 rc, rc2, irc;
   
   //region info
-  PS::F64vec box_leng, ibox_leng;
+  static PS::F64vec box_leng, ibox_leng;
   
   PS::S32 init_prtcl_num = -1;
   PS::F64 dt = std::numeric_limits<PS::F64>::quiet_NaN();
 
   //for prng
-  static PS::U32 time = -1;
+  static PS::U32 time;
   
-  Parameter(const std::string cdir_) { cdir = cdir_; }
+  Parameter(const std::string& cdir_) { 
+    cdir = cdir_;
+    static_assert(all_unit >= 3, "all_unit >= 3."); 
+    cf_s = cf_b = rc = rc2 = irc = std::numeric_limits<PS::F64>::quiet_NaN();
+    time = 0xffffffff;
+  }
   ~Parameter() {}
 
   void Initialize() {
@@ -193,16 +132,83 @@ public:
     }
     
   }
+
+  static void MatchingError(std::string tag, 
+			    std::map<std::string, std::vector<std::string> >& tag_val,
+			    const size_t num) {
+    if(tag_val.find(tag) == tag_val.end()){				
+      std::cerr << "Unmatching occurs." << std::endl;			
+      std::cerr << "File:" << __FILE__ << " Line:" << __LINE__ << std::endl;
+      PS::Abort();							
+    }									
+    assert(tag_val[tag].size() == num);					
+  }
+
+  static void Matching(PS::S32* val,
+		       std::string tag,
+		       std::map<std::string, std::vector<std::string> >& tag_val,
+		       const int num)
+  {
+    MatchingError(tag, tag_val, num);
+    for(int i = 0; i < num; i++)
+      val[i] = std::stoi(tag_val[tag].at(i));
+  }
+
+  static void Matching(PS::F64* val,
+		       std::string tag,
+		       std::map<std::string, std::vector<std::string> >& tag_val,
+		       const int num)
+  {
+    MatchingError(tag, tag_val, num);    
+    for(int i = 0; i < num; i++)
+      val[i] = std::stof(tag_val[tag].at(i));
+  }
+
+  static void Matching(std::string* val,
+		       std::string tag,
+		       std::map<std::string, std::vector<std::string> >& tag_val,
+		       const int num)
+  {
+    MatchingError(tag, tag_val, num);
+    for(int i = 0; i < num; i++)
+      val[i] = tag_val[tag].at(i);
+  }
+
+  static void ReadTagValues(std::ifstream& fin, 
+			    std::map<std::string, std::vector<std::string> >& tag_val)
+  {
+    std::string line, tag;
+    std::string::size_type comment_start = 0;
+    while(std::getline(fin, line) ) {
+      if( (comment_start = line.find(';')) != std::string::size_type(-1) )
+	line = line.substr(0, comment_start);
+
+      if(line.empty() ) continue;
+
+      DeleteHeadSpace(line);
+      DeleteTailSpace(line);
+      
+      std::stringstream ss(line);
+      ss >> tag;
+      std::vector<std::string> values;
+      while(!ss.eof() ) {
+	std::string buf;
+	ss >> buf;
+	values.push_back(buf);
+      }
+      tag_val[tag] = values;
+    }
+  }
   
   void LoadParam() {
-    const std::string fmane = cdir + "/param.txt";
+    const std::string fname = cdir + "/param.txt";
     std::ifstream fin(fname.c_str());
     if(!fin) {
       std::cerr << cdir.c_str() << " dose not exist.\n";
       std::cerr << __FILE__ << " " << __LINE__ << std::endl;
       PS::Abort();
     }
-    std::map<std::string, std::vector<PS::F64> > tag_vals;
+    std::map<std::string, std::vector<std::string> > tag_vals;
     ReadTagValues(fin, tag_vals);
     MatchingTagValues(tag_vals);
     CalcInterCoef();
@@ -217,7 +223,7 @@ public:
     } else {
       std::cerr << "init_config.txt does not exist.\n";
       std::cerr << __FILE__ << " " << __LINE__ << std::endl;
-      return false
+      return false;
     }
   }
 
@@ -256,6 +262,7 @@ public:
 
     assert(std::isfinite(rc) );
     assert(std::isfinite(rc2) );
+    assert(std::isfinite(irc) );
     
     assert(init_prtcl_num > 0);
 
@@ -278,28 +285,12 @@ public:
     const std::string fname = cdir + "/all_param.txt";
     std::ofstream fout(fname.c_str());
     
-#define DUMPTAGANDVAL(val)			\
-    fout << #val << " = " << val << std::endl	\
-      
-#define DUMPINTRPARAM(val)			\
-    fout << #val << ":\n";			\
-    for(int i = 0; i < prop_num; i++){		\
-      for(int j = 0; j < prop_num; j++){	\
-	fout << val[i][j] << " ";		\
-      }						\
-      fout << std::endl;			\
-    }						\
-    
+#define DUMPTAGANDVAL(val) fout << #val << " = " << val << std::endl
+
     DUMPTAGANDVAL(prop_num);
-
-    fout << "NOTE:\n";
-    fout << "cf_r are multiplied by 1 / sqrt(dt)."
-    DUMPINTRPARAM(cf_c);
-    DUMPINTRPARAM(cf_r);
-    DUMPINTRPARAM(cf_g);
-
     DUMPTAGANDVAL(rc);
     DUMPTAGANDVAL(rc2);
+    DUMPTAGANDVAL(irc);
     
     DUMPTAGANDVAL(box_leng.x);
     DUMPTAGANDVAL(box_leng.y);
@@ -308,8 +299,33 @@ public:
     DUMPTAGANDVAL(init_prtcl_num);
     DUMPTAGANDVAL(dt);
 
-#undef DUMPTAGANDVAL
+#undef DUMPTAGANDVAL    
+
+    fout << "NOTE:\n";
+    fout << "cf_r are multiplied by 1 / sqrt(dt).";
+      
+#define DUMPINTRPARAM(val) fout << #val << ":\n";	\
+    for(int i = 0; i < prop_num; i++) {			\
+      for(int j = 0; j < prop_num; j++)			\
+	fout << val[i][j] << " ";			\
+      fout << std::endl;				\
+    } 
+
+    DUMPINTRPARAM(cf_c);
+    DUMPINTRPARAM(cf_r);
+    DUMPINTRPARAM(cf_g);
+
 #undef DUMPINTRPARAM
   }
-  
 };
+
+PS::F64 Parameter::cf_c[Parameter::prop_num][Parameter::prop_num];
+PS::F64 Parameter::cf_g[Parameter::prop_num][Parameter::prop_num];
+PS::F64 Parameter::cf_r[Parameter::prop_num][Parameter::prop_num];
+PS::F64 Parameter::cf_s;
+PS::F64 Parameter::cf_b;
+
+PS::F64 Parameter::rc, Parameter::rc2, Parameter::irc;
+PS::F64vec Parameter::box_leng, Parameter::ibox_leng;
+
+PS::U32 Parameter::time;

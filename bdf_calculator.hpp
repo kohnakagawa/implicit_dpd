@@ -6,16 +6,16 @@ struct ForceBonded {
 
   ForceBonded(Tpsys& sys) {
     //NOTE: Bonded list construction is needed once when using OpenMP version.
-    MakeGlobalBondedList(sys);    
+    MakeGlobalBondedList(sys);
   }
   ~ForceBonded() {
     
   }
 
   static inline void MinImage(PS::F64vec& drij) {
-    drij.x -= box.x * std::round(drij.x * Parameter::ibox_leng.x);
-    drij.y -= box.y * std::round(drij.y * Parameter::ibox_leng.y);
-    drij.z -= box.z * std::round(drij.z * Parameter::ibox_leng.z);
+    drij.x -= Parameter::box_leng.x * std::round(drij.x * Parameter::ibox_leng.x);
+    drij.y -= Parameter::box_leng.y * std::round(drij.y * Parameter::ibox_leng.y);
+    drij.z -= Parameter::box_leng.z * std::round(drij.z * Parameter::ibox_leng.z);
   }
 
   void MakeGlobalBondedList(const Tpsys& sys) {
@@ -85,6 +85,7 @@ struct ForceBonded {
     F[2] += Ftb1;
   }
 
+  //ASSUME: bond_n >= 3.
   template<int bond_n>
   void CalcBondBendGlobalCell(Tpsys&		__restrict sys,
 			      int		           bond_id,
@@ -94,7 +95,7 @@ struct ForceBonded {
     PS::F64vec Fbb[bond_n], pos_buf[bond_n], dr[bond_n - 1];
     PS::F64  dist2[bond_n - 1], inv_dr[bond_n - 1];
 
-    const int l_dst[] = { glob_topol[bond_id], glob_topol[bond + 1] };
+    const int l_dst[] = { glob_topol[bond_id], glob_topol[bond_id + 1] };
     pos_buf[0] = sys[ l_dst[0] ].pos; pos_buf[1] = sys[ l_dst[1] ].pos; 
     
     dr[0] = pos_buf[1] - pos_buf[0];
@@ -106,7 +107,7 @@ struct ForceBonded {
 
 #pragma unroll
     for(int unit = 2; unit < bond_n; unit++) {
-      pos_buf[unit] = pr[ glob_topol[bond_id + unit] ];
+      pos_buf[unit] = sys[ glob_topol[bond_id + unit] ].pos;
       dr[unit - 1] = pos_buf[unit] - pos_buf[unit - 1];
       MinImage(dr[unit - 1]);
       dist2[unit - 1] = dr[unit - 1] * dr[unit - 1];
@@ -126,8 +127,9 @@ struct ForceBonded {
     //OMP
     //only intra cell
     PS::F64vec d_vir(0.0); PS::F64 d_lap = 0.0;
-    for(PS::U32 i = 0; i < cmplt_amp; i++)
-      CalcBondBendLocalCell<Parameter::all_unit>(sys, i * Parameter::all_unit, d_vir, d_lap);
+    const PS::U32 topol_num = glob_topol.size();
+    for(PS::U32 i = 0; i < topol_num; i += Parameter::all_unit)
+      CalcBondBendGlobalCell<Parameter::all_unit>(sys, i, d_vir, d_lap);
   }
 };
 
@@ -143,14 +145,14 @@ struct ForceBondedMPI {
   PS::ReallocatableArray<PS::U32> loc_topol_cmpl, loc_topol_imcmpl;
   PS::RadixSort<PS::U32> rsorter;
 
-  ForceBonded(const int est_loc_amp) {
+  ForceBondedMPI(const int est_loc_amp) {
     ampid.resizeNoInitialize(est_loc_amp);
     ampid_buf.resizeNoInitialize(est_loc_amp);
     
     loc_topol_cmpl.resizeNoInitialize(est_loc_amp * Parameter::all_unit);
     loc_topol_imcmpl.resizeNoInitialize(est_loc_amp * Parameter::all_unit);
   }
-  ~ForceBonded() {
+  ~ForceBondedMPI() {
     
   }
 
@@ -211,6 +213,7 @@ struct ForceBondedMPI {
   }
 
   //NOTE: minimum image convention is not needed.
+  //ASSUME: bond_n >= 3.
   template<int bond_n>
   void CalcBondBendLocalCell(Tpsys&		__restrict sys,
 			     int		           bond_id,
@@ -220,24 +223,24 @@ struct ForceBondedMPI {
     PS::F64vec Fbb[bond_n], pos_buf[bond_n], dr[bond_n - 1];
     PS::F64  dist2[bond_n - 1], inv_dr[bond_n - 1];
 
-    const int l_dst[] = { loc_topol_cmpl[bond_id], loc_topol_cmpl[bond + 1] };
+    const int l_dst[] = { loc_topol_cmpl[bond_id], loc_topol_cmpl[bond_id + 1] };
     pos_buf[0] = sys[ l_dst[0] ].pos; pos_buf[1] = sys[ l_dst[1] ].pos; 
     
     dr[0] = pos_buf[1] - pos_buf[0];
     dist2[0] = dr[0] * dr[0];
     inv_dr[0] = 1.0 / std::sqrt(dist2[0]);
     
-    ForceBonded::StoreBondForceWithARLaw(dr[0], inv_dr[0], d_vir, d_lap, &Fbb[0]);
+    ForceBonded<Tpsys>::StoreBondForceWithARLaw(dr[0], inv_dr[0], d_vir, d_lap, &Fbb[0]);
 
 #pragma unroll
     for(int unit = 2; unit < bond_n; unit++) {
-      pos_buf[unit] = pr[ loc_topol_cmpl[bond_id + unit] ];
+      pos_buf[unit] = sys[ loc_topol_cmpl[bond_id + unit] ].pos;
       dr[unit - 1] = pos_buf[unit] - pos_buf[unit - 1];
       dist2[unit - 1] = dr[unit - 1] * dr[unit - 1];
       inv_dr[unit - 1] = 1.0 / std::sqrt(dist2[unit - 1]);
       
-      ForceBonded::StoreBondForceWithARLaw(dr[unit - 1], inv_dr[unit - 1], d_vir, d_lap, &Fbb[unit - 1]);
-      ForceBonded::StoreBendForceWithARLaw(&dr[unit - 2], &inv_dr[unit - 2], dist2, d_vir, d_lap, &Fbb[unit - 2]);
+      ForceBonded<Tpsys>::StoreBondForceWithARLaw(dr[unit - 1], inv_dr[unit - 1], d_vir, d_lap, &Fbb[unit - 1]);
+      ForceBonded<Tpsys>::StoreBendForceWithARLaw(&dr[unit - 2], &inv_dr[unit - 2], dist2, d_vir, d_lap, &Fbb[unit - 2]);
     }
 
     //Store the sum of force.

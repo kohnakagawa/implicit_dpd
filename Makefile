@@ -1,5 +1,5 @@
-#CXX = g++
-CXX = icpc
+CXX = g++
+#CXX = icpc
 
 ifeq ($(CXX),icpc)
 OPENMP = -openmp
@@ -28,6 +28,8 @@ CFLAGS += $(WARNINGS)
 CFLAGS += $(OPENMP)
 CFLAGS += $(STDCPP11)
 
+INCLUDE = -I./include
+
 OBJECTS = main.o
 
 TARGET = implicit_dpd.out
@@ -36,10 +38,10 @@ all:$(TARGET)
 .SUFFIXES:
 .SUFFIXES: .cpp .o
 .cpp.o:
-	$(CXX) $(CFLAGS) -c $< $(LIBRARY) -o $@
+	$(CXX) $(CFLAGS) $(INCLUDE) -c $< $(LIBRARY) -o $@
 .SUFFIXES: .c .o
 .c.o:
-	$(CXX) $(CFLAGS) -c $< $(LIBRARY) -o $@
+	$(CXX) $(CFLAGS) $(INCLUDE) -c $< $(LIBRARY) -o $@
 
 $(TARGET): $(OBJECTS)
 	$(CXX) $(CFLAGS) $(OBJECTS) $(LIBRARY) -o $@

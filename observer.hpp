@@ -1,10 +1,7 @@
 #pragma once
 
-#include <iostream>
 #include <cstdio>
 #include <vector>
-#include <string>
-#include <map>
 
 template<class Tpsys>
 class Observer {
@@ -61,7 +58,7 @@ class Observer {
   };
   
 public:
-  Observer(std::string cdir_) {
+  Observer(const std::string& cdir_) {
     cdir = cdir_;
     ptr_f.resize(NUM_FILES, nullptr);
   }
@@ -71,7 +68,7 @@ public:
   
   void Initialize() {
     for(int i = 0; i < NUM_FILES; i++)
-      ptr_f[i] = fopen(type2fname[i].c_str(), "w");
+      ptr_f[i] = fopen(type2fname(i).c_str(), "w");
   }
   
   void KineticTempera(Tpsys& sys) {
@@ -108,7 +105,9 @@ public:
     //not implemented yet
   }
 
-  void Trajectory(Tpsys& sys) {
-    sys.writeParticleAscii(ptr_f[PART_CONFIG]);
+  void Trajectory(const Tpsys& sys) {
+    const PS::S32 num_part = sys.getNumberOfParticleLocal();
+    for(PS::S32 i = 0; i < num_part; i++)
+      sys[i].writeAscii(ptr_f[PART_CONFIG]);
   }
 };

@@ -1,12 +1,10 @@
 #include <iostream>
 #include <cstdio>
-#include <fstream>
 #include <vector>
-#include <limits>
-#include <map>
 #include <ctime>
-#include "f_calculator.hpp"
+#include "particle_simulator.hpp"
 #include "parameter.hpp"
+#include "f_calculator.hpp"
 
 class ConfigMaker {
   std::vector<FPDPD> prtcls;
@@ -14,17 +12,17 @@ class ConfigMaker {
   std::string cdir, mode;
   std::ifstream fin;
   
-  PS::F64 Tempera = std::numeric_limits<PS::F64>::quiet_NaN();
+  PS::F64 Tempera	= std::numeric_limits<PS::F64>::quiet_NaN();
   PS::F64vec box_leng;
-  PS::S32 amp_num = -1;
-  PS::F64 lip_len = std::numeric_limits<PS::F64>::quiet_NaN();
+  PS::S32 amp_num	= -1;
+  PS::F64 lip_len	= std::numeric_limits<PS::F64>::quiet_NaN();
   
-  PS::F64 sph_rad = std::numeric_limits<PS::F64>::quiet_NaN();
-  PS::F64 cyl_l = std::numeric_limits<PS::F64>::quiet_NaN();
-  PS::F64 cyl_r = std::numeric_limits<PS::F64>::quiet_NaN();
+  PS::F64 sph_rad	= std::numeric_limits<PS::F64>::quiet_NaN();
+  PS::F64 cyl_l		= std::numeric_limits<PS::F64>::quiet_NaN();
+  PS::F64 cyl_r		= std::numeric_limits<PS::F64>::quiet_NaN();
   
   PS::F64 NormalRand(const PS::F64 mean, const PS::F64 sd) const {
-    return mean + sd * std::sqrt( -2.0 * std::log(genrand_res53()) ) * std::cos(2.0 * M_PI * genrand_res53() );
+    return mean + sd * std::sqrt( -2.0 * std::log(PS::MT::genrand_res53()) ) * std::cos(2.0 * M_PI * PS::MT::genrand_res53() );
   }
   
   void RemoveCMDrift() {
@@ -38,11 +36,16 @@ class ConfigMaker {
 
   void GenVeloc() {
     for(size_t i = 0; i < prtcls.size(); i++) {
-      prtcls[i].vel = PS::F64vec(NormalRand(0.0, std::sqrt(Tempera) ),
-				 NormalRand(0.0, std::sqrt(Tempera) ),
-				 NormalRand(0.0, std::sqrt(Tempera) ) );
+      prtcls[i].vel =  PS::F64vec(NormalRand(0.0, std::sqrt(Tempera) ),
+						      NormalRand(0.0, std::sqrt(Tempera) ),
+						      NormalRand(0.0, std::sqrt(Tempera) ) );
     }
     RemoveCMDrift();
+    
+    for(size_t i = 0; i < prtcls.size(); i++) {
+      prtcls[i].vel_buf = prtcls[i].vel;
+      prtcls[i].acc = PS::F64vec(0.0, 0.0, 0.0);
+    }
   }
 
   void ApplyPBC(PS::F64vec& pos) {
@@ -50,12 +53,14 @@ class ConfigMaker {
       pos[i] -= std::floor(pos[i] / box_leng[i]) * box_leng[i];
   }
   
-  void SetAmphilPartPos(const PS::F64vec& base, const PS::F64vec& nv, int& idx) {
+  void SetAmphilPartPos(const PS::F64vec& base, const PS::F64vec& nv, PS::U32& idx) {
     for(int unit = 0; unit < Parameter::all_unit; unit++) {
       PS::F64vec pos = base + Parameter::bond_leng * unit * nv;
       ApplyPBC(pos);
-      prtcls[i].pos = pos;
-      prtcls[i].id = idx;
+      prtcls[idx].pos = pos;
+      prtcls[idx].id = idx;
+      prtcls[idx].unit = unit;
+      prtcls[idx].amp_id = idx / Parameter::all_unit;
 
       idx++;
     }
@@ -65,15 +70,15 @@ class ConfigMaker {
     assert(axis >= 0 && axis < 3);
     
     const PS::F64 eps = 1.0e-5;
-    size_t idx = 0;
-    PS::F64 nv(0.0, 0.0, 0.0);
+    PS::U32 idx = 0;
+    PS::F64vec nv(0.0, 0.0, 0.0);
     bool flap = true;
     while(idx < prtcls.size() ) {
-      PS::F64vec base(len.x * genrand_res53(),
-		      len.y * genrand_res53(),
-		      len.z * genrand_res53());
+      PS::F64vec base(len.x * PS::MT::genrand_res53(),
+		      len.y * PS::MT::genrand_res53(),
+		      len.z * PS::MT::genrand_res53());
       const PS::F64 sign = flap ? 1.0 : -1.0;
-      up[axis] = len[axis] + Parameter::all_unit_n * Parameter::bond_leng + sign * eps;
+      base[axis] = len[axis] + Parameter::all_unit * Parameter::bond_leng + sign * eps;
       nv[axis] = -1.0 * sign;
       SetAmphilPartPos(base, nv, idx);
       flap ^= true;
@@ -81,7 +86,7 @@ class ConfigMaker {
   }
   
   bool MakeSphLine(const PS::F64 the, const PS::F64vec& center, const PS::F64 rad,
-		   const PS::F64 sign, PS::S32& idx)
+		   const PS::F64 sign, PS::U32& idx)
   {
     const PS::F64 q_thick = 0.5 * Parameter::all_unit * Parameter::bond_leng;
     const PS::F64 prj_rad = rad * std::sin(the);
@@ -95,7 +100,7 @@ class ConfigMaker {
       const PS::F64vec nv(sign * std::sin(the) * std::cos(phi), 
 			  sign * std::sin(the) * std::sin(phi),
 			  sign * std::cos(the));
-      const PS::F64vec cent2arc = sign * n_v * (rad - sign * q_thick) + center;
+      const PS::F64vec cent2arc = sign * nv * (rad - sign * q_thick) + center;
       SetAmphilPartPos(cent2arc, nv, idx);
       if(idx >= prtcls.size()) return false;
     }
@@ -103,7 +108,12 @@ class ConfigMaker {
     return true;
   }
 
-  void MakeLineForEachTheta(const PS::S32 elem, const PS::F64 d_the, const PS::F64 offset, const PS::F64 rad, const PS::F64 sign, PS::S32& idx)
+  void MakeLineForEachTheta(const PS::S32 elem,
+			    const PS::F64 d_the,
+			    const PS::F64 offset,
+			    const PS::F64 rad,
+			    const PS::F64 sign,
+			    PS::U32& idx)
   {
     const PS::F64vec cent = 0.5 * box_leng;
     for(int i = 0; i < elem; i++) {
@@ -121,16 +131,22 @@ class ConfigMaker {
     d_the_out = M_PI / out_the_elem;
     d_the_in  = M_PI / in_the_elem;
     
-    PS::S32 idx = 0;
-    MakeLineForEachTheta(out_the_elem, d_the_out, 0.0, out_rad, -1.0); //out
-    MakeLineForEachTheta(in_the_elem, d_the_in, 0.0, in_rad, 1.0); //in
+    PS::U32 idx = 0;
+    MakeLineForEachTheta(out_the_elem, d_the_out, 0.0, out_rad, -1.0, idx); //out
+    MakeLineForEachTheta(in_the_elem, d_the_in, 0.0, in_rad, 1.0, idx); //in
     
-    const PS::S32 residue = prtcls.size() - idx;
+    const PS::U32 residue = prtcls.size() - idx;
     if(residue > 0)
-      MakeLineForEachTheta(in_the_elem, d_the_in, 0.5, in_rad, -1.0);
+      MakeLineForEachTheta(in_the_elem, d_the_in, 0.5, in_rad, -1.0, idx);
   }
 
-  void MakeLineForEachAxis(const PS::S32 elem, const PS::F64 d_the, const PS::F64 offset, const PS::F64 rad, const PS::F64 sign, const PS::S32 axis, PS::S32& idx)
+  void MakeLineForEachAxis(const PS::S32 elem,
+			   const PS::F64 d_the,
+			   const PS::F64 offset,
+			   const PS::F64 rad,
+			   const PS::F64 sign,
+			   const PS::S32 axis,
+			   PS::U32& idx)
   {
     const PS::F64 h_pi = std::acos(0.0);
     
@@ -157,55 +173,53 @@ class ConfigMaker {
     assert(cyl_l >= 0.0 && cyl_l < box_leng[axis]);
     assert(cyl_r >= 0.0 && (2.0 * cyl_r + Parameter::all_unit * Parameter::bond_leng) < box_leng[axis]);
     
-    PS::S32 idx = 0;
-    MakeLineForEachAxis(out_the_elem, d_the_out, 0.0, out_rad, -1.0); //out
-    MakeLineForEachAxis(in_the_elem, d_the_in, 0.0, in_rad, 1.0);  //in
+    PS::U32 idx = 0;
+    MakeLineForEachAxis(out_the_elem, d_the_out, 0.0, out_rad, -1.0, axis, idx); //out
+    MakeLineForEachAxis(in_the_elem, d_the_in, 0.0, in_rad, 1.0, axis, idx);  //in
     
-    const PS::S32 residue = prtcls.size() - idx;
+    const PS::U32 residue = prtcls.size() - idx;
     if(residue > 0)
-      MakeLineForEachAxis(in_the_elem, d_the_in, 0.5, out_rad, -1.0);
+      MakeLineForEachAxis(in_the_elem, d_the_in, 0.5, out_rad, -1.0, axis, idx);
   }
 
+#define MODE_EQ(str) strcasecmp(mode.c_str(), str) == 0
   void GenConfig() {
-    switch(mode) {
-    case "Plane":
-      MakeFlatSheet(box_leng, 1);
-      break;
-    case "Sphere":
-      MakeSphSheet();
-      break;
-    case "Cylind"
-      MakeCylindSheet(2);
-      break;
-    default:
+    if(MODE_EQ("flat")) {
+      MakeFlatSheet(box_leng, 1);      
+    } else if(MODE_EQ("sphere")) {
+      MakeSphSheet();      
+    } else if(MODE_EQ("cylind")) {
+      MakeCylindSheet(2);      
+    } else {
       if(!mode.empty() )
 	std::cerr << mode << ": Unknown mode\n";
       else
 	std::cerr << "Mode is not specified\n.";
-      std::cerr << __FILE__ << " " __LINE__ << std::endl;
+      std::cerr << __FILE__ << " " << __LINE__ << std::endl;
       std::exit(1);
-      break;
     }
+
   }
 
   void MatchingTagValues(std::map<std::string, std::vector<std::string> >& tag_val)
   {
-    Parameter::Matching(&Tempera, "Temperature", 1);
-    Parameter::Matching(&(box_leng[0]), "box_leng", 3);
-    Parameter::Matching(&amp_num, "amp_num", 1);
-    Parameter::Matching(&mode, "mode", 1);
-    if(mode == "Sphere")
-      Parameter::Matching(&sph_rad, "sph_rad", 1);
-    if(mode == "Cylind") {
-      Parameter::Matching(&cyl_l, "cyl_l", 1);
-      Parameter::Matching(&cyl_r, "cyl_r", 1);
+    Parameter::Matching(&Tempera, std::string("Temperature"), tag_val, 1);
+    Parameter::Matching(&(box_leng[0]), std::string("box_leng"), tag_val, 3);
+    Parameter::Matching(&amp_num, "amp_num", tag_val, 1);
+    Parameter::Matching(&mode, "mode", tag_val, 1);
+    if(MODE_EQ("sphere"))
+      Parameter::Matching(&sph_rad, "sph_rad", tag_val, 1);
+    if(MODE_EQ("cylind")) {
+      Parameter::Matching(&cyl_l, "cyl_l", tag_val, 1);
+      Parameter::Matching(&cyl_r, "cyl_r", tag_val, 1);
     }
       
-    Parameter::Matching(&lip_len, "lip_len", 1);
+    Parameter::Matching(&lip_len, "lip_len", tag_val, 1);
   }
+#undef MODE_EQ
 
 public:
-  ConfigMaker(const std::string cdir_) {
+  ConfigMaker(const std::string& cdir_) {
     cdir = cdir_;
     box_leng.x = box_leng.y = box_leng.z = std::numeric_limits<PS::F64>::quiet_NaN();
   }
@@ -226,13 +240,13 @@ public:
       MatchingTagValues(tag_val);
     } else {
       std::cerr << "Cannot find file " << fname << std::endl;
-      std::cerr << __FILE__ << " " __LINE__ std::endl;
+      std::cerr << __FILE__ << " " << __LINE__ << std::endl;
       std::exit(1);
     }
   }
 
   void GenParticles() {
-    prtcls.size(Parameter::all_unit * amp_num);
+    prtcls.resize(Parameter::all_unit * amp_num);
     GenConfig();
     GenVeloc();
   }
@@ -252,8 +266,9 @@ int main(int argc, char* argv[]) {
     std::cerr << "argv[1] is target directory name.\n";
     std::exit(1);
   }
-  
-  ConfigMaker cmaker(std::string(argv[1]));
+
+  const std::string cdir = argv[1];
+  ConfigMaker cmaker(cdir);
   cmaker.Initialize();
   cmaker.LoadParam();
   cmaker.GenParticles();

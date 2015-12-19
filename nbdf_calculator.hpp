@@ -1,8 +1,6 @@
 #pragma once
 
-#include "../../src/particle_simulator.hpp"
 #include "saruprng.hpp"
-#include "parameter.hpp"
 
 struct ForceDPD {
   PS::F64vec acc;
@@ -21,26 +19,29 @@ struct FPDPD {
   PS::F64vec acc;
   PS::F64vec press;
   PS::F64 search_radius;
-  
+
   //essential member functions
+  PS::F64 getRSearch() const {
+    return this->search_radius;
+  }
   PS::F64vec getPos() const {
     return this->pos;
+  }
+  void setPos(const PS::F64vec& p) {
+    pos = p;
   }
   void copyFromForce(const ForceDPD& force) {
     acc = force.acc;
     press = force.press;
   }
-  PS::F64 getRSearch() const {
-    return this->search_radius;
-  }
   
   //for I/O
   void readAscii(FILE *fp) {
-    fprintf(fp, "%u %u %u %u %.15g %.15g %.15g %.15g %.15g %.15g %.15g %.15g %.15g %.15g %.15g %.15g\n",
-	    &id, &prop, &amp_id, &unit,
-	    &pos.x, &pos.y, &pos.z,
-	    &vel.x, &vel.y, &vel.z, &vel_buf.x, &vel_buf.y, &vel_buf.z,
-	    &acc.x, &acc.y, &acc.z,);
+    fscanf(fp, "%u %u %u %u %lf %lf %lf %lf %lf %lf %lf %lf %lf %lf %lf %lf\n",
+	   &id, &prop, &amp_id, &unit,
+	   &(pos.x), &(pos.y), &(pos.z),
+	   &(vel.x), &(vel.y), &(vel.z), &(vel_buf.x), &(vel_buf.y), &(vel_buf.z),
+	   &(acc.x), &(acc.y), &(acc.z));
   }
   void writeAscii(FILE *fp) const {
     fprintf(fp, "%u %u %u %u %.15g %.15g %.15g %.15g %.15g %.15g %.15g %.15g %.15g %.15g %.15g %.15g\n",
@@ -68,7 +69,26 @@ struct EPIDPD {
 };
 
 struct EPJDPD {
-
+  PS::U32 id, prop;
+  PS::F64vec pos, vel;
+  PS::F64 search_radius;
+  PS::F64 getRSearch() const {
+    return this->search_radius;
+  }
+  
+  void copyFromFP(const FPDPD& fp) {
+    this->id		= fp.id;
+    this->prop		= fp.prop;
+    this->pos		= fp.pos;
+    this->vel		= fp.vel;
+    this->search_radius	= fp.search_radius;
+  }
+  PS::F64vec getPos() const {
+    return this->pos;
+  }
+  void setPos(const PS::F64vec& pos_) {
+    this->pos = pos_;
+  }
 };
 
 #define SARU(ix,iy,iz) Saru saru( (ix) , (iy) , (iz) )
@@ -120,7 +140,7 @@ struct CalcForceEpEp {
 	  const PS::F64 dr = std::sqrt(dr2);
 	  const PS::F64 inv_dr = 1.0 / dr;
 	  const PS::U32 propj  = epj[j].prop;
-	  const PS::F64 one_m_dr = 1.0 - drij * inv_dr;
+	  const PS::F64 one_m_dr = 1.0 - dr * Parameter::irc;
 
 	  const PS::F64 wrij = one_m_dr; // pow = 1
 	  //const PS::F64 wrij = std::sqrt(one_m_dr); //pow = 1 / 2
@@ -147,3 +167,5 @@ struct CalcForceEpEp {
 #undef SARU
 #undef CALL_SARU_NRML
 #undef CALL_SARU
+
+PS::U32 CalcForceEpEp::m_seed = 0;
