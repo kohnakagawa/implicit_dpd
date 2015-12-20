@@ -13,7 +13,7 @@ class Observer {
       fclose(*it);
   }
 
-  std::string type2fname(const int type) const {
+  std::string type2fname(const PS::S32 type) const {
     std::string fname;
     switch(type){
     case KIN_TEMP:
@@ -67,7 +67,7 @@ public:
   }
   
   void Initialize() {
-    for(int i = 0; i < NUM_FILES; i++)
+    for(PS::S32 i = 0; i < NUM_FILES; i++)
       ptr_f[i] = fopen(type2fname(i).c_str(), "w");
   }
   

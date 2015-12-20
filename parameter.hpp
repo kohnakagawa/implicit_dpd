@@ -26,10 +26,10 @@ class Parameter {
     }
   }
 
-  void FillUpperTri(std::vector<PS::F64>& buf, PS::F64 array[], const int dim) {
-    int cnt = 0;
-    for(int i = 0; i < dim; i++) {
-      for(int j = i; j < dim; j++) {
+  void FillUpperTri(std::vector<PS::F64>& buf, PS::F64 array[], const PS::S32 dim) {
+    PS::S32 cnt = 0;
+    for(PS::S32 i = 0; i < dim; i++) {
+      for(PS::S32 j = i; j < dim; j++) {
 	array[i * dim + j] = buf[cnt];
 	cnt++;
       }
@@ -56,7 +56,7 @@ class Parameter {
     Matching(&cf_b, std::string("cf_b"), tag_val, 1);
   }
 
-  void CalcGammaWithHarmonicMean(const int i, const int j) {
+  void CalcGammaWithHarmonicMean(const PS::S32 i, const PS::S32 j) {
     if(cf_r[i][j] < 0.0){
       cf_g[i][j] = cf_g[j][i] = 2.0 / ( (1.0 / cf_g[i][i]) + (1.0 / cf_g[j][j]) );
       cf_r[i][j] = cf_r[j][i] = std::sqrt(2.0 * cf_g[i][j] * Tempera);
@@ -64,34 +64,40 @@ class Parameter {
   }
   
   void CalcInterCoef() {
-    for(int i = 0; i < prop_num; i++) {
-      for(int j = i + 1; j < prop_num; j++) {
+    for(PS::S32 i = 0; i < prop_num; i++) {
+      for(PS::S32 j = i + 1; j < prop_num; j++) {
 	cf_c[j][i] = cf_c[i][j];
 	cf_r[j][i] = cf_r[i][j];
       }
     }
     
-    for(int i = 0; i < prop_num; i++)
-      for(int j = 0; j < prop_num; j++)
+    for(PS::S32 i = 0; i < prop_num; i++)
+      for(PS::S32 j = 0; j < prop_num; j++)
 	cf_g[i][j] = 0.5 * cf_r[i][j] * cf_r[i][j] / Tempera; // 2.0 * gamma * k_B T = sigma * sigma
     
-    for(int i = 0; i < prop_num; i++)
-      for(int j = i + 1; j < prop_num; j++)
+    for(PS::S32 i = 0; i < prop_num; i++)
+      for(PS::S32 j = i + 1; j < prop_num; j++)
 	CalcGammaWithHarmonicMean(i, j);
 
-    for(int i = 0; i < prop_num; i++) 
-      for(int j = 0; j < prop_num; j++)
+    for(PS::S32 i = 0; i < prop_num; i++) 
+      for(PS::S32 j = 0; j < prop_num; j++)
 	cf_r[i][j] /= std::sqrt(dt);
   }
 
 public:
   static constexpr PS::F64 Tempera	= 1.0;
-  static constexpr PS::S32 head_unit	= 1;
-  static constexpr PS::S32 tail_unit	= 3;
-  static constexpr PS::S32 all_unit	= head_unit + tail_unit;
+  static constexpr PS::U32 head_unit	= 1;
+  static constexpr PS::U32 tail_unit	= 3;
+  static constexpr PS::U32 all_unit	= head_unit + tail_unit;
   static constexpr PS::F64 bond_leng	= 0.5;
   static constexpr PS::F64 ibond	= 1.0 / bond_leng;
-  static constexpr PS::S32 prop_num = 2;
+  
+  enum {
+    Hyphil = 0,
+    Hyphob,
+    
+    prop_num,
+  };
   
   //interactions
   static PS::F64 cf_c[prop_num][prop_num];
@@ -121,8 +127,8 @@ public:
   ~Parameter() {}
 
   void Initialize() {
-    for(int i = 0; i < prop_num; i++) {
-      for(int j = 0; j < prop_num; j++) {
+    for(PS::S32 i = 0; i < prop_num; i++) {
+      for(PS::S32 j = 0; j < prop_num; j++) {
 	cf_c[i][j] = std::numeric_limits<PS::F64>::quiet_NaN();
 	cf_g[i][j] = std::numeric_limits<PS::F64>::quiet_NaN();
 	cf_r[i][j] = std::numeric_limits<PS::F64>::quiet_NaN();
@@ -147,30 +153,40 @@ public:
   static void Matching(PS::S32* val,
 		       std::string tag,
 		       std::map<std::string, std::vector<std::string> >& tag_val,
-		       const int num)
+		       const PS::S32 num)
   {
     MatchingError(tag, tag_val, num);
-    for(int i = 0; i < num; i++)
+    for(PS::S32 i = 0; i < num; i++)
+      val[i] = std::stoi(tag_val[tag].at(i));
+  }
+
+  static void Matching(PS::U32* val,
+		       std::string tag,
+		       std::map<std::string, std::vector<std::string> >& tag_val,
+		       const PS::U32 num)
+  {
+    MatchingError(tag, tag_val, num);
+    for(PS::U32 i = 0; i < num; i++)
       val[i] = std::stoi(tag_val[tag].at(i));
   }
 
   static void Matching(PS::F64* val,
 		       std::string tag,
 		       std::map<std::string, std::vector<std::string> >& tag_val,
-		       const int num)
+		       const PS::S32 num)
   {
     MatchingError(tag, tag_val, num);    
-    for(int i = 0; i < num; i++)
+    for(PS::S32 i = 0; i < num; i++)
       val[i] = std::stof(tag_val[tag].at(i));
   }
 
   static void Matching(std::string* val,
 		       std::string tag,
 		       std::map<std::string, std::vector<std::string> >& tag_val,
-		       const int num)
+		       const PS::S32 num)
   {
     MatchingError(tag, tag_val, num);
-    for(int i = 0; i < num; i++)
+    for(PS::S32 i = 0; i < num; i++)
       val[i] = tag_val[tag].at(i);
   }
 
@@ -268,8 +284,8 @@ public:
 
     assert(std::isfinite(dt) );
     
-    for(int i = 0; i < prop_num; i++) {
-      for(int j = 0; j < prop_num; j++) {
+    for(PS::S32 i = 0; i < prop_num; i++) {
+      for(PS::S32 j = 0; j < prop_num; j++) {
 	assert(cf_c[i][j] >= 0.0);
 	assert(cf_r[i][j] >= 0.0);
 	assert(cf_g[i][j] >= 0.0);
@@ -305,8 +321,8 @@ public:
     fout << "cf_r are multiplied by 1 / sqrt(dt).";
       
 #define DUMPINTRPARAM(val) fout << #val << ":\n";	\
-    for(int i = 0; i < prop_num; i++) {			\
-      for(int j = 0; j < prop_num; j++)			\
+    for(PS::S32 i = 0; i < prop_num; i++) {			\
+      for(PS::S32 j = 0; j < prop_num; j++)			\
 	fout << val[i][j] << " ";			\
       fout << std::endl;				\
     } 

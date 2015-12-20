@@ -61,6 +61,9 @@ int main(int argc, char *argv[]) {
   PS::TreeForForceShort<ForceDPD, EPIDPD, EPJDPD>::Scatter tree;
   tree.initialize(3 * system.getNumberOfParticleGlobal() );
   tree.calcForceAllAndWriteBack(CalcForceEpEp(), system, dinfo);
+  
+  ForceBonded<PS::ParticleSystem<FPDPD> > fbonded(system);
+  fbonded.CalcListedForce(system);
 
   //observer
   Observer<PS::ParticleSystem<FPDPD> > observer(cdir);
@@ -75,6 +78,7 @@ int main(int argc, char *argv[]) {
     dinfo.decomposeDomain();
     system.exchangeParticle(dinfo);
     tree.calcForceAllAndWriteBack(CalcForceEpEp(), system, dinfo);
+    fbonded.CalcListedForce(system);
     
     kick(system, param.dt);
 

@@ -5,6 +5,7 @@
 #include "particle_simulator.hpp"
 #include "parameter.hpp"
 #include "f_calculator.hpp"
+#include <cstring>
 
 class ConfigMaker {
   std::vector<FPDPD> prtcls;
@@ -14,7 +15,7 @@ class ConfigMaker {
   
   PS::F64 Tempera	= std::numeric_limits<PS::F64>::quiet_NaN();
   PS::F64vec box_leng;
-  PS::S32 amp_num	= -1;
+  PS::U32 amp_num	= 0xffffffff;
   PS::F64 lip_len	= std::numeric_limits<PS::F64>::quiet_NaN();
   
   PS::F64 sph_rad	= std::numeric_limits<PS::F64>::quiet_NaN();
@@ -37,8 +38,8 @@ class ConfigMaker {
   void GenVeloc() {
     for(size_t i = 0; i < prtcls.size(); i++) {
       prtcls[i].vel =  PS::F64vec(NormalRand(0.0, std::sqrt(Tempera) ),
-						      NormalRand(0.0, std::sqrt(Tempera) ),
-						      NormalRand(0.0, std::sqrt(Tempera) ) );
+				  NormalRand(0.0, std::sqrt(Tempera) ),
+				  NormalRand(0.0, std::sqrt(Tempera) ) );
     }
     RemoveCMDrift();
     
@@ -49,19 +50,22 @@ class ConfigMaker {
   }
 
   void ApplyPBC(PS::F64vec& pos) {
-    for(int i = 0; i < 3; i++)
+    for(PS::U32 i = 0; i < 3; i++)
       pos[i] -= std::floor(pos[i] / box_leng[i]) * box_leng[i];
   }
   
   void SetAmphilPartPos(const PS::F64vec& base, const PS::F64vec& nv, PS::U32& idx) {
-    for(int unit = 0; unit < Parameter::all_unit; unit++) {
+    for(PS::U32 unit = 0; unit < Parameter::all_unit; unit++) {
       PS::F64vec pos = base + Parameter::bond_leng * unit * nv;
       ApplyPBC(pos);
       prtcls[idx].pos = pos;
       prtcls[idx].id = idx;
       prtcls[idx].unit = unit;
       prtcls[idx].amp_id = idx / Parameter::all_unit;
-
+      if(unit < Parameter::head_unit)
+	prtcls[idx].prop = Parameter::Hyphil;
+      else
+	prtcls[idx].prop = Parameter::Hyphob;
       idx++;
     }
   }
@@ -78,7 +82,7 @@ class ConfigMaker {
 		      len.y * PS::MT::genrand_res53(),
 		      len.z * PS::MT::genrand_res53());
       const PS::F64 sign = flap ? 1.0 : -1.0;
-      base[axis] = len[axis] + Parameter::all_unit * Parameter::bond_leng + sign * eps;
+      base[axis] = 0.5 * len[axis] + Parameter::all_unit * Parameter::bond_leng + sign * eps;
       nv[axis] = -1.0 * sign;
       SetAmphilPartPos(base, nv, idx);
       flap ^= true;
@@ -92,7 +96,7 @@ class ConfigMaker {
     const PS::F64 prj_rad = rad * std::sin(the);
 
     PS::F64 d_phi = lip_len / prj_rad;
-    const PS::S32 phi_elem = static_cast<int>(2.0 * M_PI / d_phi);
+    const PS::S32 phi_elem = static_cast<PS::S32>(2.0 * M_PI / d_phi);
     d_phi = 2.0 * M_PI / phi_elem;
 
     for(PS::S32 i = 0; i < phi_elem; i++) {
@@ -116,7 +120,7 @@ class ConfigMaker {
 			    PS::U32& idx)
   {
     const PS::F64vec cent = 0.5 * box_leng;
-    for(int i = 0; i < elem; i++) {
+    for(PS::S32 i = 0; i < elem; i++) {
       const PS::F64 the = d_the * (i + offset);
       const bool flag = MakeSphLine(the, cent, rad, sign, idx);
       if(!flag) return;
@@ -124,6 +128,9 @@ class ConfigMaker {
   }
 
   void MakeSphSheet() {
+    const PS::F64 min_box_leng = box_leng.getMin();
+    assert(sph_rad >= 0.0 && sph_rad <= 0.5 * min_box_leng);
+    
     const PS::F64 q_thick = 0.5 * Parameter::all_unit * Parameter::bond_leng;
     const PS::F64 out_rad = sph_rad + q_thick, in_rad  = sph_rad - q_thick;
     PS::F64 d_the_out = lip_len / out_rad, d_the_in = lip_len / in_rad;
@@ -151,7 +158,7 @@ class ConfigMaker {
     const PS::F64 h_pi = std::acos(0.0);
     
     PS::F64vec cent = 0.5 * box_leng;
-    for(int i = 0; i < elem; i++) {
+    for(PS::S32 i = 0; i < elem; i++) {
       cent[axis] = elem * lip_len;
       const bool flag = MakeSphLine(h_pi, cent, rad, sign, idx);
       if(!flag) return;
@@ -170,7 +177,7 @@ class ConfigMaker {
     PS::F64vec cent = 0.5 * box_leng;
     cent[axis] = 0.0;
 
-    assert(cyl_l >= 0.0 && cyl_l < box_leng[axis]);
+    assert(cyl_l >= 0.0 && cyl_l <= box_leng[axis]);
     assert(cyl_r >= 0.0 && (2.0 * cyl_r + Parameter::all_unit * Parameter::bond_leng) < box_leng[axis]);
     
     PS::U32 idx = 0;
@@ -217,15 +224,53 @@ class ConfigMaker {
     Parameter::Matching(&lip_len, "lip_len", tag_val, 1);
   }
 #undef MODE_EQ
+  
+  void InitializeParticle() {
+    for(size_t i = 0; i < prtcls.size(); i++) {
+      prtcls[i].id = prtcls[i].prop = prtcls[i].amp_id = prtcls[i].unit = 0xffffffff;
+      prtcls[i].pos.x = prtcls[i].pos.y = prtcls[i].pos.z = std::numeric_limits<PS::F64>::quiet_NaN();
+      prtcls[i].vel.x = prtcls[i].vel.y = prtcls[i].vel.z = std::numeric_limits<PS::F64>::quiet_NaN();
+      prtcls[i].vel_buf.x = prtcls[i].vel_buf.y = prtcls[i].vel_buf.z = 0.0;
+      prtcls[i].acc.x = prtcls[i].acc.y = prtcls[i].acc.z = 0.0;
+    }
+  }
 
+  void CheckParticleConfigIsValid() {
+    PS::F64 kin_temp = 0.0;
+    for(size_t i = 0; i < prtcls.size(); i++) {
+      kin_temp += prtcls[i].vel * prtcls[i].vel;
+      for(int j = 0; j < 3; j++) {
+	if(!(prtcls[i].pos[j] <= box_leng[j] && prtcls[i].pos[j] >= 0.0) ) {
+	  std::cerr << "There is a particle in outside range.\n";
+	  std::cerr << __FILE__ << " " << __LINE__ << std::endl;
+	  PS::Abort();
+	}
+      }
+    }
+    
+    kin_temp /= 3.0 * prtcls.size();
+    if(fabs(kin_temp - Tempera) >= 1.0e-2) {
+      std::cerr << "Please check kinetic temperature.\n";
+      std::cerr << "Kinetic temperature is " << kin_temp << "K_BT.\n";
+      std::cerr << __FILE__ << " " << __LINE__ << std::endl;
+      PS::Abort();
+    }
+
+    const PS::U32 all_n = Parameter::all_unit * amp_num;
+    for(size_t i = 0; i < prtcls.size(); i++) {
+      assert(prtcls[i].id >= 0 && prtcls[i].id < all_n);
+      assert(prtcls[i].prop >= 0 && prtcls[i].prop < Parameter::prop_num);
+      assert(prtcls[i].amp_id >= 0 && prtcls[i].amp_id < amp_num);
+      assert(prtcls[i].unit >= 0 && prtcls[i].unit < Parameter::all_unit);
+    }
+  }
+  
 public:
   ConfigMaker(const std::string& cdir_) {
     cdir = cdir_;
     box_leng.x = box_leng.y = box_leng.z = std::numeric_limits<PS::F64>::quiet_NaN();
   }
-  ~ConfigMaker() {
-    
-  }
+  ~ConfigMaker() {}
   
   void Initialize() {
     PS::MT::init_genrand( static_cast<unsigned long>(time(NULL)) );
@@ -246,9 +291,13 @@ public:
   }
 
   void GenParticles() {
-    prtcls.resize(Parameter::all_unit * amp_num);
+    const PS::U32 all_n = Parameter::all_unit * amp_num;
+    assert(all_n > 0 && all_n < std::numeric_limits<PS::U32>::max());
+    prtcls.resize(all_n);
+    InitializeParticle();
     GenConfig();
     GenVeloc();
+    CheckParticleConfigIsValid();
   }
   
   void DumpParticleConfig() {
@@ -257,8 +306,7 @@ public:
     for(size_t i = 0; i < prtcls.size(); i++)
       prtcls[i].writeAscii(fout);
     fclose(fout);
-  }
-  
+  } 
 };
 
 int main(int argc, char* argv[]) {
