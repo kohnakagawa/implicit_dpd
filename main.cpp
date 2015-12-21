@@ -58,9 +58,13 @@ int main(int argc, char *argv[]) {
   dinfo.decomposeDomain();
   system.exchangeParticle(dinfo);
   
-  PS::TreeForForceShort<ForceDPD, EPIDPD, EPJDPD>::Scatter tree;
-  tree.initialize(3 * system.getNumberOfParticleGlobal() );
-  tree.calcForceAllAndWriteBack(CalcForceEpEp(), system, dinfo);
+  PS::TreeForForceShort<RESULT::Density, EPI::Density, EPJ::Density>::Gather dens_tree;
+  dens_tree.initialize(3 * system.getNumberOfParticleGlobal() );
+  dens_tree.calcForceAllAndWriteBack(CalcDensity(), system, dinfo);
+  
+  PS::TreeForForceShort<RESULT::ForceDPD, EPI::DPD, EPJ::DPD>::Gather force_tree;
+  force_tree.initialize(3 * system.getNumberOfParticleGlobal() );
+  force_tree.calcForceAllAndWriteBack(CalcForceEpEpDPD(), system, dinfo);
   
   ForceBonded<PS::ParticleSystem<FPDPD> > fbonded(system);
   fbonded.CalcListedForce(system);
@@ -73,11 +77,15 @@ int main(int argc, char *argv[]) {
   const PS::U32 all_time = 100000, step_mic = 1000, step_mac = 100;
   for(Parameter::time = 0; Parameter::time < all_time; Parameter::time++) {
     kick_and_drift(system, param.dt, param.box_leng, param.ibox_leng);
+
+    dens_tree.initialize(3 * system.getNumberOfParticleGlobal());
+    force_tree.initialize(3 * system.getNumberOfParticleGlobal()); //NOTE: this routine may not be needed.
     
-    tree.initialize(3 * system.getNumberOfParticleGlobal()); //NOTE: this routine may not be called.
     dinfo.decomposeDomain();
     system.exchangeParticle(dinfo);
-    tree.calcForceAllAndWriteBack(CalcForceEpEp(), system, dinfo);
+
+    dens_tree.calcForceAllAndWriteBack(CalcDensity(), system, dinfo);
+    force_tree.calcForceAllAndWriteBack(CalcForceEpEpDPD(), system, dinfo);
     fbonded.CalcListedForce(system);
     
     kick(system, param.dt);

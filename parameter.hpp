@@ -91,6 +91,7 @@ public:
   static constexpr PS::U32 all_unit	= head_unit + tail_unit;
   static constexpr PS::F64 bond_leng	= 0.5;
   static constexpr PS::F64 ibond	= 1.0 / bond_leng;
+  static constexpr PS::F64 search_rad   = 2.0;
   
   enum {
     Hyphil = 0,
