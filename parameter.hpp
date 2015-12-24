@@ -43,8 +43,6 @@ class Parameter {
     Matching(&dt, std::string("dt"), tag_val, 1);
     
     std::vector<PS::F64> cf_buf(prop_num * (prop_num + 1) / 2, 0.0);
-    Matching(&(cf_buf[0]), std::string("cf_c"), tag_val, prop_num * (prop_num + 1) / 2);
-    FillUpperTri(cf_buf, &(cf_c[0][0]), prop_num);
     Matching(&(cf_buf[0]), std::string("cf_r"), tag_val, prop_num * (prop_num + 1) / 2);
     FillUpperTri(cf_buf, &(cf_r[0][0]), prop_num);
 
@@ -54,6 +52,10 @@ class Parameter {
 
     Matching(&cf_s, std::string("cf_s"), tag_val, 1);
     Matching(&cf_b, std::string("cf_b"), tag_val, 1);
+    
+    Matching(&chi, std::string("chi"), tag_val, 1);
+    Matching(&kappa, std::string("kappa"), tag_val, 1);
+    Matching(&rho_co, std::string("rho_co"), tag_val, 1);
   }
 
   void CalcGammaWithHarmonicMean(const PS::S32 i, const PS::S32 j) {
@@ -64,6 +66,19 @@ class Parameter {
   }
   
   void CalcInterCoef() {
+    cf_c[Hyphob][Hyphob] = -2.0 * (kappa + 3.0) / rho_co;
+    cf_m[Hyphob][Hyphob][Hyphob] = 1.5 * (kappa + 2.0) / (rho_co * rho_co);
+
+    for(PS::S32 i = 0; i < 2; i++)
+      for(PS::S32 j= 0; j < 2; j++)
+	for(PS::S32 k = 0; k < 2; k++)
+	  cf_m[i][j][k] = cf_m[Hyphob][Hyphob][Hyphob];
+
+    cf_m[Hyphil][Hyphil][Hyphil] = 0.0;
+
+    cf_c[Hyphil][Hyphil] = 0.1;
+    cf_c[Hyphil][Hyphob] = cf_c[Hyphob][Hyphil] = chi / (rho_co) + 0.5 * (cf_c[Hyphil][Hyphil] + cf_c[Hyphob][Hyphob]);
+    
     for(PS::S32 i = 0; i < prop_num; i++) {
       for(PS::S32 j = i + 1; j < prop_num; j++) {
 	cf_c[j][i] = cf_c[i][j];
@@ -82,6 +97,16 @@ class Parameter {
     for(PS::S32 i = 0; i < prop_num; i++) 
       for(PS::S32 j = 0; j < prop_num; j++)
 	cf_r[i][j] /= std::sqrt(dt);
+
+    //NOTE: cf_c[i][j] cf_m[i][j][k] (i, j, k < 2) are only hydrophilic or hydrophobic.
+    for(PS::S32 i = 0; i < 2; i++)
+      for(PS::S32 j = 0; j < 2; j++)
+	cf_c[i][j] *= -45.0 * Reo * Reo * Reo * Tempera / (M_PI * all_unit * all_unit * (arc * arc * arc * arc * arc * (2.0 * arc - 3.0 * rc) + rc2 * rc2 * rc * (3.0 * arc - 2.0 * rc) ) ) ;
+											 
+    for(PS::S32 i = 0; i < 2; i++)
+      for(PS::S32 j = 0; j < 2; j++)
+	for(PS::S32 k = 0; k < 2; k++)
+	  cf_m[i][j][k] *= -10.0 * Tempera * ( Reo * Reo * Reo ) * ( Reo * Reo * Reo ) / (all_unit * all_unit * all_unit * M_PI * rc2 * rc2);
   }
 
 public:
@@ -92,6 +117,8 @@ public:
   static constexpr PS::F64 bond_leng	= 0.5;
   static constexpr PS::F64 ibond	= 1.0 / bond_leng;
   static constexpr PS::F64 search_rad   = 2.0;
+  static constexpr PS::F64 arc		= 0.9;
+  static constexpr PS::F64 Reo		= 3.5;
   
   enum {
     Hyphil = 0,
@@ -104,6 +131,7 @@ public:
   static PS::F64 cf_c[prop_num][prop_num];
   static PS::F64 cf_g[prop_num][prop_num];
   static PS::F64 cf_r[prop_num][prop_num];
+  static PS::F64 cf_m[2][2][2];
   static PS::F64 cf_s;
   static PS::F64 cf_b;
 
@@ -116,14 +144,17 @@ public:
   PS::S32 init_prtcl_num = -1;
   PS::F64 dt = std::numeric_limits<PS::F64>::quiet_NaN();
 
+  //macroscopic val
+  PS::F64 chi = std::numeric_limits<PS::F64>::quiet_NaN();
+  PS::F64 kappa = std::numeric_limits<PS::F64>::quiet_NaN();
+  PS::F64 rho_co = std::numeric_limits<PS::F64>::quiet_NaN();
+
   //for prng
   static PS::U32 time;
   
   Parameter(const std::string& cdir_) { 
     cdir = cdir_;
     static_assert(all_unit >= 3, "all_unit >= 3."); 
-    cf_s = cf_b = rc = rc2 = irc = std::numeric_limits<PS::F64>::quiet_NaN();
-    time = 0xffffffff;
   }
   ~Parameter() {}
 
@@ -133,11 +164,22 @@ public:
 	cf_c[i][j] = std::numeric_limits<PS::F64>::quiet_NaN();
 	cf_g[i][j] = std::numeric_limits<PS::F64>::quiet_NaN();
 	cf_r[i][j] = std::numeric_limits<PS::F64>::quiet_NaN();
-	box_leng.x = box_leng.y = box_leng.z = std::numeric_limits<PS::F64>::quiet_NaN();
-	ibox_leng.x = ibox_leng.y = ibox_leng.z = std::numeric_limits<PS::F64>::quiet_NaN();
       }
     }
+
+    for(PS::S32 i = 0; i < prop_num; i++)
+      for(PS::S32 j = 0; j < prop_num; j++)
+	for(PS::S32 k = 0; k < prop_num; k++)
+	  cf_m[i][j][k] = std::numeric_limits<PS::F64>::quiet_NaN();
+
+    cf_s = cf_b = std::numeric_limits<PS::F64>::quiet_NaN();
+
+    rc = rc2 = irc = std::numeric_limits<PS::F64>::quiet_NaN();
+
+    box_leng.x	= box_leng.y = box_leng.z = std::numeric_limits<PS::F64>::quiet_NaN();
+    ibox_leng.x = ibox_leng.y = ibox_leng.z = std::numeric_limits<PS::F64>::quiet_NaN();
     
+    time = 0xffffffff;
   }
 
   static void MatchingError(std::string tag, 
@@ -218,7 +260,7 @@ public:
   }
   
   void LoadParam() {
-    const std::string fname = cdir + "/param.txt";
+    const std::string fname = cdir + "/run_param.txt";
     std::ifstream fin(fname.c_str());
     if(!fin) {
       std::cerr << cdir.c_str() << " dose not exist.\n";
@@ -269,6 +311,26 @@ public:
   }
 
   void CheckLoaded() const {
+    for(PS::S32 i = 0; i < prop_num; i++) {
+      for(PS::S32 j = 0; j < prop_num; j++) {
+	assert(std::isfinite(cf_c[i][j]) );
+	assert(std::isfinite(cf_r[i][j]) );
+	assert(std::isfinite(cf_g[i][j]) );
+      }
+    }
+
+    for(PS::S32 i = 0; i < 2; i++)
+      for(PS::S32 j = 0; j < 2; j++)
+	for(PS::S32 k = 0; k < 2; k++)
+	  assert(std::isfinite(cf_m[i][j][k]));
+
+    assert(std::isfinite(cf_s));
+    assert(std::isfinite(cf_b));
+
+    assert(std::isfinite(rc));
+    assert(std::isfinite(rc2));
+    assert(std::isfinite(irc));
+
     assert(std::isfinite(box_leng.x) );
     assert(std::isfinite(box_leng.y) );
     assert(std::isfinite(box_leng.z) );
@@ -277,25 +339,13 @@ public:
     assert(std::isfinite(ibox_leng.y) );
     assert(std::isfinite(ibox_leng.z) );
 
-    assert(std::isfinite(rc) );
-    assert(std::isfinite(rc2) );
-    assert(std::isfinite(irc) );
-    
-    assert(init_prtcl_num > 0);
+    assert(init_prtcl_num > 0);    
 
     assert(std::isfinite(dt) );
     
-    for(PS::S32 i = 0; i < prop_num; i++) {
-      for(PS::S32 j = 0; j < prop_num; j++) {
-	assert(cf_c[i][j] >= 0.0);
-	assert(cf_r[i][j] >= 0.0);
-	assert(cf_g[i][j] >= 0.0);
-
-	assert(std::isfinite(cf_c[i][j]) );
-	assert(std::isfinite(cf_r[i][j]) );
-	assert(std::isfinite(cf_g[i][j]) );
-      }
-    }
+    assert(std::isfinite(chi) );
+    assert(std::isfinite(kappa));
+    assert(std::isfinite(rho_co));
   }
 
   void DumpAllParam() const {
@@ -304,6 +354,16 @@ public:
     
 #define DUMPTAGANDVAL(val) fout << #val << " = " << val << std::endl
 
+    DUMPTAGANDVAL(Tempera);
+    DUMPTAGANDVAL(head_unit);
+    DUMPTAGANDVAL(tail_unit);
+    DUMPTAGANDVAL(all_unit);
+    DUMPTAGANDVAL(bond_leng);
+    DUMPTAGANDVAL(ibond);
+    DUMPTAGANDVAL(search_rad);
+    DUMPTAGANDVAL(arc);
+    DUMPTAGANDVAL(Reo);
+    
     DUMPTAGANDVAL(prop_num);
     DUMPTAGANDVAL(rc);
     DUMPTAGANDVAL(rc2);
@@ -316,22 +376,35 @@ public:
     DUMPTAGANDVAL(init_prtcl_num);
     DUMPTAGANDVAL(dt);
 
-#undef DUMPTAGANDVAL    
+    DUMPTAGANDVAL(chi);
+    DUMPTAGANDVAL(kappa);
+    DUMPTAGANDVAL(rho_co);
 
     fout << "NOTE:\n";
     fout << "cf_r are multiplied by 1 / sqrt(dt).";
       
-#define DUMPINTRPARAM(val) fout << #val << ":\n";	\
+#define DUMPINTRPARAM(val) fout << #val << ":\n";		\
     for(PS::S32 i = 0; i < prop_num; i++) {			\
       for(PS::S32 j = 0; j < prop_num; j++)			\
-	fout << val[i][j] << " ";			\
-      fout << std::endl;				\
+	fout << val[i][j] << " ";				\
+      fout << std::endl;					\
     } 
 
     DUMPINTRPARAM(cf_c);
     DUMPINTRPARAM(cf_r);
     DUMPINTRPARAM(cf_g);
+    
+    fout << "cf_m:\n";
+    for(PS::S32 i = 0; i < 2; i++)
+      for(PS::S32 j = 0; j < 2; j++)
+	for(PS::S32 k = 0; k < 2; k++)
+	  fout << cf_m[i][j][k] << " ";
+    fout << std::endl;
 
+    DUMPTAGANDVAL(cf_s);
+    DUMPTAGANDVAL(cf_b);
+
+#undef DUMPTAGANDVAL
 #undef DUMPINTRPARAM
   }
 };
@@ -339,6 +412,7 @@ public:
 PS::F64 Parameter::cf_c[Parameter::prop_num][Parameter::prop_num];
 PS::F64 Parameter::cf_g[Parameter::prop_num][Parameter::prop_num];
 PS::F64 Parameter::cf_r[Parameter::prop_num][Parameter::prop_num];
+PS::F64 Parameter::cf_m[2][2][2];
 PS::F64 Parameter::cf_s;
 PS::F64 Parameter::cf_b;
 

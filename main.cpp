@@ -76,10 +76,9 @@ int main(int argc, char *argv[]) {
   //main loop
   const PS::U32 all_time = 100000, step_mic = 1000, step_mac = 100;
   for(Parameter::time = 0; Parameter::time < all_time; Parameter::time++) {
-    kick_and_drift(system, param.dt, param.box_leng, param.ibox_leng);
-
-    dens_tree.initialize(3 * system.getNumberOfParticleGlobal());
-    force_tree.initialize(3 * system.getNumberOfParticleGlobal()); //NOTE: this routine may not be needed.
+    drift_and_predict(system, param.dt, param.box_leng, param.ibox_leng);
+    
+    system.adjustPositionIntoRootDomain(dinfo);
     
     dinfo.decomposeDomain();
     system.exchangeParticle(dinfo);
@@ -96,7 +95,6 @@ int main(int argc, char *argv[]) {
       observer.Pressure(system, param.ibox_leng);
       //observer.ConfigTempera();
       //observer.Diffusion();
-      
     }
 
     if(Parameter::time % step_mic == 0) {
@@ -107,6 +105,8 @@ int main(int argc, char *argv[]) {
   
   timer_stop();
   show_duration();
+  
+  param.DumpAllParam();
   
   PS::Finalize();
 }
