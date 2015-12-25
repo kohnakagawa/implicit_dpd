@@ -277,8 +277,10 @@ public:
   template<class Tpsys>
   void LoadParticleConfig(Tpsys& sys) const {
     const std::string fname = cdir + "/init_config.txt";
-    if(fopen(fname.c_str(), "r") != NULL) {
+    FILE* fp = fopen(fname.c_str(), "r");
+    if(fp != NULL) {
       sys.readParticleAscii(fname.c_str());
+      fclose(fp);
     } else {
       std::cerr << "init_config.txt does not exist.\n";
       std::cerr << __FILE__ << " " << __LINE__ << std::endl;

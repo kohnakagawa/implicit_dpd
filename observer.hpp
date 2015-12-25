@@ -106,8 +106,7 @@ public:
   }
 
   void CleanUp() {
-    // for(PS::U32 i = 0; i < NUM_FILES; i++)
-    int i = 0;
+    for(PS::U32 i = 0; i < NUM_FILES; i++)
       fclose(ptr_f[i]);
   }
 };
