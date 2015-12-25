@@ -41,14 +41,14 @@ int main(int argc, char *argv[]) {
   param.Initialize();
   param.LoadParam();
   param.CheckLoaded();
-  
+
   PS::ParticleSystem<FPDPD> system;
   system.initialize();
-  system.setNumberOfParticleLocal(param.init_prtcl_num);
+  system.setNumberOfParticleLocal(param.init_amp_num * Parameter::all_unit);
   //load particle configuration.
   param.LoadParticleConfig(system);
   param.CheckParticleConfigIsValid(system);
-  
+
   PS::DomainInfo dinfo;
   const PS::F64 coef_ema = 0.3;
   dinfo.initialize(coef_ema);
@@ -57,25 +57,29 @@ int main(int argc, char *argv[]) {
   dinfo.collectSampleParticle(system);
   dinfo.decomposeDomain();
   system.exchangeParticle(dinfo);
-  
+
   PS::TreeForForceShort<RESULT::Density, EPI::Density, EPJ::Density>::Gather dens_tree;
   dens_tree.initialize(3 * system.getNumberOfParticleGlobal() );
   dens_tree.calcForceAllAndWriteBack(CalcDensity(), system, dinfo);
-  
+
   PS::TreeForForceShort<RESULT::ForceDPD, EPI::DPD, EPJ::DPD>::Gather force_tree;
   force_tree.initialize(3 * system.getNumberOfParticleGlobal() );
   force_tree.calcForceAllAndWriteBack(CalcForceEpEpDPD(), system, dinfo);
-  
-  ForceBonded<PS::ParticleSystem<FPDPD> > fbonded(system);
+
+  ForceBonded<PS::ParticleSystem<FPDPD> > fbonded(system, Parameter::all_unit * param.init_amp_num);
   fbonded.CalcListedForce(system);
 
-  //observer
+  // observer
   Observer<PS::ParticleSystem<FPDPD> > observer(cdir);
   observer.Initialize();
-
+  
   //main loop
-  const PS::U32 all_time = 100000, step_mic = 1000, step_mac = 100;
+  const PS::U32 all_time = 1, step_mic = 1, step_mac = 1;
   for(Parameter::time = 0; Parameter::time < all_time; Parameter::time++) {
+    //
+    std::cout << Parameter::time << std::endl;
+    //
+    
     drift_and_predict(system, param.dt, param.box_leng, param.ibox_leng);
     
     system.adjustPositionIntoRootDomain(dinfo);
@@ -89,7 +93,6 @@ int main(int argc, char *argv[]) {
     
     kick(system, param.dt);
 
-    //observer
     if(Parameter::time % step_mac == 0) {
       observer.KineticTempera(system);
       observer.Pressure(system, param.ibox_leng);
@@ -105,7 +108,8 @@ int main(int argc, char *argv[]) {
   
   timer_stop();
   show_duration();
-  
+
+  observer.CleanUp();
   param.DumpAllParam();
   
   PS::Finalize();

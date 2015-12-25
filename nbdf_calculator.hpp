@@ -52,20 +52,19 @@ struct FPDPD {
   
   //for I/O
   void readAscii(FILE *fp) {
-    fscanf(fp, "%u %u %u %u %lf %lf %lf %lf %lf %lf %lf %lf %lf %lf %lf %lf %lf %lf\n",
+    fscanf(fp, "%u %u %u %u %lf %lf %lf %lf %lf %lf %lf %lf %lf %lf %lf %lf\n",
 	   &id, &prop, &amp_id, &unit,
 	   &(pos.x), &(pos.y), &(pos.z),
 	   &(vel.x), &(vel.y), &(vel.z), &(vel_buf.x), &(vel_buf.y), &(vel_buf.z),
-	   &(acc.x), &(acc.y), &(acc.z),
-	   &(density[0]), &(density[1]));
+	   &(acc.x), &(acc.y), &(acc.z));
+
   }
   void writeAscii(FILE *fp) const {
-    fprintf(fp, "%u %u %u %u %.15g %.15g %.15g %.15g %.15g %.15g %.15g %.15g %.15g %.15g %.15g %.15g %.15g %.15g\n",
+    fprintf(fp, "%u %u %u %u %.15g %.15g %.15g %.15g %.15g %.15g %.15g %.15g %.15g %.15g %.15g %.15g\n",
 	    id, prop, amp_id, unit,
 	    pos.x, pos.y, pos.z,
 	    vel.x, vel.y, vel.z, vel_buf.x, vel_buf.y, vel_buf.z,
-	    acc.x, acc.y, acc.z,
-	    density[0], density[1]);
+	    acc.x, acc.y, acc.z);
   }
 };
 
@@ -163,17 +162,17 @@ namespace EPJ {
   saru.f( (x), (y) )
 
 struct CalcDensity {
-  void operator () (const EPI::Density* __restrict epi,
+  void operator () (const EPI::Density* epi,
 		    const PS::S32 ni,
-		    const EPJ::Density* __restrict epj,
+		    const EPJ::Density* epj,
 		    const PS::S32 nj,
-		    RESULT::Density* __restrict result)
+		    RESULT::Density* result)
   {
     for(PS::S32 i = 0; i < ni; i++) {
       const PS::F64vec ri = epi[i].pos;
       PS::F64 d_sum[2] = { 0.0 };
       for(PS::S32 j = 0; j < nj; j++) {
-	const PS::U32 propj = epj[i].prop;
+	const PS::U32 propj = epj[j].prop;
 	
 	const PS::F64vec drij = ri - epj[j].pos;
 	const PS::F64 dr2 = drij * drij;
@@ -194,11 +193,11 @@ struct CalcForceEpEpDPD {
   
   //NOTE: Is the minimum image convention employed?
   //ASSUME: particles are hydrophilic or hydrophobic.
-  void operator () (const EPI::DPD* __restrict epi,
+  void operator () (const EPI::DPD* epi,
 		    const PS::S32 ni,
-		    const EPJ::DPD* __restrict epj,
+		    const EPJ::DPD* epj,
 		    const PS::S32 nj,
-		    RESULT::ForceDPD* __restrict result)
+		    RESULT::ForceDPD* result)
   {
     for(PS::S32 i = 0; i < ni; i++) {
       const PS::F64vec ri = epi[i].pos;

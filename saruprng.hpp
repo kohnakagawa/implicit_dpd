@@ -77,7 +77,7 @@ class Saru {
  public:
 
   Saru() : state(0x12345678), wstate(12345678) {};
-  inline Saru(unsigned int seed);
+  explicit inline Saru(unsigned int seed);
   inline Saru(unsigned int seed1, unsigned int seed2);
   inline Saru(unsigned int seed1, unsigned int seed2, unsigned int seed3);
 

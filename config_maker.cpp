@@ -205,7 +205,6 @@ class ConfigMaker {
       std::cerr << __FILE__ << " " << __LINE__ << std::endl;
       std::exit(1);
     }
-
   }
 
   void MatchingTagValues(std::map<std::string, std::vector<std::string> >& tag_val)
@@ -266,7 +265,7 @@ class ConfigMaker {
   }
   
 public:
-  ConfigMaker(const std::string& cdir_) {
+  explicit ConfigMaker(const std::string& cdir_) {
     cdir = cdir_;
     box_leng.x = box_leng.y = box_leng.z = std::numeric_limits<PS::F64>::quiet_NaN();
   }

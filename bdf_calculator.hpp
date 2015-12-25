@@ -4,13 +4,22 @@ template<class Tpsys>
 struct ForceBonded {
   PS::ReallocatableArray<PS::U32> glob_topol;
 
-  ForceBonded(Tpsys& sys) {
+  ForceBonded(Tpsys& sys, const PS::U32 buf_size) {
     //NOTE: Bonded list construction is needed once when using OpenMP version.
+    glob_topol.resizeNoInitialize(buf_size);
+#ifdef DEBUG
+    for(PS::U32 i = 0; i < buf_size; i++)
+      glob_topol[i] = 0xffffffff;
+#endif
     MakeGlobalBondedList(sys);
+
+#ifdef DEBUG
+    PS::U32 n = sys.getNumberOfParticleLocal();
+    for(PS::U32 i = 0; i < buf_size; i++)
+      assert(glob_topol[i] >= 0 && glob_topol[i] < n);
+#endif
   }
-  ~ForceBonded() {
-    
-  }
+  ~ForceBonded() {}
 
   static inline void MinImage(PS::F64vec& drij) {
     drij.x -= Parameter::box_leng.x * std::round(drij.x * Parameter::ibox_leng.x);
@@ -20,6 +29,7 @@ struct ForceBonded {
 
   void MakeGlobalBondedList(const Tpsys& sys) {
     PS::U32 n = sys.getNumberOfParticleLocal();
+    
     for(PS::U32 i = 0; i < n; i++) {
       const PS::U32 aid = sys[i].amp_id;
       const PS::U32 unit = sys[i].unit;
@@ -145,7 +155,7 @@ struct ForceBondedMPI {
   PS::ReallocatableArray<PS::U32> loc_topol_cmpl, loc_topol_imcmpl;
   PS::RadixSort<PS::U32> rsorter;
 
-  ForceBondedMPI(const int est_loc_amp) {
+  explicit ForceBondedMPI(const int est_loc_amp) {
     ampid.resizeNoInitialize(est_loc_amp);
     ampid_buf.resizeNoInitialize(est_loc_amp);
     

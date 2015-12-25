@@ -39,7 +39,8 @@ class Parameter {
   void MatchingTagValues(std::map<std::string, std::vector<std::string> >& tag_val) 
   {
     Matching(&(box_leng[0]) , std::string("box_leng"), tag_val, 3);
-    Matching(&init_prtcl_num, std::string("init_prtcl_num"), tag_val, 1);
+    ibox_leng.x = 1.0 / box_leng.x; ibox_leng.y = 1.0 / box_leng.y; ibox_leng.z = 1.0 / box_leng.z;
+    Matching(&init_amp_num, std::string("init_amp_num"), tag_val, 1);
     Matching(&dt, std::string("dt"), tag_val, 1);
     
     std::vector<PS::F64> cf_buf(prop_num * (prop_num + 1) / 2, 0.0);
@@ -141,7 +142,7 @@ public:
   //region info
   static PS::F64vec box_leng, ibox_leng;
   
-  PS::S32 init_prtcl_num = -1;
+  PS::S32 init_amp_num = -1, amp_num = -1;
   PS::F64 dt = std::numeric_limits<PS::F64>::quiet_NaN();
 
   //macroscopic val
@@ -152,7 +153,7 @@ public:
   //for prng
   static PS::U32 time;
   
-  Parameter(const std::string& cdir_) { 
+  explicit Parameter(const std::string cdir_) {
     cdir = cdir_;
     static_assert(all_unit >= 3, "all_unit >= 3."); 
   }
@@ -167,9 +168,9 @@ public:
       }
     }
 
-    for(PS::S32 i = 0; i < prop_num; i++)
-      for(PS::S32 j = 0; j < prop_num; j++)
-	for(PS::S32 k = 0; k < prop_num; k++)
+    for(PS::S32 i = 0; i < 2; i++)
+      for(PS::S32 j = 0; j < 2; j++)
+	for(PS::S32 k = 0; k < 2; k++)
 	  cf_m[i][j][k] = std::numeric_limits<PS::F64>::quiet_NaN();
 
     cf_s = cf_b = std::numeric_limits<PS::F64>::quiet_NaN();
@@ -190,7 +191,7 @@ public:
       std::cerr << "File:" << __FILE__ << " Line:" << __LINE__ << std::endl;
       PS::Abort();							
     }									
-    assert(tag_val[tag].size() == num);					
+    assert(tag_val[tag].size() == num);
   }
 
   static void Matching(PS::S32* val,
@@ -274,15 +275,14 @@ public:
   }
 
   template<class Tpsys>
-  bool LoadParticleConfig(Tpsys& sys) const {
+  void LoadParticleConfig(Tpsys& sys) const {
     const std::string fname = cdir + "/init_config.txt";
     if(fopen(fname.c_str(), "r") != NULL) {
       sys.readParticleAscii(fname.c_str());
-      return true;
     } else {
       std::cerr << "init_config.txt does not exist.\n";
       std::cerr << __FILE__ << " " << __LINE__ << std::endl;
-      return false;
+      PS::Abort();
     }
   }
 
@@ -292,6 +292,12 @@ public:
     PS::F64 kin_temp = 0.0;
     for(PS::S32 i = 0; i < num; i++) {
       kin_temp += sys[i].vel * sys[i].vel;
+      
+      assert(sys[i].id >= 0 && sys[i].id < num);
+      assert(sys[i].prop >= 0 && sys[i].prop < prop_num);
+      assert(sys[i].amp_id >= 0 && sys[i].amp_id < init_amp_num);
+      assert(sys[i].unit >= 0 && sys[i].unit < all_unit);
+      
       for(PS::S32 j = 0; j < 3; j++) {
 	if(!(sys[i].pos[j] <= box_leng[j] && sys[i].pos[j] >= 0.0)) {
 	  std::cerr << "There is a particle in outside range.\n";
@@ -339,7 +345,7 @@ public:
     assert(std::isfinite(ibox_leng.y) );
     assert(std::isfinite(ibox_leng.z) );
 
-    assert(init_prtcl_num > 0);    
+    assert(init_amp_num > 0);
 
     assert(std::isfinite(dt) );
     
@@ -373,7 +379,7 @@ public:
     DUMPTAGANDVAL(box_leng.y);
     DUMPTAGANDVAL(box_leng.z);
 
-    DUMPTAGANDVAL(init_prtcl_num);
+    DUMPTAGANDVAL(init_amp_num);
     DUMPTAGANDVAL(dt);
 
     DUMPTAGANDVAL(chi);

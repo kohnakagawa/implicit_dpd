@@ -3,18 +3,26 @@
 #include <cstdio>
 #include <vector>
 
+#include <sstream>
+
 template<class Tpsys>
 class Observer {
-  std::vector<FILE*> ptr_f;
+  //observer type
+  enum {
+    KIN_TEMP = 0,
+    CONF_TEMP,
+    PRESSURE,
+    DIFFUSION,
+    NUM_AMP,
+    PART_CONFIG,
+    
+    NUM_FILES,
+  };
+
+  FILE* ptr_f[NUM_FILES] = {nullptr};
   std::string cdir;
 
-  void CleanUp() {
-    for(auto it = ptr_f.begin(); it != ptr_f.end(); ++it)
-      fclose(*it);
-  }
-
-  std::string type2fname(const PS::S32 type) const {
-    std::string fname;
+  void type2fname(const PS::S32 type, std::string& fname) {
     switch(type){
     case KIN_TEMP:
       fname = "kin_temp";
@@ -33,6 +41,7 @@ class Observer {
       break;
     case PART_CONFIG:
       fname = "traject";
+      break;
     default:
       std::cerr << "Unknown type\n";
       std::cerr << "Error occurs at " __FILE__ << " " << __LINE__ << "." << std::endl;
@@ -40,35 +49,20 @@ class Observer {
       break;
     }
     fname += ".txt";
-    
-    const std::string ret = cdir + "/" + fname;
-    return ret;
+    fname = cdir + "/" + fname;
   }
-
-  //observer type
-  enum {
-    KIN_TEMP = 0,
-    CONF_TEMP,
-    PRESSURE,
-    DIFFUSION,
-    NUM_AMP,
-    PART_CONFIG,
-    
-    NUM_FILES,
-  };
-  
 public:
-  Observer(const std::string& cdir_) {
+  explicit Observer(const std::string cdir_) {
     cdir = cdir_;
-    ptr_f.resize(NUM_FILES, nullptr);
   }
-  ~Observer() {
-    CleanUp();
-  }
+  ~Observer() {}
   
   void Initialize() {
-    for(PS::S32 i = 0; i < NUM_FILES; i++)
-      ptr_f[i] = fopen(type2fname(i).c_str(), "w");
+    std::string fname;
+    for(PS::U32 i = 0; i < NUM_FILES; i++) {
+      type2fname(i, fname);
+      ptr_f[i] = fopen(fname.c_str(), "w");
+    }
   }
   
   void KineticTempera(Tpsys& sys) {
@@ -109,5 +103,11 @@ public:
     const PS::S32 num_part = sys.getNumberOfParticleLocal();
     for(PS::S32 i = 0; i < num_part; i++)
       sys[i].writeAscii(ptr_f[PART_CONFIG]);
+  }
+
+  void CleanUp() {
+    // for(PS::U32 i = 0; i < NUM_FILES; i++)
+    int i = 0;
+      fclose(ptr_f[i]);
   }
 };
