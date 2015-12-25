@@ -74,12 +74,10 @@ int main(int argc, char *argv[]) {
   observer.Initialize();
   
   //main loop
-  const PS::U32 all_time = 1, step_mic = 1, step_mac = 1;
-  for(Parameter::time = 0; Parameter::time < all_time; Parameter::time++) {
-    //
+  for(Parameter::time = 0; Parameter::time < Parameter::all_time; Parameter::time++) {
+#ifdef DEBUG    
     std::cout << Parameter::time << std::endl;
-    //
-    
+#endif
     drift_and_predict(system, param.dt, param.box_leng, param.ibox_leng);
     
     system.adjustPositionIntoRootDomain(dinfo);
@@ -93,14 +91,14 @@ int main(int argc, char *argv[]) {
     
     kick(system, param.dt);
 
-    if(Parameter::time % step_mac == 0) {
+    if(Parameter::time % Parameter::step_mac == 0) {
       observer.KineticTempera(system);
       observer.Pressure(system, param.ibox_leng);
       //observer.ConfigTempera();
       //observer.Diffusion();
     }
 
-    if(Parameter::time % step_mic == 0) {
+    if(Parameter::time % Parameter::step_mic == 0) {
       observer.Trajectory(system);
     }
     

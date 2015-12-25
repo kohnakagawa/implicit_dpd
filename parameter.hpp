@@ -57,6 +57,10 @@ class Parameter {
     Matching(&chi, std::string("chi"), tag_val, 1);
     Matching(&kappa, std::string("kappa"), tag_val, 1);
     Matching(&rho_co, std::string("rho_co"), tag_val, 1);
+
+    Matching(&all_time, std::string("all_time"), tag_val, 1);
+    Matching(&step_mic, std::string("step_mic"), tag_val, 1);
+    Matching(&step_mac, std::string("step_mac"), tag_val, 1);
   }
 
   void CalcGammaWithHarmonicMean(const PS::S32 i, const PS::S32 j) {
@@ -152,6 +156,7 @@ public:
 
   //for prng
   static PS::U32 time;
+  static PS::U32 all_time, step_mic, step_mac;
   
   explicit Parameter(const std::string cdir_) {
     cdir = cdir_;
@@ -181,6 +186,7 @@ public:
     ibox_leng.x = ibox_leng.y = ibox_leng.z = std::numeric_limits<PS::F64>::quiet_NaN();
     
     time = 0xffffffff;
+    all_time = step_mic = step_mac = 0xffffffff;
   }
 
   static void MatchingError(std::string tag, 
@@ -428,3 +434,4 @@ PS::F64 Parameter::rc, Parameter::rc2, Parameter::irc;
 PS::F64vec Parameter::box_leng, Parameter::ibox_leng;
 
 PS::U32 Parameter::time;
+PS::U32 Parameter::all_time, Parameter::step_mic, Parameter::step_mac;
