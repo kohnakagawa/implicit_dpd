@@ -28,7 +28,7 @@ CFLAGS += $(WARNINGS)
 #CFLAGS += $(OPENMP)
 CFLAGS += $(STDCPP11)
 
-INCLUDE = -I./include
+INCLUDE = -I./FDPS/src
 
 OBJECTS_DPD = main.o
 OBJECTS_CMAKE = config_maker.o
