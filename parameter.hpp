@@ -395,7 +395,7 @@ public:
     DUMPTAGANDVAL(rho_co);
 
     fout << "NOTE:\n";
-    fout << "cf_r are multiplied by 1 / sqrt(dt).";
+    fout << "cf_r are multiplied by 1 / sqrt(dt).\n";
       
 #define DUMPINTRPARAM(val) fout << #val << ":\n";		\
     for(PS::S32 i = 0; i < prop_num; i++) {			\
