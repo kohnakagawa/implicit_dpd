@@ -72,6 +72,13 @@ Saru n=s.fork<123>();
 
 */
 
+/*
+  I modified the original version(HOOMD-blue). (by Koh Nakagawa 2015/12/27)
+1. header name is changed. (saruprng.h -> saruprng.hpp  SARUPRNGCPU_H -> SARUPRNGCPU_HPP)
+2. add normal distribution number generator and some helper functions. (template<unsigned int steps> inline double uni_open(), inline double uni_open() and inline double nrml() )
+ */
+
+#include <cmath>
 
 class Saru {
  public:
@@ -112,6 +119,10 @@ class Saru {
 
   template<class Real> inline Real s();
   template<class Real> inline Real s(Real low, Real high);
+
+  template <unsigned int steps> inline double uni_open();
+  inline double uni_open();
+  inline double nrml();
 
  private:
 
@@ -378,6 +389,7 @@ inline double Saru::d(double low, double high)
 }
 
 
+
 inline double Saru::d()
 {
   return d<1>();
@@ -412,5 +424,24 @@ inline double Saru::s(double low, double high)
     return d(low, high);
     }
 
+template<unsigned int steps>
+inline double Saru::uni_open()
+{
+#if 1 //faster version on x86
+  return (static_cast<double>(static_cast<signed int>(u32<steps>() >> 1) ) + 0.5) * (1.0 / 2147483648.0);
+#else
+  return (static_cast<double>(u32<steps>()) + 0.5) * (1.0 / 4294967296.0);
+#endif
+}
+
+inline double Saru::uni_open()
+{
+  return uni_open<1>();
+}
+
+inline double Saru::nrml()
+{
+  return std::sqrt(-2.0 * std::log(uni_open() ) ) * std::cos(2.0 * M_PI * uni_open() );
+}
 
 #endif /* SARUPRNGCPU_HPP */

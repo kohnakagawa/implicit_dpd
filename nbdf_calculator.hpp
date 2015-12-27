@@ -155,12 +155,6 @@ namespace EPJ {
   };
 };
 
-#define SARU(ix,iy,iz) Saru saru( (ix) , (iy) , (iz) )
-#define CALL_SARU_NRML(x, y) \
-  std::sqrt( -2.0f * std::log(saru.f( (x), (y) ) ) ) * std::cos(2.0f * M_PI * saru.f( (x), (y)) )
-#define CALL_SARU(x, y) \
-  saru.f( (x), (y) )
-
 struct CalcDensity {
   void operator () (const EPI::Density* epi,
 		    const PS::S32 ni,
@@ -225,10 +219,9 @@ struct CalcForceEpEpDPD {
 	    m_i = idj;
 	    m_j = idi;
 	  }
-	  
-	  SARU(m_i, m_j, m_seed + Parameter::time);
-	  const PS::F64 rnd = CALL_SARU(-1, 1); //uniform 
-	  //const PS::F64 rnd = CALL_SARU_NRML(-1, 1); //normal
+
+	  Saru saru(m_i, m_j, m_seed + Parameter::time);
+	  const PS::F64 rnd = saru.nrml();
 
 	  //kernel for thermostat
 	  const PS::F64 dr = std::sqrt(dr2);
@@ -237,9 +230,16 @@ struct CalcForceEpEpDPD {
 	  const PS::F64 one_m_dr = 1.0 - dr * Parameter::irc;
 
 	  //kernel for conservative force
+#ifdef PAIRWISE_DPD
+	  const PS::F64 cf_co = 25.0 * one_m_dr;
+	  const PS::F64 cf_mbd = 0.0;
+	  assert(std::isfinite(rnd));
+#else
+
 	  const PS::F64 cf_co  = Parameter::cf_c[propi][propj] * 6.0 * (dr - Parameter::arc) * (dr - Parameter::rc) * (dr >= Parameter::arc);
 	  const PS::F64 cf_mbd = ( (densi[0] + densj[0]) * Parameter::cf_m[propi][propj][0] +
 				   (densi[1] + densj[1]) * Parameter::cf_m[propi][propj][1] ) * one_m_dr;
+#endif
 
 	  const PS::F64 wrij = one_m_dr; // pow = 1
 	  //const PS::F64 wrij = std::sqrt(one_m_dr); //pow = 1 / 2
@@ -263,9 +263,5 @@ struct CalcForceEpEpDPD {
     }
   }
 };
-
-#undef SARU
-#undef CALL_SARU_NRML
-#undef CALL_SARU
 
 PS::U32 CalcForceEpEpDPD::m_seed = 0;
