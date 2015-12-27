@@ -80,8 +80,6 @@ int main(int argc, char *argv[]) {
 #endif
     drift_and_predict(system, param.dt, param.box_leng, param.ibox_leng);
     
-    system.adjustPositionIntoRootDomain(dinfo);
-    
     dinfo.decomposeDomain();
     system.exchangeParticle(dinfo);
 
@@ -101,6 +99,11 @@ int main(int argc, char *argv[]) {
     if(Parameter::time % Parameter::step_mic == 0) {
       observer.Trajectory(system);
     }
+
+#ifdef DEBUG
+    if(Parameter::time % Observer<PS::ParticleSystem<FPDPD> >::flush_freq == 0)
+      observer.FlushAll();
+#endif
     
   }//end of main loop
   
