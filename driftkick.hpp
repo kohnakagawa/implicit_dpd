@@ -5,12 +5,18 @@
 template<class Tpsys>
 void drift_and_predict(Tpsys& sys,
 		       const PS::F64 dt,
-		       const PS::F64vec& box,
-		       const PS::F64vec& ibox)
+		       const PS::F64vec& box_len,
+		       const PS::F64vec& ibox_len)
 {
   PS::S32 n = sys.getNumberOfParticleLocal();
   for(PS::S32 i = 0; i < n; i++) {
-    sys[i].pos += dt * (sys[i].vel + 0.5 * dt * sys[i].acc);
+    const PS::F64vec temp_r(sys[i].pos.x + dt * (sys[i].vel.x + 0.5 * dt * sys[i].acc.x),
+                            sys[i].pos.y + dt * (sys[i].vel.y + 0.5 * dt * sys[i].acc.y),
+                            sys[i].pos.z + dt * (sys[i].vel.z + 0.5 * dt * sys[i].acc.z) );
+
+    sys[i].pos.x = temp_r.x - std::floor(temp_r.x * ibox_len.x) * box_len.x;
+    sys[i].pos.y = temp_r.y - std::floor(temp_r.y * ibox_len.y) * box_len.y;
+    sys[i].pos.z = temp_r.z - std::floor(temp_r.z * ibox_len.z) * box_len.z;
 
     sys[i].vel_buf = sys[i].vel + 0.5 * dt * sys[i].acc; //NOTE: vel_buf is needed for velocity update.
 
