@@ -52,6 +52,8 @@ class Observer {
     fname = cdir + "/" + fname;
   }
 public:
+  static constexpr PS::U32 flush_freq = 200;
+
   explicit Observer(const std::string cdir_) {
     cdir = cdir_;
   }
@@ -74,7 +76,8 @@ public:
       kin_sum.z += sys[i].vel.z * sys[i].vel.z;
     }
     kin_sum /= num_part;
-    fprintf(ptr_f[KIN_TEMP], "%.15g %.15g %.15g\n", kin_sum.x, kin_sum.y, kin_sum.z);
+    const PS::F64 Tmean = (kin_sum.x + kin_sum.y + kin_sum.z) / 3.0;
+    fprintf(ptr_f[KIN_TEMP], "%.15g %.15g %.15g %.15g\n", kin_sum.x, kin_sum.y, kin_sum.z, Tmean);
   }
 
   void ConfigTempera() {
@@ -86,7 +89,7 @@ public:
     const PS::S32 num_part = sys.getNumberOfParticleLocal();
     PS::F64vec press_sum(0.0, 0.0, 0.0);
     for(PS::S32 i = 0; i < num_part; i++) {
-      press_sum += sys[i].press;
+      press_sum += sys[i].press * 0.5;
       press_sum.x += sys[i].vel.x * sys[i].vel.x;
       press_sum.y += sys[i].vel.y * sys[i].vel.y;
       press_sum.z += sys[i].vel.z * sys[i].vel.z;
@@ -103,6 +106,11 @@ public:
     const PS::S32 num_part = sys.getNumberOfParticleLocal();
     for(PS::S32 i = 0; i < num_part; i++)
       sys[i].writeAscii(ptr_f[PART_CONFIG]);
+  }
+
+  void FlushAll() {
+    for(PS::S32 i = 0; i < NUM_FILES; i++)
+      fflush(ptr_f[i]);
   }
 
   void CleanUp() {
