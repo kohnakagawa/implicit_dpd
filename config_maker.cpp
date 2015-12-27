@@ -23,7 +23,7 @@ class ConfigMaker {
   PS::F64 cyl_r		= std::numeric_limits<PS::F64>::quiet_NaN();
   
   PS::F64 NormalRand(const PS::F64 mean, const PS::F64 sd) const {
-    return mean + sd * std::sqrt( -2.0 * std::log(PS::MT::genrand_res53()) ) * std::cos(2.0 * M_PI * PS::MT::genrand_res53() );
+    return mean + sd * std::sqrt( -2.0 * std::log(PS::MT::genrand_real3()) ) * std::cos(2.0 * M_PI * PS::MT::genrand_real3() );
   }
   
   void RemoveCMDrift() {
@@ -189,14 +189,33 @@ class ConfigMaker {
       MakeLineForEachAxis(in_the_elem, d_the_in, 0.5, out_rad, -1.0, axis, idx);
   }
 
+  void MakeRandomConfig(PS::F64vec& len) {
+    PS::U32 idx = 0;
+    while(idx < prtcls.size() ) {
+      PS::F64vec base(len.x * PS::MT::genrand_res53(),
+		      len.y * PS::MT::genrand_res53(),
+		      len.z * PS::MT::genrand_res53());
+      
+      PS::F64vec nv(PS::MT::genrand_res53(),
+		    PS::MT::genrand_res53(),
+		    PS::MT::genrand_res53());
+      
+      const PS::F64 norm_nv = std::sqrt(nv * nv);
+      nv /= norm_nv;
+      SetAmphilPartPos(base, nv, idx);
+    }
+  }
+
 #define MODE_EQ(str) strcasecmp(mode.c_str(), str) == 0
   void GenConfig() {
     if(MODE_EQ("flat")) {
       MakeFlatSheet(box_leng, 1);      
     } else if(MODE_EQ("sphere")) {
-      MakeSphSheet();      
+      MakeSphSheet();
     } else if(MODE_EQ("cylind")) {
-      MakeCylindSheet(2);      
+      MakeCylindSheet(2);
+    } else if(MODE_EQ("random")) {
+      MakeRandomConfig(box_leng);
     } else {
       if(!mode.empty() )
 	std::cerr << mode << ": Unknown mode\n";
