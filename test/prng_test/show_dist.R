@@ -1,0 +1,5 @@
+dat <- data.matrix(read.table("random_val.txt"))
+library(MASS)
+truehist(dat, xlim=c(-4,4), ylim=c(0.0, 0.45), xlab="", ylab="")
+par(new=T)
+curve(dnorm(x), xlim=c(-4,4), ylim=c(0.0, 0.45))

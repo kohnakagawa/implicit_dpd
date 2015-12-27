@@ -1,0 +1,13 @@
+np_ave=4608
+used mem size for tree(1)=0.0101703
+used mem size for tree=19730289
+used mem size for tree(0)=0.0392451
+1
+20414
+Success: nearlist test
+np_ave=4608
+used mem size for tree(1)=0.0101703
+used mem size for tree=19730289
+used mem size for tree(0)=0.0392451
+1
+40828

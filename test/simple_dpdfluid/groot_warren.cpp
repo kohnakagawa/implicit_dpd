@@ -66,6 +66,41 @@ namespace {
     fout << std::setprecision(15);
     fout << dt << " " << T_mean << std::endl;
   }
+
+  enum {
+    DRIFT_KICK = 0,
+    DECOMPOSE,
+    EXCHANGE,
+    F_CALC,
+    KICK,
+  };
+  
+  template<class Tpsys>
+  void check_value_is_finite(Tpsys& system, const PS::U32 id) {
+    const PS::U32 num = system.getNumberOfParticleGlobal();
+    for(PS::U32 i = 0; i < num; i++) {
+      const bool pos_valid = (std::isfinite(system[i].pos.x) &&
+			      std::isfinite(system[i].pos.y) &&
+			      std::isfinite(system[i].pos.z));
+      const bool vel_valid = (std::isfinite(system[i].vel.x) &&
+			      std::isfinite(system[i].vel.y) &&
+			      std::isfinite(system[i].vel.z));
+      const bool acc_valid = (std::isfinite(system[i].acc.x) &&
+			      std::isfinite(system[i].acc.y) &&
+			      std::isfinite(system[i].acc.z));
+      if(!pos_valid)
+	std::cerr << "id " << id << "position is not finite value.\n";
+
+      if(!vel_valid)
+	std::cerr << "id " << id << "velocity is not finite value.\n";
+
+      if(!acc_valid)
+	std::cerr << "id " << id << "force is not finite value.\n";
+	
+      if( (!pos_valid) || (!vel_valid) || (!acc_valid) )
+	std::exit(1);
+    }
+  }
 };
 
 int main(int argc, char *argv[]) {
@@ -115,16 +150,20 @@ int main(int argc, char *argv[]) {
   //main loop
   for(Parameter::time = 0; Parameter::time < Parameter::all_time; Parameter::time++) {
     drift_and_predict(system, param.dt, param.box_leng, param.ibox_leng);
-    
-    system.adjustPositionIntoRootDomain(dinfo);
+    check_value_is_finite(system, DRIFT_KICK);
     
     dinfo.decomposeDomain();
+    check_value_is_finite(system, DECOMPOSE);
+
     system.exchangeParticle(dinfo);
+    check_value_is_finite(system, EXCHANGE);
 
     dens_tree.calcForceAllAndWriteBack(CalcDensity(), system, dinfo);
     force_tree.calcForceAllAndWriteBack(CalcForceEpEpDPD(), system, dinfo);
+    check_value_is_finite(system, F_CALC);
     
     kick(system, param.dt);
+    check_value_is_finite(system, KICK);
 
     if(Parameter::time % Parameter::step_mac == 0) {
       observer.KineticTempera(system);
