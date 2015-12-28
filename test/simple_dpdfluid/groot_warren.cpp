@@ -77,7 +77,7 @@ namespace {
   
   template<class Tpsys>
   void check_value_is_finite(Tpsys& system, const PS::U32 id) {
-    const PS::U32 num = system.getNumberOfParticleGlobal();
+    const PS::U32 num = system.getNumberOfParticleLocal();
     for(PS::U32 i = 0; i < num; i++) {
       const bool pos_valid = (std::isfinite(system[i].pos.x) &&
 			      std::isfinite(system[i].pos.y) &&
@@ -148,6 +148,7 @@ int main(int argc, char *argv[]) {
   observer.Initialize();
   
   //main loop
+  PS::F64vec buf(0.0, 0.0, 0.0);
   for(Parameter::time = 0; Parameter::time < Parameter::all_time; Parameter::time++) {
     drift_and_predict(system, param.dt, param.box_leng, param.ibox_leng);
     check_value_is_finite(system, DRIFT_KICK);
@@ -167,7 +168,7 @@ int main(int argc, char *argv[]) {
 
     if(Parameter::time % Parameter::step_mac == 0) {
       observer.KineticTempera(system);
-      observer.Pressure(system, param.ibox_leng);
+      observer.Pressure(system, buf, param.ibox_leng);
       //observer.ConfigTempera();
       //observer.Diffusion();
     }
@@ -183,7 +184,7 @@ int main(int argc, char *argv[]) {
   observer.CleanUp();
   param.DumpAllParam();
   
-  const PS::S32 beg_time = atoi(argv[2]);
+  const PS::S32 beg_time = std::atoi(argv[2]);
   const std::string mode = argv[3];
   
   if(mode == "pressure") {
