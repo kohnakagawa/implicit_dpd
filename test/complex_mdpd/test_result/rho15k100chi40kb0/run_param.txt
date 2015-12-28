@@ -1,0 +1,13 @@
+box_leng 30.0 30.0 32.0
+init_amp_num 1600
+dt 0.005
+cf_r 3.0 3.0 3.0
+cf_s 3.673
+cf_b 0.0
+rc 1.0
+chi 40.0
+kappa 100.0
+rho_co 15.0
+all_time 500000
+step_mac 1
+step_mic 500
