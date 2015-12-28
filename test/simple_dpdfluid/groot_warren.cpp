@@ -18,7 +18,7 @@ namespace {
     std::ifstream fin(fname.c_str());
     assert(fin);
 
-    PS::F64vec press_mean(0.0, 0.0, 0.0), buf = 0.0;
+    PS::F64vec press_mean(0.0, 0.0, 0.0), buf(0.0, 0.0, 0.0);
     PS::S32 cnt = 0, time = 0;
     
     while(true) {
@@ -36,7 +36,7 @@ namespace {
     fname = "./rho_vs_press.txt";
     std::ofstream fout(fname.c_str(), std::ios::app);
     fout << std::setprecision(15);
-    fout << rho << " " << press << " " << press / (rho * rho) << std::endl;
+    fout << rho << " " << press << " " << press / (rho * rho * 25.0) << std::endl;
   }
 
   void calc_mean_kintemp(const std::string& cdir,

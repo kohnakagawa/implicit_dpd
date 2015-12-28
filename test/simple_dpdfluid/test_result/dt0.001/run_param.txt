@@ -9,5 +9,5 @@ chi 60.0
 kappa 100.0
 rho_co 20.0
 all_time 1000000
-step_mac 10
+step_mac 1
 step_mic 10000

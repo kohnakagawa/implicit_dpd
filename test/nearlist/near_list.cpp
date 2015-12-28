@@ -50,7 +50,6 @@ struct CalcForceEpEp_for_nlist {
 #else
 	  const PS::S32 tid = 0;
 #endif
-	  
 	  nlist[tid].push_back(std::pair<size_t, size_t>(idi, idj) );
 	}
       }

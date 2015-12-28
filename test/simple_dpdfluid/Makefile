@@ -25,25 +25,20 @@ CFLAGS = $(RELEASE)
 #CFLAGS = $(PROFILE)
 
 CFLAGS += $(WARNINGS)
-#CFLAGS += $(OPENMP)
 CFLAGS += $(STDCPP11)
 CFLAGS += -DPAIRWISE_DPD
 
 INCLUDE = -I../../FDPS/src -I../../
 
-OBJECTS = groot_warren.o
-
-TARGET = groot_warren.out
+TARGET = groot_warren.out groot_warren_omp.out
 
 all:$(TARGET)
 
-.SUFFIXES:
-.SUFFIXES: .cpp .o
-.cpp.o:
-	$(CXX) $(CFLAGS) $(INCLUDE) -c $< $(LIBRARY) -o $@
+groot_warren.out: groot_warren.cpp
+	$(CXX) $(CFLAGS) $(INCLUDE) $< $(LIBRARY) -o $@
 
-$(TARGET): $(OBJECTS)
-	$(CXX) $(CFLAGS) $(OBJECTS) $(LIBRARY) -o $@
+groot_warren_omp.out: groot_warren.cpp
+	$(CXX) $(CFLAGS) $(OPENMP) $(INCLUDE) $< $(LIBRARY) -o $@
 
 clean:
-	rm -f $(OBJECTS) $(TARGET) core.* *~
+	rm -f $(TARGET) core.* *~

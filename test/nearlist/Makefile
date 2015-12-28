@@ -25,25 +25,20 @@ CFLAGS = $(DEBUG)
 #CFLAGS = $(PROFILE)
 
 CFLAGS += $(WARNINGS)
-CFLAGS += $(OPENMP)
 CFLAGS += $(STDCPP11)
 CFLAGS += -DPAIRWISE_DPD
 
 INCLUDE = -I../../FDPS/src -I../../
 
-OBJECTS = near_list.o
-
-TARGET = near_list.out
+TARGET = near_list.out near_list_omp.out
 
 all:$(TARGET)
 
-.SUFFIXES:
-.SUFFIXES: .cpp .o
-.cpp.o:
-	$(CXX) $(CFLAGS) $(INCLUDE) -c $< $(LIBRARY) -o $@
+near_list.out: near_list.cpp
+	$(CXX) $(CFLAGS) $(INCLUDE) $< $(LIBRARY) -o $@
 
-$(TARGET): $(OBJECTS)
-	$(CXX) $(CFLAGS) $(OBJECTS) $(LIBRARY) -o $@
+near_list_omp.out: near_list.cpp
+	$(CXX) $(CFLAGS) $(OPENMP) $(INCLUDE) $< $(LIBRARY) -o $@
 
 clean:
-	rm -f $(OBJECTS) $(TARGET) core.* *~
+	rm -f $(TARGET) core.* *~
