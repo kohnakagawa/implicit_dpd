@@ -3,9 +3,12 @@
 #include <vector>
 #include <ctime>
 #include "particle_simulator.hpp"
+#include "io_util.hpp"
 #include "parameter.hpp"
 #include "f_calculator.hpp"
 #include <cstring>
+
+static_assert(Parameter::bond_leng != 0.0, "Please check Parameter::bond_leng != 0.0");
 
 class ConfigMaker {
   std::vector<FPDPD> prtcls;
@@ -82,7 +85,7 @@ class ConfigMaker {
 		      len.y * PS::MT::genrand_res53(),
 		      len.z * PS::MT::genrand_res53());
       const PS::F64 sign = flap ? 1.0 : -1.0;
-      base[axis] = 0.5 * len[axis] + Parameter::all_unit * Parameter::bond_leng + sign * eps;
+      base[axis] = 0.5 * len[axis] + (Parameter::all_unit * Parameter::bond_leng + eps) * sign;
       nv[axis] = -1.0 * sign;
       SetAmphilPartPos(base, nv, idx);
       flap ^= true;
@@ -319,10 +322,9 @@ public:
   }
   
   void DumpParticleConfig() {
-    std::string fname = cdir + "/init_config.txt";
-    FILE* fout = fopen(fname.c_str(), "w");
-    for(size_t i = 0; i < prtcls.size(); i++)
-      prtcls[i].writeAscii(fout);
+    std::string fname = cdir + "/init_config.xyz";
+    FILE* fout = io_util::xfopen(fname.c_str(), "w");
+    io_util::WriteXYZForm(&prtcls[0], prtcls.size(), fout);
     fclose(fout);
   } 
 };

@@ -47,10 +47,8 @@ namespace io_util {
     }
   }
 
-  template<class Tpsys>
-  inline void ReadXYZForm(Tpsys& sys, PS::U32& num, FILE* fp) {
+  template<class FP>
+  inline void ReadXYZForm(PS::ParticleSystem<FP>& sys, PS::U32& num, FILE* fp) {
     ReadXYZForm(&sys[0], num, fp);
   }
-
-  
 };

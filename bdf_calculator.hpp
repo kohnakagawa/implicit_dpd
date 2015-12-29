@@ -44,7 +44,7 @@ struct ForceBonded {
 				      PS::F64&		__restrict d_lap,
 				      PS::F64vec*	__restrict F)
   {
-    const double cf_bond = Parameter::cf_s * (inv_dr - Parameter::ibond);
+    const PS::F64 cf_bond = Parameter::cf_spring<Parameter::bond_leng != 0.0>(inv_dr);
     
     const PS::F64vec Fbond(cf_bond * dr.x, cf_bond * dr.y, cf_bond * dr.z);
 
@@ -83,9 +83,9 @@ struct ForceBonded {
 			  cf_bd * (dr[0].z - cf_crs[1] * dr[1].z));
     
     //NOTE: The value of virial is twice.
-    d_vir.x += 2.0 * dr[0].x * Ftb0.x + dr[1].x * Ftb1.x;
-    d_vir.y += 2.0 * dr[0].y * Ftb0.y + dr[1].y * Ftb1.y;
-    d_vir.z += 2.0 * dr[0].z * Ftb0.z + dr[1].z * Ftb1.z;
+    d_vir.x += 2.0 * (dr[0].x * Ftb0.x + dr[1].x * Ftb1.x);
+    d_vir.y += 2.0 * (dr[0].y * Ftb0.y + dr[1].y * Ftb1.y);
+    d_vir.z += 2.0 * (dr[0].z * Ftb0.z + dr[1].z * Ftb1.z);
 
     //NOTE: The value of lap is twice.
     d_lap += 2.0 * 2.0 * cf_bd * inv_dist[0] * inv_dist[1] * ( in_prod * ( in_prod + 2.0 * (dist[0] + dist[1]) ) + dist[0] * dist[1]);
@@ -133,15 +133,24 @@ struct ForceBonded {
       sys[ glob_topol[bond_id++] ].acc += Fbb[unit];
   }
 
-  void CalcListedForce(Tpsys& sys) {
-    //OMP
+  void CalcListedForce(Tpsys& sys, PS::F64vec& bonded_vir) {
     //only intra cell
+    //TODO: This loop should be optimized using OpenMP.
     PS::F64vec d_vir(0.0); PS::F64 d_lap = 0.0;
     const PS::U32 topol_num = glob_topol.size();
     for(PS::U32 i = 0; i < topol_num; i += Parameter::all_unit)
       CalcBondBendGlobalCell<Parameter::all_unit>(sys, i, d_vir, d_lap);
+    
+    bonded_vir = d_vir;
+  }
+  
+  //no copy of virial
+  void CalcListedForce(Tpsys& sys) {
+    PS::F64vec buf(0.0, 0.0, 0.0);
+    CalcListedForce(sys, buf);
   }
 };
+
 
 template<class Tpsys>
 struct ForceBondedMPI {
@@ -174,7 +183,7 @@ struct ForceBondedMPI {
 				    PS::F64vec*		__restrict F,
 				    const bool*		__restrict mask)
   {
-    const double cf_bond = Parameter::cf_s * (inv_dr - Parameter::ibond);
+    const double cf_bond = Parameter::cf_spring<Parameter::bond_leng != 0.0>(inv_dr);
     
     const PS::F64vec Fbond(cf_bond * dr.x, cf_bond * dr.y, cf_bond * dr.z);
     
@@ -310,3 +319,4 @@ struct ForceBondedMPI {
     
   }
 };
+

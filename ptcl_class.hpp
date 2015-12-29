@@ -52,7 +52,7 @@ struct FPDPD {
   //for I/O
   void readAscii(FILE *fp) {
     char buf;
-    fscanf(fp, "%c %lf %lf %lf %u %u %u %u %lf %lf %lf %lf %lf %lf %lf %lf %lf",
+    fscanf(fp, "%c %lf %lf %lf %u %u %u %u %lf %lf %lf %lf %lf %lf %lf %lf %lf\n",
 	   &buf, &(pos.x), &(pos.y), &(pos.z),
 	   &id, &prop, &amp_id, &unit,
 	   &(vel.x), &(vel.y), &(vel.z), &(vel_buf.x), &(vel_buf.y), &(vel_buf.z),

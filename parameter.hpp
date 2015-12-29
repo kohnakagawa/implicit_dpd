@@ -74,9 +74,9 @@ class Parameter {
     cf_c[Hyphob][Hyphob] = -2.0 * (kappa + 3.0) / rho_co;
     cf_m[Hyphob][Hyphob][Hyphob] = 1.5 * (kappa + 2.0) / (rho_co * rho_co);
 
-    for(PS::S32 i = 0; i < 2; i++)
-      for(PS::S32 j= 0; j < 2; j++)
-	for(PS::S32 k = 0; k < 2; k++)
+    for(PS::S32 i = 0; i < prop_num; i++)
+      for(PS::S32 j= 0; j < prop_num; j++)
+	for(PS::S32 k = 0; k < prop_num; k++)
 	  cf_m[i][j][k] = cf_m[Hyphob][Hyphob][Hyphob];
 
     cf_m[Hyphil][Hyphil][Hyphil] = 0.0;
@@ -103,27 +103,30 @@ class Parameter {
       for(PS::S32 j = 0; j < prop_num; j++)
 	cf_r[i][j] /= std::sqrt(dt);
 
-    //NOTE: cf_c[i][j] cf_m[i][j][k] (i, j, k < 2) are only hydrophilic or hydrophobic.
-    for(PS::S32 i = 0; i < 2; i++)
-      for(PS::S32 j = 0; j < 2; j++)
+    for(PS::S32 i = 0; i < prop_num; i++)
+      for(PS::S32 j = 0; j < prop_num; j++)
 	cf_c[i][j] *= -45.0 * Reo * Reo * Reo * Tempera / (M_PI * all_unit * all_unit * (arc * arc * arc * arc * arc * (2.0 * arc - 3.0 * rc) + rc2 * rc2 * rc * (3.0 * arc - 2.0 * rc) ) ) ;
 											 
-    for(PS::S32 i = 0; i < 2; i++)
-      for(PS::S32 j = 0; j < 2; j++)
-	for(PS::S32 k = 0; k < 2; k++)
+    for(PS::S32 i = 0; i < prop_num; i++)
+      for(PS::S32 j = 0; j < prop_num; j++)
+	for(PS::S32 k = 0; k < prop_num; k++)
 	  cf_m[i][j][k] *= -10.0 * Tempera * ( Reo * Reo * Reo ) * ( Reo * Reo * Reo ) / (all_unit * all_unit * all_unit * M_PI * rc2 * rc2);
   }
 
 public:
   static constexpr PS::F64 Tempera	= 1.0;
-  static constexpr PS::U32 head_unit	= 1;
-  static constexpr PS::U32 tail_unit	= 3;
+  static constexpr PS::U32 head_unit	= 5;
+  static constexpr PS::U32 tail_unit	= 11;
   static constexpr PS::U32 all_unit	= head_unit + tail_unit;
   static constexpr PS::F64 bond_leng	= 0.5;
-  static constexpr PS::F64 ibond	= 1.0 / bond_leng;
-  static constexpr PS::F64 search_rad   = 2.0;
+  static constexpr PS::F64 ibond	= (bond_leng != 0.0) ? 1.0 / bond_leng : 0.0;
+  static constexpr PS::F64 search_rad   = 1.5;
   static constexpr PS::F64 arc		= 0.9;
   static constexpr PS::F64 Reo		= 3.5;
+
+  static constexpr char atom_type[21] = {
+    'O', 'N', 'C', 'S', 'P', 'Z', 'X', 'O', 'N', 'C', 'S', 'P', 'Z', 'X', 'O', 'N', 'C', 'S', 'P', 'Z', 'X'
+  };
   
   enum {
     Hyphil = 0,
@@ -136,7 +139,7 @@ public:
   static PS::F64 cf_c[prop_num][prop_num];
   static PS::F64 cf_g[prop_num][prop_num];
   static PS::F64 cf_r[prop_num][prop_num];
-  static PS::F64 cf_m[2][2][2];
+  static PS::F64 cf_m[prop_num][prop_num][prop_num];
   static PS::F64 cf_s;
   static PS::F64 cf_b;
 
@@ -164,6 +167,12 @@ public:
   }
   ~Parameter() {}
 
+  template<bool ibond_is_finite>
+  static inline PS::F64 cf_spring(const PS::F64 inv_dr) {
+    static_assert((ibond_is_finite == true) or (ibond_is_finite == false), "bond_is_finte should be true or false");
+    return;
+  }
+
   void Initialize() {
     for(PS::S32 i = 0; i < prop_num; i++) {
       for(PS::S32 j = 0; j < prop_num; j++) {
@@ -173,9 +182,9 @@ public:
       }
     }
 
-    for(PS::S32 i = 0; i < 2; i++)
-      for(PS::S32 j = 0; j < 2; j++)
-	for(PS::S32 k = 0; k < 2; k++)
+    for(PS::S32 i = 0; i < prop_num; i++)
+      for(PS::S32 j = 0; j < prop_num; j++)
+	for(PS::S32 k = 0; k < prop_num; k++)
 	  cf_m[i][j][k] = std::numeric_limits<PS::F64>::quiet_NaN();
 
     cf_s = cf_b = std::numeric_limits<PS::F64>::quiet_NaN();
@@ -282,16 +291,15 @@ public:
 
   template<class Tpsys>
   void LoadParticleConfig(Tpsys& sys) const {
-    const std::string fname = cdir + "/init_config.txt";
-    FILE* fp = fopen(fname.c_str(), "r");
-    if(fp != NULL) {
-      sys.readParticleAscii(fname.c_str());
-      fclose(fp);
-    } else {
-      std::cerr << "init_config.txt does not exist.\n";
-      std::cerr << __FILE__ << " " << __LINE__ << std::endl;
+    const std::string fname = cdir + "/init_config.xyz";
+    FILE* fp = io_util::xfopen(fname.c_str(), "r");
+    PS::U32 line_num = 0;
+    io_util::ReadXYZForm(sys, line_num, fp);
+    if(line_num / all_unit != init_amp_num) {
+      std::cerr << "# of lines is not equal to the run input parameter information.\n";
       PS::Abort();
     }
+    fclose(fp);
   }
 
   template<class Tpsys>
@@ -333,9 +341,9 @@ public:
       }
     }
 
-    for(PS::S32 i = 0; i < 2; i++)
-      for(PS::S32 j = 0; j < 2; j++)
-	for(PS::S32 k = 0; k < 2; k++)
+    for(PS::S32 i = 0; i < prop_num; i++)
+      for(PS::S32 j = 0; j < prop_num; j++)
+	for(PS::S32 k = 0; k < prop_num; k++)
 	  assert(std::isfinite(cf_m[i][j][k]));
 
     assert(std::isfinite(cf_s));
@@ -409,9 +417,9 @@ public:
     DUMPINTRPARAM(cf_g);
     
     fout << "cf_m:\n";
-    for(PS::S32 i = 0; i < 2; i++)
-      for(PS::S32 j = 0; j < 2; j++)
-	for(PS::S32 k = 0; k < 2; k++)
+    for(PS::S32 i = 0; i < prop_num; i++)
+      for(PS::S32 j = 0; j < prop_num; j++)
+	for(PS::S32 k = 0; k < prop_num; k++)
 	  fout << cf_m[i][j][k] << " ";
     fout << std::endl;
 
@@ -421,12 +429,15 @@ public:
 #undef DUMPTAGANDVAL
 #undef DUMPINTRPARAM
   }
+
 };
+
+constexpr char Parameter::atom_type[21];
 
 PS::F64 Parameter::cf_c[Parameter::prop_num][Parameter::prop_num];
 PS::F64 Parameter::cf_g[Parameter::prop_num][Parameter::prop_num];
 PS::F64 Parameter::cf_r[Parameter::prop_num][Parameter::prop_num];
-PS::F64 Parameter::cf_m[2][2][2];
+PS::F64 Parameter::cf_m[Parameter::prop_num][Parameter::prop_num][Parameter::prop_num];
 PS::F64 Parameter::cf_s;
 PS::F64 Parameter::cf_b;
 
@@ -435,3 +446,13 @@ PS::F64vec Parameter::box_leng, Parameter::ibox_leng;
 
 PS::U32 Parameter::time;
 PS::U32 Parameter::all_time, Parameter::step_mic, Parameter::step_mac;
+
+template<>
+inline PS::F64 Parameter::cf_spring<true>(const PS::F64 inv_dr) {
+  return Parameter::cf_s * (inv_dr - Parameter::ibond);
+}
+
+template<>
+inline PS::F64 Parameter::cf_spring<false>(const PS::F64 inv_dr) {
+  return Parameter::cf_s;
+}

@@ -1,5 +1,6 @@
 #include <iostream>
 #include "particle_simulator.hpp"
+#include "io_util.hpp"
 #include "parameter.hpp"
 #include "f_calculator.hpp"
 #include "observer.hpp"
@@ -74,7 +75,9 @@ int main(int argc, char *argv[]) {
   observer.Initialize();
   
   //main loop
-  for(Parameter::time = 0; Parameter::time < Parameter::all_time; Parameter::time++) {
+  const PS::U32 atime = Parameter::all_time;
+  PS::F64vec bonded_vir(0.0, 0.0, 0.0);
+  for(Parameter::time = 0; Parameter::time < atime; Parameter::time++) {
 #ifdef DEBUG    
     std::cout << Parameter::time << std::endl;
 #endif
@@ -85,13 +88,13 @@ int main(int argc, char *argv[]) {
 
     dens_tree.calcForceAllAndWriteBack(CalcDensity(), system, dinfo);
     force_tree.calcForceAllAndWriteBack(CalcForceEpEpDPD(), system, dinfo);
-    fbonded.CalcListedForce(system);
+    fbonded.CalcListedForce(system, bonded_vir);
     
     kick(system, param.dt);
 
     if(Parameter::time % Parameter::step_mac == 0) {
       observer.KineticTempera(system);
-      observer.Pressure(system, param.ibox_leng);
+      observer.Pressure(system, bonded_vir, param.ibox_leng);
       //observer.ConfigTempera();
       //observer.Diffusion();
     }
@@ -110,6 +113,9 @@ int main(int argc, char *argv[]) {
   timer_stop();
   show_duration();
 
+  //print configuration for restart
+  observer.FinConfig(system);
+  
   observer.CleanUp();
   param.DumpAllParam();
   
