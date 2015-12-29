@@ -1,5 +1,6 @@
 #include <iostream>
 #include "particle_simulator.hpp"
+#include "io_util.hpp"
 #include "parameter.hpp"
 #include "f_calculator.hpp"
 #include <utility>
@@ -19,6 +20,7 @@ template<class Tpsys>
 void initialize(Tpsys& sys)
 {
   PS::MT::init_genrand( static_cast<unsigned long>(time(NULL)));
+  //PS::MT::init_genrand(0);
   for(PS::S32 i = 0; i < num_tot; i++) {
     sys[i].id = i;
     sys[i].pos = PS::F64vec(PS::MT::genrand_real1() * box.x,
@@ -136,14 +138,14 @@ int main(int argc, char* argv[]) {
   dinfo.setPosRootDomain(PS::F64vec(0.0, 0.0, 0.0), box);
   dinfo.collectSampleParticle(system);
 
-  PS::TreeForForceShort<RESULT::ForceDPD, EPI::DPD, EPJ::DPD>::Gather tree;
+  PS::TreeForForceShort<RESULT::ForceDPD, EPI::DPD, EPJ::DPD>::Gather tree_prtcl;
 #ifdef PARTICLE_SIMULATOR_THREAD_PARALLEL
   const int num_th = omp_get_max_threads();
 #else
   const int num_th = 1;
 #endif
   CalcForceEpEp_for_nlist<EPI::DPD, EPJ::DPD, RESULT::ForceDPD>::nlist.resize(num_th);
-  tree.initialize(3 * num_tot);
+  tree_prtcl.initialize(3 * num_tot);
   
   for(PS::U32 i = 0; i < test_num; i++) {
     initialize(system);
@@ -151,7 +153,7 @@ int main(int argc, char* argv[]) {
     dinfo.decomposeDomain();
     system.exchangeParticle(dinfo);
 
-    tree.calcForceAllAndWriteBack(CalcForceEpEp_for_nlist<EPI::DPD, EPJ::DPD, RESULT::ForceDPD>(), system, dinfo);
+    tree_prtcl.calcForceAllAndWriteBack(CalcForceEpEp_for_nlist<EPI::DPD, EPJ::DPD, RESULT::ForceDPD>(), system, dinfo);
 
     std::vector<std::pair<size_t, size_t> > nlist_naive;
     make_nlist_naive(system, box, nlist_naive);

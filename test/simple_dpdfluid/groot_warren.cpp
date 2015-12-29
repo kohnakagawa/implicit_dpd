@@ -1,5 +1,6 @@
 #include <iostream>
 #include "particle_simulator.hpp"
+#include "io_util.hpp"
 #include "parameter.hpp"
 #include "f_calculator.hpp"
 #include "observer.hpp"
@@ -8,6 +9,8 @@
 #ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
 #error "MPI is not supported yet!"
 #endif
+
+static_assert(Parameter::all_unit == 4, "all_unit should be 4.");
 
 namespace {
   void calc_mean_pressure(const std::string& cdir,
@@ -76,7 +79,7 @@ namespace {
   };
   
   template<class Tpsys>
-  void check_value_is_finite(Tpsys& system, const PS::U32 id) {
+  bool check_value_is_finite(Tpsys& system, const PS::U32 id) {
     const PS::U32 num = system.getNumberOfParticleLocal();
     for(PS::U32 i = 0; i < num; i++) {
       const bool pos_valid = (std::isfinite(system[i].pos.x) &&
@@ -89,19 +92,31 @@ namespace {
 			      std::isfinite(system[i].acc.y) &&
 			      std::isfinite(system[i].acc.z));
       if(!pos_valid)
-	std::cerr << "id " << id << "position is not finite value.\n";
+	std::cerr << "id " << id << " position is not finite value.\n";
 
       if(!vel_valid)
-	std::cerr << "id " << id << "velocity is not finite value.\n";
+	std::cerr << "id " << id << " velocity is not finite value.\n";
 
       if(!acc_valid)
-	std::cerr << "id " << id << "force is not finite value.\n";
+	std::cerr << "id " << id << " force is not finite value.\n";
 	
-      if( (!pos_valid) || (!vel_valid) || (!acc_valid) )
-	std::exit(1);
+      if( (!pos_valid) || (!vel_valid) || (!acc_valid) ) {
+	std::cerr << "id: " << system[i].id << std::endl;
+	std::cerr << "pos: " << system[i].pos << std::endl;
+	std::cerr << "vel: " << system[i].vel << std::endl;
+	std::cerr << "acc: " << system[i].acc << std::endl;
+	return false;
+      }
     }
+    return true;
   }
 };
+
+#define CHECK_VAL(obj, id)						\
+  if(!check_value_is_finite((obj), (id))) {				\
+    std::cerr << "Error occurs at " << __FILE__ << " " << __LINE__ << std::endl; \
+    PS::Abort();							\
+  }
 
 int main(int argc, char *argv[]) {
   PS::Initialize(argc, argv);
@@ -142,6 +157,7 @@ int main(int argc, char *argv[]) {
   PS::TreeForForceShort<RESULT::ForceDPD, EPI::DPD, EPJ::DPD>::Gather force_tree;
   force_tree.initialize(3 * system.getNumberOfParticleGlobal() );
   force_tree.calcForceAllAndWriteBack(CalcForceEpEpDPD(), system, dinfo);
+  CHECK_VAL(system, F_CALC);
 
   // observer
   Observer<PS::ParticleSystem<FPDPD> > observer(cdir);
@@ -151,20 +167,20 @@ int main(int argc, char *argv[]) {
   PS::F64vec buf(0.0, 0.0, 0.0);
   for(Parameter::time = 0; Parameter::time < Parameter::all_time; Parameter::time++) {
     drift_and_predict(system, param.dt, param.box_leng, param.ibox_leng);
-    check_value_is_finite(system, DRIFT_KICK);
+    CHECK_VAL(system, DRIFT_KICK);
     
     dinfo.decomposeDomain();
-    check_value_is_finite(system, DECOMPOSE);
+    CHECK_VAL(system, DECOMPOSE);
 
     system.exchangeParticle(dinfo);
-    check_value_is_finite(system, EXCHANGE);
+    CHECK_VAL(system, EXCHANGE);
 
     dens_tree.calcForceAllAndWriteBack(CalcDensity(), system, dinfo);
     force_tree.calcForceAllAndWriteBack(CalcForceEpEpDPD(), system, dinfo);
-    check_value_is_finite(system, F_CALC);
+    CHECK_VAL(system, F_CALC);
     
     kick(system, param.dt);
-    check_value_is_finite(system, KICK);
+    CHECK_VAL(system, KICK);
 
     if(Parameter::time % Parameter::step_mac == 0) {
       observer.KineticTempera(system);
@@ -180,7 +196,8 @@ int main(int argc, char *argv[]) {
     if(Parameter::time % Observer<PS::ParticleSystem<FPDPD> >::flush_freq == 0)
       observer.FlushAll();
   }//end of main loop
-  
+
+  observer.FinConfig(system);
   observer.CleanUp();
   param.DumpAllParam();
   
