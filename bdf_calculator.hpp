@@ -98,15 +98,15 @@ struct ForceBonded {
   //ASSUME: bond_n >= 3.
   template<PS::U32 bond_n>
   void CalcBondBendGlobalCell(Tpsys&		__restrict sys,
-			      PS::U32		           bond_id,
+			      PS::U32		           beg_bond_id,
 			      PS::F64vec&	__restrict d_vir,
 			      PS::F64&		__restrict d_lap)
   {
     PS::F64vec Fbb[bond_n], pos_buf[bond_n], dr[bond_n - 1];
     PS::F64  dist2[bond_n - 1], inv_dr[bond_n - 1];
 
-    const PS::U32 l_dst[] = { glob_topol[bond_id], glob_topol[bond_id + 1] };
-    pos_buf[0] = sys[ l_dst[0] ].pos; pos_buf[1] = sys[ l_dst[1] ].pos; 
+    pos_buf[0] = sys[ glob_topol[beg_bond_id    ] ].pos;
+    pos_buf[1] = sys[ glob_topol[beg_bond_id + 1] ].pos;
     
     dr[0] = pos_buf[1] - pos_buf[0];
     MinImage(dr[0]);
@@ -117,7 +117,7 @@ struct ForceBonded {
 
 #pragma unroll
     for(PS::U32 unit = 2; unit < bond_n; unit++) {
-      pos_buf[unit] = sys[ glob_topol[bond_id + unit] ].pos;
+      pos_buf[unit] = sys[ glob_topol[beg_bond_id + unit] ].pos;
       dr[unit - 1] = pos_buf[unit] - pos_buf[unit - 1];
       MinImage(dr[unit - 1]);
       dist2[unit - 1] = dr[unit - 1] * dr[unit - 1];
@@ -130,7 +130,7 @@ struct ForceBonded {
     //Store the sum of force.
 #pragma unroll
     for(PS::U32 unit = 0; unit < bond_n; unit++)
-      sys[ glob_topol[bond_id++] ].acc += Fbb[unit];
+      sys[ glob_topol[beg_bond_id + unit] ].acc += Fbb[unit];
   }
 
   void CalcListedForce(Tpsys& sys, PS::F64vec& bonded_vir) {
@@ -148,6 +148,22 @@ struct ForceBonded {
   void CalcListedForce(Tpsys& sys) {
     PS::F64vec buf(0.0, 0.0, 0.0);
     CalcListedForce(sys, buf);
+  }
+  
+  //check topology
+  void CheckBondedTopology(const Tpsys& sys) {
+    PS::U32 n = sys.getNumberOfParticleLocal();
+    for(PS::U32 i = 0; i < n; i++) {
+      const PS::U32 aid = sys[i].amp_id;
+      const PS::U32 unit = sys[i].unit;
+      assert(glob_topol[aid * Parameter::all_unit + unit] == i);
+    }
+  }
+  
+  //for debug
+  void CalcListedForceWithCheck(Tpsys& sys, PS::F64vec& bonded_vir) {
+    CheckBondedTopology(sys);
+    CalcListedForce(sys, bonded_vir);
   }
 };
 
@@ -235,14 +251,14 @@ struct ForceBondedMPI {
   //ASSUME: bond_n >= 3.
   template<PS::U32 bond_n>
   void CalcBondBendLocalCell(Tpsys&		__restrict sys,
-			     PS::U32		           bond_id,
+			     PS::U32		           beg_bond_id,
 			     PS::F64vec&	__restrict d_vir,
 			     PS::F64&		__restrict d_lap)
   {
     PS::F64vec Fbb[bond_n], pos_buf[bond_n], dr[bond_n - 1];
     PS::F64  dist2[bond_n - 1], inv_dr[bond_n - 1];
 
-    const PS::U32 l_dst[] = { loc_topol_cmpl[bond_id], loc_topol_cmpl[bond_id + 1] };
+    const PS::U32 l_dst[] = { loc_topol_cmpl[beg_bond_id], loc_topol_cmpl[beg_bond_id + 1] };
     pos_buf[0] = sys[ l_dst[0] ].pos; pos_buf[1] = sys[ l_dst[1] ].pos; 
     
     dr[0] = pos_buf[1] - pos_buf[0];
@@ -253,7 +269,7 @@ struct ForceBondedMPI {
 
 #pragma unroll
     for(PS::U32 unit = 2; unit < bond_n; unit++) {
-      pos_buf[unit] = sys[ loc_topol_cmpl[bond_id + unit] ].pos;
+      pos_buf[unit] = sys[ loc_topol_cmpl[beg_bond_id + unit] ].pos;
       dr[unit - 1] = pos_buf[unit] - pos_buf[unit - 1];
       dist2[unit - 1] = dr[unit - 1] * dr[unit - 1];
       inv_dr[unit - 1] = 1.0 / std::sqrt(dist2[unit - 1]);
@@ -265,7 +281,7 @@ struct ForceBondedMPI {
     //Store the sum of force.
 #pragma unroll
     for(PS::U32 unit = 0; unit < bond_n; unit++)
-      sys[ loc_topol_cmpl[bond_id++] ].acc += Fbb[unit];
+      sys[ loc_topol_cmpl[beg_bond_id + unit] ].acc += Fbb[unit];
   }
 
   void MakeLocalBondedList(const Tpsys& sys) {
