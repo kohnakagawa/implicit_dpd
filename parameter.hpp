@@ -72,45 +72,46 @@ class Parameter {
   
   void CalcInterCoef() {
     cf_c[Hyphob][Hyphob] = -2.0 * (kappa + 3.0) / rho_co;
-    cf_m[Hyphob][Hyphob][Hyphob] = 1.5 * (kappa + 2.0) / (rho_co * rho_co);
+    cf_c[Hyphil][Hyphil] = 0.1;
+    cf_c[Hyphil][Hyphob] = cf_c[Hyphob][Hyphil] = chi / (rho_co) + 0.5 * (cf_c[Hyphil][Hyphil] + cf_c[Hyphob][Hyphob]);
+    
+    for(PS::S32 i = 0; i < prop_num; i++)
+      for(PS::S32 j = i + 1; j < prop_num; j++)
+	cf_c[j][i] = cf_c[i][j];
 
+    cf_m[Hyphob][Hyphob][Hyphob] = 1.5 * (kappa + 2.0) / (rho_co * rho_co);
     for(PS::S32 i = 0; i < prop_num; i++)
       for(PS::S32 j= 0; j < prop_num; j++)
 	for(PS::S32 k = 0; k < prop_num; k++)
 	  cf_m[i][j][k] = cf_m[Hyphob][Hyphob][Hyphob];
-
     cf_m[Hyphil][Hyphil][Hyphil] = 0.0;
-
-    cf_c[Hyphil][Hyphil] = 0.1;
-    cf_c[Hyphil][Hyphob] = cf_c[Hyphob][Hyphil] = chi / (rho_co) + 0.5 * (cf_c[Hyphil][Hyphil] + cf_c[Hyphob][Hyphob]);
     
-    for(PS::S32 i = 0; i < prop_num; i++) {
-      for(PS::S32 j = i + 1; j < prop_num; j++) {
-	cf_c[j][i] = cf_c[i][j];
+    for(PS::S32 i = 0; i < prop_num; i++)
+      for(PS::S32 j = i + 1; j < prop_num; j++)
 	cf_r[j][i] = cf_r[i][j];
-      }
-    }
     
     for(PS::S32 i = 0; i < prop_num; i++)
       for(PS::S32 j = 0; j < prop_num; j++)
 	cf_g[i][j] = 0.5 * cf_r[i][j] * cf_r[i][j] / Tempera; // 2.0 * gamma * k_B T = sigma * sigma
     
+    //NOTE: if cf_r[i][j] < 0.0, cf_g[i][j] and cf_r[i][j] are calculated from the harmonic mean rule.
     for(PS::S32 i = 0; i < prop_num; i++)
       for(PS::S32 j = i + 1; j < prop_num; j++)
 	CalcGammaWithHarmonicMean(i, j);
-
+    
+    //NOTE: multiplied by normalize coef.
     for(PS::S32 i = 0; i < prop_num; i++) 
       for(PS::S32 j = 0; j < prop_num; j++)
 	cf_r[i][j] /= std::sqrt(dt);
 
     for(PS::S32 i = 0; i < prop_num; i++)
       for(PS::S32 j = 0; j < prop_num; j++)
-	cf_c[i][j] *= -45.0 * Reo * Reo * Reo * Tempera / (M_PI * all_unit * all_unit * (arc * arc * arc * arc * arc * (2.0 * arc - 3.0 * rc) + rc2 * rc2 * rc * (3.0 * arc - 2.0 * rc) ) ) ;
+	cf_c[i][j] *= 45.0 * Reo * Reo * Reo / (M_PI * all_unit * all_unit * (arc * arc * arc * arc * arc * (2.0 * arc - 3.0 * rc) + rc2 * rc2 * rc * (3.0 * arc - 2.0 * rc) ) ) ;
 											 
     for(PS::S32 i = 0; i < prop_num; i++)
       for(PS::S32 j = 0; j < prop_num; j++)
 	for(PS::S32 k = 0; k < prop_num; k++)
-	  cf_m[i][j][k] *= -10.0 * Tempera * ( Reo * Reo * Reo ) * ( Reo * Reo * Reo ) / (all_unit * all_unit * all_unit * M_PI * rc2 * rc2);
+	  cf_m[i][j][k] *= 10.0 * (Reo * Reo * Reo) * (Reo * Reo * Reo) / (all_unit * all_unit * all_unit * M_PI * rc2 * rc2) * (15.0 * Reo * Reo * Reo) / (all_unit * 2.0 * M_PI * rc2 * rc2 * rc);
   }
 
 public:
