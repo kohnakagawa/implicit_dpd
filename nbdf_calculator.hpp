@@ -13,8 +13,11 @@ struct CalcDensity {
   {
     for(PS::S32 i = 0; i < ni; i++) {
       const PS::F64vec ri = epi[i].pos;
+      const PS::U32 idi = epi[i].id;
       PS::F64 d_sum[Parameter::prop_num] = { 0.0 };
       for(PS::S32 j = 0; j < nj; j++) {
+	if(idi == epj[j].id) continue;
+	
 	const PS::U32 propj = epj[j].prop;
 	const PS::F64vec drij = ri - epj[j].pos;
 	const PS::F64 dr2 = drij * drij;
