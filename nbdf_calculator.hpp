@@ -86,7 +86,7 @@ struct CalcForceEpEpDPD {
 	  assert(std::isfinite(rnd));
 #else
 
-	  const PS::F64 cf_co  = Parameter::cf_c[propi][propj] * 6.0 * (dr - Parameter::arc) * (dr - Parameter::rc) * (dr >= Parameter::arc);
+	  const PS::F64 cf_co  = Parameter::cf_c[propi][propj] * (dr - Parameter::arc) * (dr - Parameter::rc) * (dr >= Parameter::arc);
 	  PS::F64 cf_mbd = 0.0;
 	  for(PS::S32 k = 0; k < Parameter::prop_num; k++)
 	    cf_mbd += densij[k] * Parameter::cf_m[propi][propj][k];
