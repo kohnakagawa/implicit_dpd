@@ -39,7 +39,7 @@ namespace {
     fname = "./rho_vs_press.txt";
     std::ofstream fout(fname.c_str(), std::ios::app);
     fout << std::setprecision(15);
-    fout << rho << " " << press << " " << press / (rho * rho * 25.0) << std::endl;
+    fout << rho << " " << press << " " << (press - rho) / (rho * rho * 25.0) << std::endl; //NOTE: calculate only potential component.
   }
 
   void calc_mean_kintemp(const std::string& cdir,
