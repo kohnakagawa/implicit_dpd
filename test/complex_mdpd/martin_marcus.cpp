@@ -164,8 +164,9 @@ int main(int argc, char *argv[]) {
   force_tree.calcForceAllAndWriteBack(CalcForceEpEpDPD(), system, dinfo);
   CHECK_VAL(system, F_CALC_NB);
 
+  PS::F64vec bonded_vir(0.0, 0.0, 0.0);
   ForceBonded<PS::ParticleSystem<FPDPD> > fbonded(system, Parameter::all_unit * param.init_amp_num);
-  fbonded.CalcListedForce(system);
+  fbonded.CalcListedForceWithCheck(system, bonded_vir);
   CHECK_VAL(system, F_CALC_BO);
 
   // observer
@@ -173,7 +174,6 @@ int main(int argc, char *argv[]) {
   observer.Initialize();
   
   //main loop
-  PS::F64vec bonded_vir(0.0, 0.0, 0.0);
   for(Parameter::time = 0; Parameter::time < Parameter::all_time; Parameter::time++) {
     drift_and_predict(system, param.dt, param.box_leng, param.ibox_leng);
     CHECK_VAL(system, DRIFT_KICK);
@@ -188,7 +188,7 @@ int main(int argc, char *argv[]) {
     force_tree.calcForceAllAndWriteBack(CalcForceEpEpDPD(), system, dinfo);
     CHECK_VAL(system, F_CALC_NB);
     
-    fbonded.CalcListedForce(system);
+    fbonded.CalcListedForceWithCheck(system, bonded_vir);
     CHECK_VAL(system, F_CALC_BO);
     
     kick(system, param.dt);
