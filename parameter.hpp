@@ -118,7 +118,7 @@ public:
   static constexpr PS::U32 head_unit	= 5;
   static constexpr PS::U32 tail_unit	= 11;
   static constexpr PS::U32 all_unit	= head_unit + tail_unit;
-  static constexpr PS::F64 bond_leng	= 0.5;
+  static constexpr PS::F64 bond_leng	= 0.0;
   static constexpr PS::F64 ibond	= (bond_leng != 0.0) ? 1.0 / bond_leng : 0.0;
   static constexpr PS::F64 search_rad   = 1.5;
   static constexpr PS::F64 arc		= 0.9;
@@ -454,5 +454,5 @@ inline PS::F64 Parameter::cf_spring<true>(const PS::F64 inv_dr) {
 
 template<>
 inline PS::F64 Parameter::cf_spring<false>(const PS::F64 inv_dr) {
-  return Parameter::cf_s;
+  return -Parameter::cf_s;
 }
