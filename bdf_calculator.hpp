@@ -1,8 +1,14 @@
 #pragma once
 
+#include <numeric>
+
 template<class Tpsys>
 struct ForceBonded {
   PS::ReallocatableArray<PS::U32> glob_topol;
+  
+#ifdef PARTICLE_SIMULATOR_THREAD_PARALLEL
+  std::vector<PS::F64vec> buf_vir;
+#endif
 
   ForceBonded(Tpsys& sys, const PS::U32 buf_size) {
     //NOTE: Bonded list construction is needed once when using OpenMP version.
@@ -18,6 +24,11 @@ struct ForceBonded {
     for(PS::U32 i = 0; i < buf_size; i++)
       assert(glob_topol[i] >= 0 && glob_topol[i] < n);
 #endif
+
+#ifdef PARTICLE_SIMULATOR_THREAD_PARALLEL
+    buf_vir.resize(PS::Comm::getNumberOfThread(), 0.0);
+#endif
+    
   }
   ~ForceBonded() {}
 
@@ -135,13 +146,29 @@ struct ForceBonded {
 
   void CalcListedForce(Tpsys& sys, PS::F64vec& bonded_vir) {
     //only intra cell
-    //TODO: This loop should be optimized using OpenMP.
-    PS::F64vec d_vir(0.0); PS::F64 d_lap = 0.0;
     const PS::U32 topol_num = glob_topol.size();
+    
+#ifdef PARTICLE_SIMULATOR_THREAD_PARALLEL
+    
+#pragma omp parallel
+    {
+      const PS::S32 tid = PS::Comm::getThreadNum();
+      PS::F64vec d_vir(0.0); PS::F64 d_lap = 0.0;
+#pragma omp for nowait
+      for(PS::U32 i = 0; i < topol_num; i += Parameter::all_unit)
+	CalcBondBendGlobalCell<Parameter::all_unit>(sys, i, d_vir, d_lap);
+      buf_vir[tid] = d_vir;
+    }
+    bonded_vir = std::accumulate(buf_vir.cbegin(), buf_vir.cend(), PS::F64vec(0.0, 0.0, 0.0));
+    
+#else //no omp version
+
+    PS::F64vec d_vir(0.0); PS::F64 d_lap = 0.0;
     for(PS::U32 i = 0; i < topol_num; i += Parameter::all_unit)
       CalcBondBendGlobalCell<Parameter::all_unit>(sys, i, d_vir, d_lap);
-    
     bonded_vir = d_vir;
+    
+#endif
   }
   
   //no copy of virial
