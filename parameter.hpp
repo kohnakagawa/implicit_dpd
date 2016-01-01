@@ -280,7 +280,7 @@ public:
     const std::string fname = cdir + "/run_param.txt";
     std::ifstream fin(fname.c_str());
     if(!fin) {
-      std::cerr << cdir.c_str() << " dose not exist.\n";
+      std::cerr << fname.c_str() << " dose not exist.\n";
       std::cerr << __FILE__ << " " << __LINE__ << std::endl;
       PS::Abort();
     }
