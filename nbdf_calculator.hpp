@@ -5,11 +5,11 @@
 #include "ptcl_class.hpp"
 
 struct CalcDensity {
-  void operator () (const EPI::Density* epi,
+  void operator () (const EPI::Density* __restrict epi,
 		    const PS::S32 ni,
-		    const EPJ::Density* epj,
+		    const EPJ::Density* __restrict epj,
 		    const PS::S32 nj,
-		    RESULT::Density* result)
+		    RESULT::Density* __restrict result)
   {
     for(PS::S32 i = 0; i < ni; i++) {
       const PS::F64vec ri = epi[i].pos;
@@ -18,17 +18,10 @@ struct CalcDensity {
 	const PS::U32 propj = epj[j].prop;
 	const PS::F64vec drij = ri - epj[j].pos;
 	const PS::F64 dr2 = drij * drij;
-
-#if 1
-	const PS::F64 dr = std::sqrt(dr2);
-	d_sum[propj] += (dr2 < Parameter::rc2 && dr2 != 0.0) * (Parameter::rc - dr) * (Parameter::rc - dr);
-#else	
 	if(dr2 < Parameter::rc2 && dr2 != 0.0) {
 	  const PS::F64 dr = std::sqrt(dr2);
-	  d_sum[propj] += (Parameter::rc - dr) * (Parameter::rc - dr); //NOTE: density kernel is harmonic
+	  d_sum[propj] += (Parameter::rc - dr) * (Parameter::rc - dr);
 	}
-#endif
-	
       }
       
       for(PS::S32 k = 0; k < Parameter::prop_num; k++)
@@ -36,16 +29,121 @@ struct CalcDensity {
     }
   }
 };
-  
+
+struct CalcDensityUnroll {
+  void operator () (const EPI::Density* __restrict epi,
+		    const PS::S32 ni,
+		    const EPJ::Density* __restrict epj,
+		    const PS::S32 nj,
+		    RESULT::Density* __restrict result)
+  {
+    for(PS::S32 i = 0; i < ni; i++) {
+      const PS::F64vec ri = epi[i].pos;
+      PS::F64 d_sum[Parameter::prop_num] = { 0.0 };
+      
+      PS::S32 j;
+      for(j = 0; j < nj; j += 4) {
+	const PS::U32 propja = epj[j    ].prop;
+	const PS::U32 propjb = epj[j + 1].prop;
+	const PS::U32 propjc = epj[j + 2].prop;
+	const PS::U32 propjd = epj[j + 3].prop;
+	
+	const PS::F64vec drija = ri - epj[j    ].pos;
+	const PS::F64vec drijb = ri - epj[j + 1].pos;
+	const PS::F64vec drijc = ri - epj[j + 2].pos;
+	const PS::F64vec drijd = ri - epj[j + 3].pos;
+	
+	const PS::F64 dr2a = drija * drija;
+	const PS::F64 dr2b = drijb * drijb;
+	const PS::F64 dr2c = drijc * drijc;
+	const PS::F64 dr2d = drijd * drijd;
+	
+	if(dr2a < Parameter::rc2 && dr2a != 0.0) {
+	  const PS::F64 dr = std::sqrt(dr2a);
+	  d_sum[propja] += (Parameter::rc - dr) * (Parameter::rc - dr);
+	}
+
+	if(dr2b < Parameter::rc2 && dr2b != 0.0) {
+	  const PS::F64 dr = std::sqrt(dr2b);
+	  d_sum[propjb] += (Parameter::rc - dr) * (Parameter::rc - dr);
+	}
+
+	if(dr2c < Parameter::rc2 && dr2c != 0.0) {
+	  const PS::F64 dr = std::sqrt(dr2c);
+	  d_sum[propjc] += (Parameter::rc - dr) * (Parameter::rc - dr);
+	}
+
+	if(dr2d < Parameter::rc2 && dr2d != 0.0) {
+	  const PS::F64 dr = std::sqrt(dr2d);
+	  d_sum[propjd] += (Parameter::rc - dr) * (Parameter::rc - dr);
+	}
+      }
+      
+      j -= 4;
+      for(; j < nj; j++) {
+	const PS::U32 propj = epj[j].prop;
+	const PS::F64vec drij = ri - epj[j].pos;
+	const PS::F64 dr2 = drij * drij;
+	if(dr2 < Parameter::rc2 && dr2 != 0.0) {
+	  const PS::F64 dr = std::sqrt(dr2);
+	  d_sum[propj] += (Parameter::rc - dr) * (Parameter::rc - dr);
+	}
+      }
+      
+      for(PS::S32 k = 0; k < Parameter::prop_num; k++)
+	result[i].dens[k] += d_sum[k];
+    }
+  }
+};
+
+struct CalcDensitySoftPipe {
+  void operator () (const EPI::Density* __restrict epi,
+		    const PS::S32 ni,
+		    const EPJ::Density* __restrict epj,
+		    const PS::S32 nj,
+		    RESULT::Density* __restrict result)
+  {
+    for(PS::S32 i = 0; i < ni; i++) {
+      const PS::F64vec ri = epi[i].pos;
+      PS::F64 d_sum[Parameter::prop_num] = { 0.0 };
+      
+      PS::F64vec drija = ri - epj[0].pos, drijb;
+      PS::F64 dr2a = 0.0;
+      PS::U32 prpja = epj[0].prop, prpjb = 0;
+      
+      for(PS::S32 j = 1; j < nj; j++) {
+	dr2a = drija * drija;
+	drijb = ri - epj[j].pos;
+	prpjb = epj[j].prop;
+	
+	if(dr2a < Parameter::rc2 && dr2a != 0.0) {
+	  const PS::F64 dr = std::sqrt(dr2a);
+	  d_sum[prpja] += (Parameter::rc - dr) * (Parameter::rc - dr);
+	}
+	drija = drijb;
+	prpja = prpjb;
+      }
+      dr2a = drija * drija;
+      if(dr2a < Parameter::rc2 && dr2a != 0.0) {
+	const PS::F64 dr = std::sqrt(dr2a);
+	d_sum[prpja] += (Parameter::rc - dr) * (Parameter::rc - dr);
+      }
+      
+      for(PS::S32 k = 0; k < Parameter::prop_num; k++)
+	result[i].dens[k] += d_sum[k];
+    }
+  }
+};
+
 struct CalcForceEpEpDPD {
   //prng seed
   static PS::U32 m_seed;
     
-  void operator () (const EPI::DPD* epi,
+  void operator () (const EPI::DPD* __restrict epi,
 		    const PS::S32 ni,
-		    const EPJ::DPD* epj,
+		    const EPJ::DPD* __restrict epj,
 		    const PS::S32 nj,
-		    RESULT::ForceDPD* result)
+		    RESULT::ForceDPD* __restrict result)
   {
     for(PS::S32 i = 0; i < ni; i++) {
       const PS::F64vec ri = epi[i].pos;
@@ -66,6 +164,7 @@ struct CalcForceEpEpDPD {
 	  const PS::F64vec dvij = vi - epj[j].vel;
 	  PS::F64 densij[Parameter::prop_num];
 
+#pragma novector
 	  for(PS::S32 k = 0; k < Parameter::prop_num; k++)
 	    densij[k] = densi[k] + epj[j].dens[k];
 	  
@@ -95,6 +194,7 @@ struct CalcForceEpEpDPD {
 
 	  const PS::F64 cf_co  = Parameter::cf_c[propi][propj] * (dr - Parameter::arc) * (dr - Parameter::rc) * (dr >= Parameter::arc);
 	  PS::F64 cf_mbd = 0.0;
+#pragma novector
 	  for(PS::S32 k = 0; k < Parameter::prop_num; k++)
 	    cf_mbd += densij[k] * Parameter::cf_m[propi][propj][k];
 	  cf_mbd *= one_m_dr;
