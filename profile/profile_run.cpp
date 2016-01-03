@@ -26,7 +26,8 @@ public:
     DRIFT_KICK = 0,
     DECOMPOSE,
     EXCHANGE,
-    F_CALC_NB,
+    F_CALC_NB_DENS,
+    F_CALC_NB_,
     F_CALC_BO,
     KICK,
     OBSERVE,
@@ -60,7 +61,8 @@ public:
     fprintf(fp, "%-20s: %10.4f[s] %10.4f[%%]\n", STR(DRIFT_KICK), dur_t[DRIFT_KICK], dur_t[DRIFT_KICK] / sum_dur * 100.0);
     fprintf(fp, "%-20s: %10.4f[s] %10.4f[%%]\n", STR(DECOMPOSE), dur_t[DECOMPOSE], dur_t[DECOMPOSE] / sum_dur * 100.0);
     fprintf(fp, "%-20s: %10.4f[s] %10.4f[%%]\n", STR(EXCHANGE), dur_t[EXCHANGE], dur_t[EXCHANGE] / sum_dur * 100.0);
-    fprintf(fp, "%-20s: %10.4f[s] %10.4f[%%]\n", STR(F_CALC_NB), dur_t[F_CALC_NB], dur_t[F_CALC_NB] / sum_dur * 100.0);
+    fprintf(fp, "%-20s: %10.4f[s] %10.4f[%%]\n", STR(F_CALC_NB_DENS), dur_t[F_CALC_NB_DENS], dur_t[F_CALC_NB_DENS] / sum_dur * 100.0);
+    fprintf(fp, "%-20s: %10.4f[s] %10.4f[%%]\n", STR(F_CALC_NB_), dur_t[F_CALC_NB_], dur_t[F_CALC_NB_] / sum_dur * 100.0);
     fprintf(fp, "%-20s: %10.4f[s] %10.4f[%%]\n", STR(F_CALC_BO), dur_t[F_CALC_BO], dur_t[F_CALC_BO] / sum_dur * 100.0);
     fprintf(fp, "%-20s: %10.4f[s] %10.4f[%%]\n", STR(KICK), dur_t[KICK], dur_t[KICK] / sum_dur * 100.0);
     fprintf(fp, "%-20s: %10.4f[s] %10.4f[%%]\n", STR(OBSERVE), dur_t[OBSERVE], dur_t[OBSERVE] / sum_dur * 100.0);
@@ -138,8 +140,11 @@ int main(int argc, char *argv[]) {
 
     profile.TimerStart();
     dens_tree.calcForceAllAndWriteBack(CalcDensity(), system, dinfo);
+    profile.TimerStop(Profile::F_CALC_NB_DENS);
+    
+    profile.TimerStart();
     force_tree.calcForceAllAndWriteBack(CalcForceEpEpDPD(), system, dinfo);
-    profile.TimerStop(Profile::F_CALC_NB);
+    profile.TimerStop(Profile::F_CALC_NB_);
     
     profile.TimerStart();
     fbonded.CalcListedForce(system, bonded_vir);
