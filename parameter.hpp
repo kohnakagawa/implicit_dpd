@@ -112,7 +112,7 @@ class Parameter {
     for(PS::S32 i = 0; i < prop_num; i++)
       for(PS::S32 j = 0; j < prop_num; j++)
 	for(PS::S32 k = 0; k < prop_num; k++)
-	  cf_m[i][j][k] *= ((Reo * Reo * Reo) / (all_unit * all_unit)) * (2.0 / (3.0 * all_unit)) * (15.0 / (M_PI * rc2 * rc2)) * (15.0 / (2.0 * M_PI * rc2 * rc2 * rc)) * (Reo * Reo * Reo);
+	  cf_m[i][j][k] *= ((Reo * Reo * Reo) / (all_unit * all_unit)) * (2.0 / 3.0) * (15.0 / (M_PI * rc2 * rc2)) * (15.0 / (2.0 * M_PI * rc2 * rc2 * rc)) * (Reo * Reo * Reo / all_unit);
   }
 
 public:
