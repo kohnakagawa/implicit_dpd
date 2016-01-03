@@ -93,7 +93,7 @@ namespace EPI {
   };
   
   struct Density {
-    PS::U32 id, prop;
+    PS::U32 prop;
     PS::F64vec pos;
 
     PS::F64vec getPos() const {
@@ -105,7 +105,6 @@ namespace EPI {
     }
     
     void copyFromFP(const FPDPD& fp) {
-      this->id          = fp.id;
       this->prop	= fp.prop;
       this->pos		= fp.pos;
     }
@@ -136,11 +135,10 @@ namespace EPJ {
   };
 
   struct Density {
-    PS::U32 id, prop;
+    PS::U32 prop;
     PS::F64vec pos;
     
     void copyFromFP(const FPDPD& fp) {
-      this->id                  = fp.id;
       this->prop		= fp.prop;
       this->pos			= fp.pos;
     }

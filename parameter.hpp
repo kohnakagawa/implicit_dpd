@@ -104,20 +104,21 @@ class Parameter {
       for(PS::S32 j = 0; j < prop_num; j++)
 	cf_r[i][j] /= std::sqrt(dt);
 
+    const PS::F64 arc5 = arc * arc * arc * arc * arc;
     for(PS::S32 i = 0; i < prop_num; i++)
       for(PS::S32 j = 0; j < prop_num; j++)
-	cf_c[i][j] *= 45.0 * Reo * Reo * Reo / (M_PI * all_unit * all_unit * (arc * arc * arc * arc * arc * (2.0 * arc - 3.0 * rc) + rc2 * rc2 * rc * (3.0 * arc - 2.0 * rc) ) ) ;
+	cf_c[i][j] *= (Reo * Reo * Reo) / (all_unit * all_unit) * (15.0 / (2.0 * M_PI * (2.0 * arc5 * arc - 3.0 * arc5 * rc + 3.0 * arc * rc2 * rc2 * rc - 2.0 * rc2 * rc2 * rc2))) * 6.0;
 											 
     for(PS::S32 i = 0; i < prop_num; i++)
       for(PS::S32 j = 0; j < prop_num; j++)
 	for(PS::S32 k = 0; k < prop_num; k++)
-	  cf_m[i][j][k] *= 10.0 * (Reo * Reo * Reo) * (Reo * Reo * Reo) / (all_unit * all_unit * all_unit * M_PI * rc2 * rc2) * (15.0 * Reo * Reo * Reo) / (all_unit * 2.0 * M_PI * rc2 * rc2 * rc);
+	  cf_m[i][j][k] *= ((Reo * Reo * Reo) / (all_unit * all_unit)) * (2.0 / (3.0 * all_unit)) * (15.0 / (M_PI * rc2 * rc2)) * (15.0 / (2.0 * M_PI * rc2 * rc2 * rc)) * (Reo * Reo * Reo);
   }
 
 public:
   static constexpr PS::F64 Tempera	= 1.0;
-  static constexpr PS::U32 head_unit	= 5;
-  static constexpr PS::U32 tail_unit	= 11;
+  static constexpr PS::U32 head_unit	= 4;
+  static constexpr PS::U32 tail_unit	= 12;
   static constexpr PS::U32 all_unit	= head_unit + tail_unit;
   static constexpr PS::F64 bond_leng	= 0.0;
   static constexpr PS::F64 ibond	= (bond_leng != 0.0) ? 1.0 / bond_leng : 0.0;

@@ -13,18 +13,22 @@ struct CalcDensity {
   {
     for(PS::S32 i = 0; i < ni; i++) {
       const PS::F64vec ri = epi[i].pos;
-      const PS::U32 idi = epi[i].id;
       PS::F64 d_sum[Parameter::prop_num] = { 0.0 };
       for(PS::S32 j = 0; j < nj; j++) {
-	if(idi == epj[j].id) continue;
-	
 	const PS::U32 propj = epj[j].prop;
 	const PS::F64vec drij = ri - epj[j].pos;
 	const PS::F64 dr2 = drij * drij;
-	if(dr2 < Parameter::rc2) {
+
+#if 1
+	const PS::F64 dr = std::sqrt(dr2);
+	d_sum[propj] += (dr2 < Parameter::rc2 && dr2 != 0.0) * (Parameter::rc - dr) * (Parameter::rc - dr);
+#else	
+	if(dr2 < Parameter::rc2 && dr2 != 0.0) {
 	  const PS::F64 dr = std::sqrt(dr2);
 	  d_sum[propj] += (Parameter::rc - dr) * (Parameter::rc - dr); //NOTE: density kernel is harmonic
 	}
+#endif
+	
       }
       
       for(PS::S32 k = 0; k < Parameter::prop_num; k++)
