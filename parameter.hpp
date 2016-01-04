@@ -326,7 +326,7 @@ public:
     }
 
     kin_temp /= 3.0 * num;
-    if(fabs(kin_temp - Tempera) >= 1.0e-2) {
+    if(fabs(kin_temp - Tempera) >= 1.0e-1) {
       std::cerr << "Please check kinetic temperature.\n";
       std::cerr << "Kinetic temperature is " << kin_temp << "K_BT.\n";
       std::cerr << __FILE__ << " " << __LINE__ << std::endl;
