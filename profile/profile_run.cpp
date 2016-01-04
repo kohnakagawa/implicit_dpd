@@ -75,11 +75,16 @@ public:
 
 int main(int argc, char *argv[]) {
   PS::Initialize(argc, argv);
-  if(argc != 3) {
+  if(argc != 5) {
     std::cerr << "argv[1] = target directory.\n";
     std::cerr << "argv[2] = observe beg time.\n";
+    std::cerr << "argv[3] = n_leaf_limit.\n";
+    std::cerr << "argv[4] = n_group_limit.\n";
     PS::Abort();
   }
+
+  const PS::U32 n_leaf_limit = std::atoi(argv[3]);
+  const PS::U32 n_group_limit = std::atoi(argv[4]);
   
   const std::string cdir = argv[1];
   Parameter param(cdir);
@@ -105,11 +110,11 @@ int main(int argc, char *argv[]) {
   system.exchangeParticle(dinfo);
 
   PS::TreeForForceShort<RESULT::Density, EPI::Density, EPJ::Density>::Gather dens_tree;
-  dens_tree.initialize(3 * system.getNumberOfParticleGlobal() );
+  dens_tree.initialize(3 * system.getNumberOfParticleGlobal(), 0.7, n_leaf_limit, n_group_limit);
   dens_tree.calcForceAllAndWriteBack(CalcDensity(), system, dinfo);
 
   PS::TreeForForceShort<RESULT::ForceDPD, EPI::DPD, EPJ::DPD>::Gather force_tree;
-  force_tree.initialize(3 * system.getNumberOfParticleGlobal() );
+  force_tree.initialize(3 * system.getNumberOfParticleGlobal(), 0.7, n_leaf_limit, n_group_limit);
   force_tree.calcForceAllAndWriteBack(CalcForceEpEpDPD(), system, dinfo);
 
   PS::F64vec bonded_vir(0.0, 0.0, 0.0);
