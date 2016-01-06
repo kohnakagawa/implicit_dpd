@@ -95,7 +95,7 @@ int main(int argc, char *argv[]) {
     if(Parameter::time % Parameter::step_mac == 0) {
       observer.KineticTempera(system);
       observer.Pressure(system, bonded_vir, param.ibox_leng);
-      observer.Diffusion(system, param);
+      observer.Diffusion(system, param.amp_num);
       //observer.ConfigTempera();
     }
 
