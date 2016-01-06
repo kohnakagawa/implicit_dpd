@@ -24,7 +24,7 @@ namespace RESULT {
 
 struct FPDPD {
   PS::U32 id, prop, amp_id, unit;
-  PS::F64vec pos;
+  PS::F64vec pos, delta_sumr;
   PS::F64vec vel, vel_buf;
   PS::F64vec acc;
   PS::F64vec press;
@@ -57,7 +57,7 @@ struct FPDPD {
 	   &id, &prop, &amp_id, &unit,
 	   &(vel.x), &(vel.y), &(vel.z), &(vel_buf.x), &(vel_buf.y), &(vel_buf.z),
 	   &(acc.x), &(acc.y), &(acc.z));
-
+    delta_sumr = 0.0;
   }
   void writeAscii(FILE *fp) const {
     fprintf(fp, "%c %.15g %.15g %.15g %u %u %u %u %.15g %.15g %.15g %.15g %.15g %.15g %.15g %.15g %.15g\n",

@@ -105,8 +105,13 @@ public:
     fprintf(ptr_f[PRESSURE], "%.15g %.15g %.15g\n", press_sum.x, press_sum.y, press_sum.z);
   }
   
-  void Diffusion() {
-    //not implemented yet
+  void Diffusion(const Tpsys& sys) {
+    PS::F64 difsum = 0.0;
+    const PS::S32 num = sys.getNumberOfParticleLocal();
+    for(PS::S32 i = 0; i < num; i++)
+      difsum += sys[i].delta_sumr * sys[i].delta_sumr;
+    difsum /= num;
+    fprintf(ptr_f[DIFFUSION], "%.15g\n", difsum);
   }
 
   void Trajectory(const Tpsys& sys) {
