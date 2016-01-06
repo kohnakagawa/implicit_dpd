@@ -105,13 +105,31 @@ public:
     fprintf(ptr_f[PRESSURE], "%.15g %.15g %.15g\n", press_sum.x, press_sum.y, press_sum.z);
   }
   
-  void Diffusion(const Tpsys& sys) {
+  void Diffusion(const Tpsys& sys, const Parameter& param) {
     PS::F64 difsum = 0.0;
     const PS::S32 num = sys.getNumberOfParticleLocal();
     for(PS::S32 i = 0; i < num; i++)
       difsum += sys[i].delta_sumr * sys[i].delta_sumr;
     difsum /= num;
+
+#ifdef PARTICLE_SIMULATOR_THREAD_PARALLEL
+    //ASSUME: Molecular topology is constant during simulation.
+    //        This routine is valid for constant amphiphile number simulation.
+    assert(num % Parameter::all_unit == 0);
+    
+    PS::F64 difsum_mol = 0.0;
+    for(PS::S32 i = 0; i < param.amp_num; i++) {
+      PS::F64vec dsumr_mol = 0.0;
+      for(PS::S32 k = 0; k < Parameter::all_unit; k++)
+	dsumr_mol += sys[Parameter::all_unit * i + k].delta_sumr;
+      dsumr_mol /= Parameter::all_unit;
+      difsum_mol += dsumr_mol * dsumr_mol;
+    }
+    difsum_mol /= param.amp_num;
+    fprintf(ptr_f[DIFFUSION], "%.15g %.15g\n", difsum, difsum_mol);
+#else
     fprintf(ptr_f[DIFFUSION], "%.15g\n", difsum);
+#endif
   }
 
   void Trajectory(const Tpsys& sys) {

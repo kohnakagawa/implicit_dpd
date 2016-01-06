@@ -289,6 +289,7 @@ public:
     ReadTagValues(fin, tag_vals);
     MatchingTagValues(tag_vals);
     CalcInterCoef();
+    amp_num = init_amp_num;
   }
 
   template<class Tpsys>
