@@ -1,5 +1,5 @@
-CXX = g++
-#CXX = icpc
+#CXX = g++
+CXX = icpc
 
 ifeq ($(CXX),icpc)
 OPENMP = -openmp -DPARTICLE_SIMULATOR_THREAD_PARALLEL
@@ -25,7 +25,7 @@ CFLAGS = $(DEBUG)
 #CFLAGS = $(PROFILE)
 
 CFLAGS += $(WARNINGS)
-#CFLAGS += $(OPENMP)
+CFLAGS += $(OPENMP)
 CFLAGS += $(STDCPP11)
 
 INCLUDE = -I./FDPS/src
