@@ -11,6 +11,10 @@
 #error "MPI is not supported yet!"
 #endif
 
+static_assert(Parameter::head_unit == 1, "head_unit should be 1.");
+static_assert(Parameter::tail_unit == 3, "tail_unit should be 3.");
+static_assert(Parameter::bond_leng != 0.0, "bond_leng should be not 0.0.");
+
 namespace  {
   timeval tv_beg, tv_end;
   double time_diff(timeval& tv1, timeval& tv2) {
