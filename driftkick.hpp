@@ -24,8 +24,8 @@ void drift_and_predict(Tpsys& sys,
 
     sys[i].vel_buf = sys[i].vel + 0.5 * dt * sys[i].acc; //NOTE: vel_buf is needed for velocity update.
 
-    //sys[i].vel += 0.5 * dt * sys[i].acc;
-    sys[i].vel += 0.65 * dt * sys[i].acc;
+    sys[i].vel += 0.5 * dt * sys[i].acc; //NOTE: lambda = 0.5 is better than lambda = 0.65 when dt = 0.005.
+    //sys[i].vel += 0.65 * dt * sys[i].acc;
   }
 }
 
