@@ -12,6 +12,8 @@
 
 //NOTE: We check the results from J. Chem. Phys. 132, 155104 (2010) in this code.
 static_assert(Parameter::all_unit == 16, "all_unit should be 16.");
+static_assert(Parameter::head_unit == 4, "head_unit should be 4.");
+static_assert(Parameter::tail_unit == 12, "tail_unit should be 12.");
 static_assert(Parameter::bond_leng == 0.0, "bond_leng should be 0.0.");
 static_assert(Parameter::Reo == 3.5, "Reo should be 3.5.");
 static_assert(Parameter::arc == 0.9, "arc should be 0.9.");
