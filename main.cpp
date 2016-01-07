@@ -3,6 +3,7 @@
 #include "io_util.hpp"
 #include "parameter.hpp"
 #include "f_calculator.hpp"
+#include "chemmanager.hpp"
 #include "observer.hpp"
 #include "driftkick.hpp"
 #include <sys/time.h>
@@ -75,9 +76,14 @@ int main(int argc, char *argv[]) {
   ForceBonded<PS::ParticleSystem<FPDPD> > fbonded(system, Parameter::all_unit * param.init_amp_num);
   fbonded.CalcListedForce(system);
 
-  // observer
   Observer<PS::ParticleSystem<FPDPD> > observer(cdir);
   observer.Initialize();
+
+  const PS::U32 seed = 123;
+  ChemManager<FPDPD> chemmanag(seed);
+
+  system.ExpandParticleBuffer(param.max_amp_num);
+  fbonded.ExpandTopolBuffer(param.max_amp_num * Parameter::all_unit);
   
   //main loop
   const PS::U32 atime = Parameter::all_time;
@@ -96,7 +102,9 @@ int main(int argc, char *argv[]) {
     fbonded.CalcListedForce(system, bonded_vir);
     
     kick(system, param.dt);
-
+    
+    if(!chemmanag.RandomChemEvent(system, fbonded.glob_topol, param) ) break;
+    
     if(Parameter::time % Parameter::step_mac == 0) {
       observer.KineticTempera(system);
       observer.Pressure(system, bonded_vir, param.ibox_leng);
