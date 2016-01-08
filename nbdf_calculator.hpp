@@ -107,27 +107,28 @@ struct CalcDensitySoftPipe {
       const PS::F64vec ri = epi[i].pos;
       PS::F64 d_sum[Parameter::prop_num] = { 0.0 };
       
-      PS::F64vec drija = ri - epj[0].pos, drijb;
-      PS::F64 dr2a = 0.0;
+      PS::F64vec drija = ri - epj[0].pos;
       PS::U32 prpja = epj[0].prop, prpjb = 0;
+      PS::F64 dw = 0.0;
       
-      for(PS::S32 j = 1; j < nj; j++) {
-	dr2a = drija * drija;
-	drijb = ri - epj[j].pos;
-	prpjb = epj[j].prop;
+      for(PS::S32 j = 1; j < nj + 1; j++) {
+	const PS::F64vec drij = drija;
+	const PS::F64 dr2 = drij * drij;
+	const PS::U32 prpj = prpja;
+	prpja = epj[j].prop; //NOTE: In case of j == nj, invalid read occurs.
+	drija = ri - epj[j].pos;
+
+	if(dr2 >= Parameter::rc2 || dr2 == 0.0) continue;
 	
-	if(dr2a < Parameter::rc2 && dr2a != 0.0) {
-	  const PS::F64 dr = std::sqrt(dr2a);
-	  d_sum[prpja] += (Parameter::rc - dr) * (Parameter::rc - dr);
-	}
-	drija = drijb;
-	prpja = prpjb;
+	//store previous result
+	d_sum[prpjb] += dw;
+	
+	//calculate next weight
+	const PS::F64 dr = std::sqrt(dr2);
+	dw = (Parameter::rc - dr) * (Parameter::rc - dr);
+	prpjb = prpj;
       }
-      dr2a = drija * drija;
-      if(dr2a < Parameter::rc2 && dr2a != 0.0) {
-	const PS::F64 dr = std::sqrt(dr2a);
-	d_sum[prpja] += (Parameter::rc - dr) * (Parameter::rc - dr);
-      }
+      d_sum[prpjb] += dw;
       
       for(PS::S32 k = 0; k < Parameter::prop_num; k++)
 	result[i].dens[k] += d_sum[k];
