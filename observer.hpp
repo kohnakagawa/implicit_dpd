@@ -135,12 +135,14 @@ public:
   void Trajectory(const Tpsys& sys) {
     io_util::WriteXYZForm(sys,
 			  sys.getNumberOfParticleLocal(),
+			  Parameter::time,
 			  ptr_f[PART_CONFIG]);
   }
 
   void FinConfig(const Tpsys& sys) {
     io_util::WriteXYZForm(sys,
 			  sys.getNumberOfParticleLocal(),
+			  Parameter::time,
 			  ptr_f[FIN_CONFIG]);
   }
 

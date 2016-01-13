@@ -117,14 +117,14 @@ class Parameter {
 
 public:
   static constexpr PS::F64 Tempera	= 1.0;
-  static constexpr PS::U32 head_unit	= 4;
-  static constexpr PS::U32 tail_unit	= 12;
+  static constexpr PS::U32 head_unit	= 1;
+  static constexpr PS::U32 tail_unit	= 3;
   static constexpr PS::U32 all_unit	= head_unit + tail_unit;
-  static constexpr PS::F64 bond_leng	= 0.0;
+  static constexpr PS::F64 bond_leng	= 0.5;
   static constexpr PS::F64 ibond	= (bond_leng != 0.0) ? 1.0 / bond_leng : 0.0;
   static constexpr PS::F64 search_rad   = 1.2;
   static constexpr PS::F64 arc		= 0.9;
-  static constexpr PS::F64 Reo		= 3.5;
+  static constexpr PS::F64 Reo		= 2.0;
 
   static constexpr char atom_type[21] = {
     'O', 'N', 'C', 'S', 'P', 'Z', 'X', 'O', 'N', 'C', 'S', 'P', 'Z', 'X', 'O', 'N', 'C', 'S', 'P', 'Z', 'X'
@@ -293,16 +293,19 @@ public:
   }
 
   template<class Tpsys>
-  void LoadParticleConfig(Tpsys& sys) const {
+  PS::U32 LoadParticleConfig(Tpsys& sys) const {
     const std::string fname = cdir + "/init_config.xyz";
     FILE* fp = io_util::xfopen(fname.c_str(), "r");
     PS::U32 line_num = 0;
-    io_util::ReadXYZForm(sys, line_num, fp);
+    PS::U32 cur_time = 0;
+    io_util::ReadXYZForm(sys, line_num, cur_time, fp);
     if(line_num / all_unit != init_amp_num) {
+      std::cerr << line_num / all_unit << " " << init_amp_num << std::endl;
       std::cerr << "# of lines is not equal to the run input parameter information.\n";
       PS::Abort();
     }
     fclose(fp);
+    return cur_time;
   }
 
   template<class Tpsys>

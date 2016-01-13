@@ -51,7 +51,7 @@ int main(int argc, char *argv[]) {
   PS::ParticleSystem<FPDPD> system;
   system.initialize();
   system.setNumberOfParticleLocal(param.init_amp_num * Parameter::all_unit);
-  param.LoadParticleConfig(system);
+  Parameter::time = param.LoadParticleConfig(system);
   param.CheckParticleConfigIsValid(system);
 
   //Initial step & construct classes.
@@ -81,12 +81,14 @@ int main(int argc, char *argv[]) {
   observer.Initialize();
 
   kick(system, param.dt);
+  
+  Parameter::time++;
   //End of initial step.
   
   //main loop
-  const PS::U32 atime = Parameter::all_time;
+  const PS::U32 atime = Parameter::time + Parameter::all_time - 1;
   PS::F64vec bonded_vir(0.0, 0.0, 0.0);
-  for(Parameter::time = 0; Parameter::time < atime; Parameter::time++) {
+  for(; Parameter::time < atime; Parameter::time++) {
 #ifdef DEBUG    
     std::cout << Parameter::time << std::endl;
 #endif

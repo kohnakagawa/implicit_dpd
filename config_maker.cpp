@@ -324,7 +324,7 @@ public:
   void DumpParticleConfig() {
     std::string fname = cdir + "/init_config.xyz";
     FILE* fout = io_util::xfopen(fname.c_str(), "w");
-    io_util::WriteXYZForm(&prtcls[0], prtcls.size(), fout);
+    io_util::WriteXYZForm(&prtcls[0], prtcls.size(), 0, fout);
     fclose(fout);
   } 
 };
