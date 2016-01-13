@@ -8,8 +8,8 @@ ifeq ($(CXX),g++)
 OPENMP = -fopenmp -DPARTICLE_SIMULATOR_THREAD_PARALLEL
 endif
 
-WARNINGS = -Wall -Wnon-virtual-dtor -Woverloaded-virtual -Wunused-variable
-DEBUG = -O0 -g -DDEBUG #-DSANITY_CHECK_REALLOCATABLE_ARRAY
+WARNINGS = -Wall -Wunused-variable #-Wnon-virtual-dtor -Woverloaded-virtual
+DEBUG = -O0 -g -DDEBUG
 
 ifeq ($(CXX),icpc)
 RELEASE = -O3 -ipo -no-prec-div -xHOST
@@ -20,8 +20,8 @@ endif
 
 STDCPP11 = -std=c++11
 
-CFLAGS = $(DEBUG)
-#CFLAGS = $(RELEASE)
+#CFLAGS = $(DEBUG)
+CFLAGS = $(RELEASE)
 #CFLAGS = $(PROFILE)
 
 CFLAGS += $(WARNINGS)
