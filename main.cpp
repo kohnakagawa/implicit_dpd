@@ -51,10 +51,12 @@ int main(int argc, char *argv[]) {
   PS::ParticleSystem<FPDPD> system;
   system.initialize();
   system.setNumberOfParticleLocal(param.init_amp_num * Parameter::all_unit);
-  //load particle configuration.
   param.LoadParticleConfig(system);
   param.CheckParticleConfigIsValid(system);
 
+  //Initial step & construct classes.
+  drift_and_predict(system, param.dt, param.box_leng, param.ibox_leng);
+  
   PS::DomainInfo dinfo;
   const PS::F64 coef_ema = 0.3;
   dinfo.initialize(coef_ema);
@@ -75,9 +77,11 @@ int main(int argc, char *argv[]) {
   ForceBonded<PS::ParticleSystem<FPDPD> > fbonded(system, Parameter::all_unit * param.init_amp_num);
   fbonded.CalcListedForce(system);
 
-  // observer
   Observer<PS::ParticleSystem<FPDPD> > observer(cdir);
   observer.Initialize();
+
+  kick(system, param.dt);
+  //End of initial step.
   
   //main loop
   const PS::U32 atime = Parameter::all_time;
@@ -113,7 +117,8 @@ int main(int argc, char *argv[]) {
       observer.FlushAll();
 #endif
     
-  }//end of main loop
+  }
+  //end of main loop
   
   timer_stop();
   show_duration();
