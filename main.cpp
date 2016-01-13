@@ -35,6 +35,22 @@ namespace  {
     std::cout << "Simulation time is \n";
     std::cout << d << "d " << h << "h " << m << "m " << s << "s\n";
   }
+
+  //helper functions for observer
+  inline void do_observe_macro(Observer<PS::ParticleSystem<FPDPD> >& observer,
+			       const PS::ParticleSystem<FPDPD>& system,
+			       const Parameter& param,
+			       const PS::F64vec& bonded_vir) {
+    observer.KineticTempera(system);
+    observer.Pressure(system, bonded_vir, param.ibox_leng);
+    observer.Diffusion(system, param.amp_num);
+    //observer.ConfigTempera();
+  }
+  
+  inline void do_observe_micro(Observer<PS::ParticleSystem<FPDPD> >& observer,
+			       const PS::ParticleSystem<FPDPD>& system) {
+    observer.Trajectory(system);
+  }
 }
 
 int main(int argc, char *argv[]) {
@@ -75,10 +91,13 @@ int main(int argc, char *argv[]) {
   force_tree.calcForceAllAndWriteBack(CalcForceEpEpDPD(), system, dinfo);
 
   ForceBonded<PS::ParticleSystem<FPDPD> > fbonded(system, Parameter::all_unit * param.init_amp_num);
-  fbonded.CalcListedForce(system);
+  PS::F64vec bonded_vir(0.0, 0.0, 0.0);
+  fbonded.CalcListedForce(system, bonded_vir);
 
   Observer<PS::ParticleSystem<FPDPD> > observer(cdir);
   observer.Initialize();
+  do_observe_macro(observer, system, param, bonded_vir);
+  do_observe_micro(observer, system);
 
   kick(system, param.dt);
   
@@ -87,7 +106,6 @@ int main(int argc, char *argv[]) {
   
   //main loop
   const PS::U32 atime = Parameter::time + Parameter::all_time - 1;
-  PS::F64vec bonded_vir(0.0, 0.0, 0.0);
   for(; Parameter::time < atime; Parameter::time++) {
 #ifdef DEBUG    
     std::cout << Parameter::time << std::endl;
@@ -103,16 +121,11 @@ int main(int argc, char *argv[]) {
     
     kick(system, param.dt);
 
-    if(Parameter::time % Parameter::step_mac == 0) {
-      observer.KineticTempera(system);
-      observer.Pressure(system, bonded_vir, param.ibox_leng);
-      observer.Diffusion(system, param.amp_num);
-      //observer.ConfigTempera();
-    }
+    if(Parameter::time % Parameter::step_mac == 0)
+      do_observe_macro(observer, system, param, bonded_vir);
 
-    if(Parameter::time % Parameter::step_mic == 0) {
-      observer.Trajectory(system);
-    }
+    if(Parameter::time % Parameter::step_mic == 0)
+      do_observe_micro(observer, system);
 
 #ifdef DEBUG
     if(Parameter::time % Observer<PS::ParticleSystem<FPDPD> >::flush_freq == 0)

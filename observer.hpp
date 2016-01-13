@@ -70,7 +70,7 @@ public:
     }
   }
   
-  void KineticTempera(Tpsys& sys) {
+  void KineticTempera(const Tpsys& sys) {
     const PS::S32 num_part = sys.getNumberOfParticleLocal();
     PS::F64vec kin_sum(0.0, 0.0, 0.0);
     for(PS::S32 i = 0; i < num_part; i++) {
@@ -87,7 +87,7 @@ public:
     //not implemented yet
   }
   
-  void Pressure(Tpsys& sys, PS::F64vec& bonded_vir, PS::F64vec& ibox_leng) {
+  void Pressure(const Tpsys& sys, const PS::F64vec& bonded_vir, const PS::F64vec& ibox_leng) {
     //NOTE: We do not use the action-reaction law when calculating the non-bonded interactions.
     //      Therefore, the virial should be multiplied by 0.5.
     //TODO: implement line/surface tension calculation part.
