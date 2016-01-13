@@ -5,7 +5,7 @@
 #include "particle_simulator.hpp"
 #include "io_util.hpp"
 #include "parameter.hpp"
-#include "f_calculator.hpp"
+#include "f_calc.hpp"
 #include <cstring>
 
 static_assert(Parameter::bond_leng != 0.0, "Please check Parameter::bond_leng != 0.0");
@@ -24,8 +24,6 @@ class ConfigMaker {
   PS::F64 sph_rad	= std::numeric_limits<PS::F64>::quiet_NaN();
   PS::F64 cyl_l		= std::numeric_limits<PS::F64>::quiet_NaN();
   PS::F64 cyl_r		= std::numeric_limits<PS::F64>::quiet_NaN();
-
-  PS::F64 in_out_rat    = std::numeric_limits<PS::F64>::quiet_NaN();
   
   PS::F64 NormalRand(const PS::F64 mean, const PS::F64 sd) const {
     return mean + sd * std::sqrt( -2.0 * std::log(PS::MT::genrand_real3()) ) * std::cos(2.0 * M_PI * PS::MT::genrand_real3() );
@@ -75,15 +73,8 @@ class ConfigMaker {
     }
   }
 
-  void MakeFlatSheet(PS::F64vec& len, const PS::S32 axis, bool asym) {
+  void MakeFlatSheet(PS::F64vec& len, PS::S32 axis) {
     assert(axis >= 0 && axis < 3);
-    PS::U32 rat = 0xffffffff;
-    if(asym) {
-      assert(mode == "asym_flat");
-      rat = static_cast<PS::U32>(100 * in_out_rat);
-    } else {
-      assert(mode == "flat");
-    }
     
     const PS::F64 eps = 1.0e-5;
     PS::U32 idx = 0;
@@ -97,17 +88,10 @@ class ConfigMaker {
       base[axis] = 0.5 * len[axis] + (Parameter::all_unit * Parameter::bond_leng + eps) * sign;
       nv[axis] = -1.0 * sign;
       SetAmphilPartPos(base, nv, idx);
-
-      if(asym) {
-	const PS::U32 amp_id = idx / Parameter::all_unit;
-	if( ((amp_id % 100) == rat) || ((amp_id % 100) == 0 && (amp_id != 0)) )
-	  flap ^= true;
-      } else {
-	flap ^= true;
-      }
+      flap ^= true;
     }
   }
-
+  
   bool MakeSphLine(const PS::F64 the, const PS::F64vec& center, const PS::F64 rad,
 		   const PS::F64 sign, PS::U32& idx)
   {
@@ -228,15 +212,13 @@ class ConfigMaker {
 #define MODE_EQ(str) strcasecmp(mode.c_str(), str) == 0
   void GenConfig() {
     if(MODE_EQ("flat")) {
-      MakeFlatSheet(box_leng, 1, false);
+      MakeFlatSheet(box_leng, 1);      
     } else if(MODE_EQ("sphere")) {
       MakeSphSheet();
     } else if(MODE_EQ("cylind")) {
       MakeCylindSheet(2);
     } else if(MODE_EQ("random")) {
       MakeRandomConfig(box_leng);
-    } else if(MODE_EQ("asym_flat")) {
-      MakeFlatSheet(box_leng, 1, true);
     } else {
       if(!mode.empty() )
 	std::cerr << mode << ": Unknown mode\n";
@@ -259,8 +241,7 @@ class ConfigMaker {
       Parameter::Matching(&cyl_l, "cyl_l", tag_val, 1);
       Parameter::Matching(&cyl_r, "cyl_r", tag_val, 1);
     }
-    if(MODE_EQ("asym_flat"))
-      Parameter::Matching(&in_out_rat, "in_out_rat", tag_val, 1);
+      
     Parameter::Matching(&lip_len, "lip_len", tag_val, 1);
   }
 #undef MODE_EQ
@@ -343,7 +324,7 @@ public:
   void DumpParticleConfig() {
     std::string fname = cdir + "/init_config.xyz";
     FILE* fout = io_util::xfopen(fname.c_str(), "w");
-    io_util::WriteXYZForm(&prtcls[0], prtcls.size(), 0, fout);
+    io_util::WriteXYZForm(&prtcls[0], prtcls.size(), fout);
     fclose(fout);
   } 
 };

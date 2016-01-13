@@ -2,8 +2,7 @@
 #include "particle_simulator.hpp"
 #include "io_util.hpp"
 #include "parameter.hpp"
-#include "f_calculator.hpp"
-#include "chemmanager.hpp"
+#include "f_calc.hpp"
 #include "observer.hpp"
 #include "driftkick.hpp"
 #include <sys/time.h>
@@ -36,26 +35,17 @@ namespace  {
     std::cout << "Simulation time is \n";
     std::cout << d << "d " << h << "h " << m << "m " << s << "s\n";
   }
-
-  //helper functions for observer
-  inline void do_observe_macro(Observer<PS::ParticleSystem<FPDPD> >& observer,
-			       const PS::ParticleSystem<FPDPD>& system,
-			       const Parameter& param,
-			       const PS::F64vec& bonded_vir) {
-    observer.KineticTempera(system);
-    observer.Pressure(system, bonded_vir, param.ibox_leng);
-    observer.Diffusion(system, param.amp_num);
-    //observer.ConfigTempera();
-  }
   
-  inline void do_observe_micro(Observer<PS::ParticleSystem<FPDPD> >& observer,
-			       const PS::ParticleSystem<FPDPD>& system) {
-    observer.Trajectory(system);
+  template<class Tpsys>
+  void set_local_id(Tpsys& sys) {
+    const PS::S32 num = sys.getNumberOfParticleLocal();
+    for(PS::S32 i = 0; i < num; i++)
+      sys[i].id_loc = i;
   }
 }
 
 int main(int argc, char *argv[]) {
-  timer_start();
+
   
   PS::Initialize(argc, argv);
   
@@ -68,12 +58,10 @@ int main(int argc, char *argv[]) {
   PS::ParticleSystem<FPDPD> system;
   system.initialize();
   system.setNumberOfParticleLocal(param.init_amp_num * Parameter::all_unit);
-  Parameter::time = param.LoadParticleConfig(system);
+  //load particle configuration.
+  param.LoadParticleConfig(system);
   param.CheckParticleConfigIsValid(system);
 
-  //Initial step & construct classes.
-  drift_and_predict(system, param.dt, param.box_leng, param.ibox_leng);
-  
   PS::DomainInfo dinfo;
   const PS::F64 coef_ema = 0.3;
   dinfo.initialize(coef_ema);
@@ -83,37 +71,38 @@ int main(int argc, char *argv[]) {
   dinfo.decomposeDomain();
   system.exchangeParticle(dinfo);
 
+#ifdef USE_NEIGH_BUFFER
+  NearlistBuffer n_buffer;
+  n_buffer.Initialize(3 * system.getNumberOfParticleLocal() );
+  set_local_id(system);
+
+  PS::TreeForForceShort<RESULT::ForceDPDDensity, EPI::DPD_Density, EPJ::DPD_Density>::Gather force_tree;
+  force_tree.initialize(3 * system.getNumberOfParticleGlobal() );
+  force_tree.calcForceAllAndWriteBack(CalcDensity(), system, dinfo);
+  force_tree.calcForceCopyPtclAndWriteBack(CalcForceEpEpDPD(), system, dinfo);
+
+#else
   PS::TreeForForceShort<RESULT::Density, EPI::Density, EPJ::Density>::Gather dens_tree;
   dens_tree.initialize(3 * system.getNumberOfParticleGlobal() );
   dens_tree.calcForceAllAndWriteBack(CalcDensity(), system, dinfo);
-
+  
   PS::TreeForForceShort<RESULT::ForceDPD, EPI::DPD, EPJ::DPD>::Gather force_tree;
   force_tree.initialize(3 * system.getNumberOfParticleGlobal() );
   force_tree.calcForceAllAndWriteBack(CalcForceEpEpDPD(), system, dinfo);
-
+#endif
+  
   ForceBonded<PS::ParticleSystem<FPDPD> > fbonded(system, Parameter::all_unit * param.init_amp_num);
-  PS::F64vec bonded_vir(0.0, 0.0, 0.0);
-  fbonded.CalcListedForce(system, bonded_vir);
+  fbonded.CalcListedForce(system);
 
+  // observer
   Observer<PS::ParticleSystem<FPDPD> > observer(cdir);
   observer.Initialize();
 
-  const PS::U32 seed = 123;
-  ChemManager<FPDPD> chemmanag(seed);
-  system.ExpandParticleBuffer(param.max_amp_num);
-  fbonded.ExpandTopolBuffer(param.max_amp_num * Parameter::all_unit);
-
-  do_observe_macro(observer, system, param, bonded_vir);
-  do_observe_micro(observer, system);
-
-  kick(system, param.dt);
-  
-  Parameter::time++;
-  //End of initial step.
-  
+  timer_start();  
   //main loop
-  const PS::U32 atime = Parameter::time + Parameter::all_time - 1;
-  for(; Parameter::time < atime; Parameter::time++) {
+  const PS::U32 atime = Parameter::all_time;
+  PS::F64vec bonded_vir(0.0, 0.0, 0.0);
+  for(Parameter::time = 0; Parameter::time < atime; Parameter::time++) {
 #ifdef DEBUG    
     std::cout << Parameter::time << std::endl;
 #endif
@@ -122,27 +111,42 @@ int main(int argc, char *argv[]) {
     dinfo.decomposeDomain();
     system.exchangeParticle(dinfo);
 
+#ifdef USE_NEIGH_BUFFER
+    n_buffer.CheckBufferSize(system.getNumberOfParticleLocal());
+    n_buffer.ClearList();
+    set_local_id(system);
+    //calc density
+    force_tree.calcForceAllAndWriteBack(CalcDensity(), system, dinfo);
+    
+    //calc non-bonded interaction
+    //NOTE: After call this function, FPDPD.density information is set to 0.0 .
+    force_tree.calcForceCopyPtclAndWriteBack(CalcForceEpEpDPD(), system, dinfo);
+#else
     dens_tree.calcForceAllAndWriteBack(CalcDensity(), system, dinfo);
     force_tree.calcForceAllAndWriteBack(CalcForceEpEpDPD(), system, dinfo);
+#endif
+
     fbonded.CalcListedForce(system, bonded_vir);
     
     kick(system, param.dt);
-    
-    if(!chemmanag.RandomChemEvent(system, fbonded.glob_topol, param) ) break;
 
-    if(Parameter::time % Parameter::step_mac == 0)
-      do_observe_macro(observer, system, param, bonded_vir);
+    if(Parameter::time % Parameter::step_mac == 0) {
+      observer.KineticTempera(system);
+      observer.Pressure(system, bonded_vir, param.ibox_leng);
+      observer.Diffusion(system, param.amp_num);
+      //observer.ConfigTempera();
+    }
 
-    if(Parameter::time % Parameter::step_mic == 0)
-      do_observe_micro(observer, system);
+    if(Parameter::time % Parameter::step_mic == 0) {
+      observer.Trajectory(system);
+    }
 
 #ifdef DEBUG
     if(Parameter::time % Observer<PS::ParticleSystem<FPDPD> >::flush_freq == 0)
       observer.FlushAll();
 #endif
     
-  }
-  //end of main loop
+  }//end of main loop
   
   timer_stop();
   show_duration();

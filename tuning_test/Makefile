@@ -2,14 +2,14 @@
 CXX = icpc
 
 ifeq ($(CXX),icpc)
-OPENMP = -openmp -DPARTICLE_SIMULATOR_THREAD_PARALLEL
+OPENMP = -openmp -DPARTICLE_SIMULATOR_THREAD_PARALLEL # -DUSE_NEIGH_BUFFER
 endif
 ifeq ($(CXX),g++)
-OPENMP = -fopenmp -DPARTICLE_SIMULATOR_THREAD_PARALLEL
+OPENMP = -fopenmp -DPARTICLE_SIMULATOR_THREAD_PARALLEL # -DUSE_NEIGH_BUFFER
 endif
 
-WARNINGS = -Wall -Wunused-variable #-Wnon-virtual-dtor -Woverloaded-virtual
-DEBUG = -O0 -g -DDEBUG
+WARNINGS = -Wall -Wnon-virtual-dtor -Woverloaded-virtual -Wunused-variable
+DEBUG = -O0 -g -DDEBUG #-DSANITY_CHECK_REALLOCATABLE_ARRAY
 
 ifeq ($(CXX),icpc)
 RELEASE = -O3 -ipo -no-prec-div -xHOST
@@ -28,7 +28,7 @@ CFLAGS += $(WARNINGS)
 CFLAGS += $(OPENMP)
 CFLAGS += $(STDCPP11)
 
-INCLUDE = -I./FDPS/src
+INCLUDE = -I../FDPS/src
 
 OBJECTS_DPD = main.o
 OBJECTS_CMAKE = config_maker.o

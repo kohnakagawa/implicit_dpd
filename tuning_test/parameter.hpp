@@ -61,10 +61,6 @@ class Parameter {
     Matching(&all_time, std::string("all_time"), tag_val, 1);
     Matching(&step_mic, std::string("step_mic"), tag_val, 1);
     Matching(&step_mac, std::string("step_mac"), tag_val, 1);
-
-    Matching(&p_thresld, std::string("p_thresld"), tag_val, 1);
-    Matching(&eps, std::string("eps"), tag_val, 1);
-    Matching(&max_amp_num, std::string("max_amp_num"), tag_val, 1);
   }
 
   void CalcGammaWithHarmonicMean(const PS::S32 i, const PS::S32 j) {
@@ -163,11 +159,6 @@ public:
   PS::F64 kappa = std::numeric_limits<PS::F64>::quiet_NaN();
   PS::F64 rho_co = std::numeric_limits<PS::F64>::quiet_NaN();
 
-  //for chemical reaction
-  PS::F64 p_thresld = std::numeric_limits<PS::F64>::quiet_NaN();
-  PS::F64 eps = std::numeric_limits<PS::F64>::quiet_NaN();
-  PS::S32 max_amp_num = -1; //When amp_num >= max_amp_num, we stop the simulation.
-  
   //for prng
   static PS::U32 time;
   static PS::U32 all_time, step_mic, step_mac;
@@ -302,19 +293,16 @@ public:
   }
 
   template<class Tpsys>
-  PS::U32 LoadParticleConfig(Tpsys& sys) const {
+  void LoadParticleConfig(Tpsys& sys) const {
     const std::string fname = cdir + "/init_config.xyz";
     FILE* fp = io_util::xfopen(fname.c_str(), "r");
     PS::U32 line_num = 0;
-    PS::U32 cur_time = 0;
-    io_util::ReadXYZForm(sys, line_num, cur_time, fp);
+    io_util::ReadXYZForm(sys, line_num, fp);
     if(line_num / all_unit != init_amp_num) {
-      std::cerr << line_num / all_unit << " " << init_amp_num << std::endl;
       std::cerr << "# of lines is not equal to the run input parameter information.\n";
       PS::Abort();
     }
     fclose(fp);
-    return cur_time;
   }
 
   template<class Tpsys>
@@ -383,12 +371,6 @@ public:
     assert(std::isfinite(chi) );
     assert(std::isfinite(kappa));
     assert(std::isfinite(rho_co));
-
-    assert(std::isfinite(p_thresld));
-    assert(p_thresld <= 1.0 && p_thresld >= 0.0);
-
-    assert(std::isfinite(eps));
-    assert(max_amp_num >= init_amp_num);
   }
 
   void DumpAllParam() const {
