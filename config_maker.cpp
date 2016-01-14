@@ -94,7 +94,7 @@ class ConfigMaker {
 		      len.y * PS::MT::genrand_res53(),
 		      len.z * PS::MT::genrand_res53());
       const PS::F64 sign = flap ? 1.0 : -1.0;
-      base[axis] = 0.5 * len[axis] + (Parameter::all_unit * Parameter::bond_leng + eps) * sign;
+      base[axis] = 0.5 * len[axis] + ((Parameter::all_unit - 1) * Parameter::bond_leng + eps) * sign;
       nv[axis] = -1.0 * sign;
       SetAmphilPartPos(base, nv, idx);
 
