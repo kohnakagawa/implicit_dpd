@@ -29,6 +29,7 @@ namespace  {
     assert(fin);
 
     PS::F64vec press_mean(0.0, 0.0, 0.0), buf(0.0, 0.0, 0.0);
+    PS::F64 stens_mean = 0.0;
     PS::S32 cnt = 0, time = 0;
     
     while(true) {
@@ -36,17 +37,18 @@ namespace  {
       if(fin.eof()) break;
       if(time >= beg) {
 	press_mean += buf;
+	stens_mean += (buf.y - (buf.x + buf.z) * 0.5) * box.y;
 	cnt++;
       }
       time++;
     }
     
     press_mean /= cnt;
-    const PS::F64 stens = (press_mean.z - (press_mean.x + press_mean.y) * 0.5) * box.z;
+    stens_mean /= cnt;
     fname = "./stens.txt";
     std::ofstream fout(fname.c_str(), std::ios::app);
     fout << std::setprecision(15);
-    fout << liparea << " " << stens << std::endl;
+    fout << liparea << " " << stens_mean << " " << press_mean << std::endl;
   }
 
   void calc_mean_kintemp(const std::string& cdir,
