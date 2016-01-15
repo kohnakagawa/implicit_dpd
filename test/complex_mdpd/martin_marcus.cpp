@@ -220,7 +220,7 @@ int main(int argc, char *argv[]) {
   param.DumpAllParam();
   
   const PS::S32 beg_time = std::atoi(argv[2]);
-  calc_mean_pressure(cdir, beg_time, param.box_leng, param.init_amp_num * param.ibox_leng.x * param.ibox_leng.y * 0.5);
+  calc_mean_pressure(cdir, beg_time, param.box_leng, param.init_amp_num * param.ibox_leng.x * param.ibox_leng.z * 0.5);
   calc_mean_kintemp(cdir, beg_time, param.dt);
   
   PS::Finalize();
