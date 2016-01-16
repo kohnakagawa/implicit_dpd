@@ -416,6 +416,10 @@ public:
     DUMPTAGANDVAL(box_leng.y);
     DUMPTAGANDVAL(box_leng.z);
 
+    DUMPTAGANDVAL(ibox_leng.x);
+    DUMPTAGANDVAL(ibox_leng.y);
+    DUMPTAGANDVAL(ibox_leng.z);
+
     DUMPTAGANDVAL(init_amp_num);
     DUMPTAGANDVAL(dt);
 
