@@ -208,7 +208,7 @@ struct ForceBondedMPI {
   PS::U32 cmplt_amp = 0, imcmplt_amp = 0;
   PS::ReallocatableArray<ampid2idx> ampid, ampid_buf;
   PS::ReallocatableArray<PS::U32> loc_topol_cmpl, loc_topol_imcmpl;
-  PS::ReallocatableArray<bool> is_real_surf; //real particle or phantom
+  PS::ReallocatableArray<bool> is_real_surf; //real particle or phantom on surface
   PS::RadixSort<PS::U32> rsorter;
 
   explicit ForceBondedMPI(const int est_loc_amp) {
