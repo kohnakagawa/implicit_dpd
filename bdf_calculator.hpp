@@ -208,7 +208,7 @@ struct ForceBondedMPI {
   PS::U32 cmplt_amp = 0, imcmplt_amp = 0;
   PS::ReallocatableArray<ampid2idx> ampid, ampid_buf;
   PS::ReallocatableArray<PS::U32> loc_topol_cmpl, loc_topol_imcmpl;
-  PS::ReallocatableArray<bool> is_real; //real particle or phantom
+  PS::ReallocatableArray<bool> is_real_surf; //real particle or phantom
   PS::RadixSort<PS::U32> rsorter;
 
   explicit ForceBondedMPI(const int est_loc_amp) {
@@ -217,7 +217,7 @@ struct ForceBondedMPI {
     
     loc_topol_cmpl.resizeNoInitialize(est_loc_amp * Parameter::all_unit);
     loc_topol_imcmpl.resizeNoInitialize(est_loc_amp * Parameter::all_unit);
-    is_real.resizeNoInitialize(est_loc_amp * Parameter::all_unit);
+    is_real_surf.resizeNoInitialize(est_loc_amp * Parameter::all_unit);
   }
   ~ForceBondedMPI() {
     
@@ -329,7 +329,7 @@ struct ForceBondedMPI {
     PS::F64vec Fbb[bond_n], pos_buf[bond_n], dr[bond_n - 1];
     PS::F64  dist2[bond_n - 1], inv_dr[bond_n - 1];
 
-    const bool* mask = &(is_real[beg_bond_id]);
+    const bool* mask = &(is_real_surf[beg_bond_id]);
     const PS::U32* l_dst = &(loc_topol_imcmpl[beg_bond_id]);
     
     pos_buf[0] = epj_org[ l_dst[0] ].pos;
@@ -370,7 +370,7 @@ struct ForceBondedMPI {
     ampid_buf.resizeNoInitialize(all_n);
     loc_topol_cmpl.resizeNoInitialize(all_n);
     loc_topol_imcmpl.resizeNoInitialize(all_n);
-    is_real.resizeNoInitialize(all_n);
+    is_real_surf.resizeNoInitialize(all_n);
     
     for(PS::U32 i = 0; i < all_n; i++) {
       ampid[i].amp_id	= epj_org[i].amp_id;
@@ -381,7 +381,7 @@ struct ForceBondedMPI {
     rsorter.lsdSort(ampid, ampid_buf, 0, all_n);
     
     cmplt_amp = imcmplt_amp = 0;
-    PS::U32 id_cmpl = 0, id_imcmpl = 0, cnt = (amp_id[0].is_real), id_bef = ampid[0].amp_id, id_cur;
+    PS::U32 id_cmpl = 0, id_imcmpl = 0, cnt = (ampid[0].is_real), id_bef = ampid[0].amp_id, id_cur;
     PS::U32 imcmpl_buf[Parameter::all_unit] = { 0xffffffff };
     bool    isreal_buf[Parameter::all_unit] = { false };
     for(PS::U32 i = 1; i < n; i++) {
@@ -410,7 +410,7 @@ struct ForceBondedMPI {
 
 	  for(PS::U32 j = 0; j < Parameter::all_unit; j++) {
 	    loc_topol_imcmpl[id_imcmpl] = imcmpl_buf[j];
-	    is_real[id_imcmpl]		= isreal_buf[j];
+	    is_real_surf[id_imcmpl]		= isreal_buf[j];
 	    id_imcmpl++;
 	  }
 	  imcmplt_amp++;
@@ -426,7 +426,7 @@ struct ForceBondedMPI {
     for(PS::U32 aid = 0; aid < imcmplt_amp; aid++) {
       bool req_flag[Parameter::all_unit] = { false };
       for(PS::U32 unit = 0; unit < Parameter::all_unit; unit++) {
-	if(is_real[cnt]) {
+	if(is_real_surf[cnt]) {
 	  for(PS::U32 j = -2; j < 3; j++) {
 	    const PS::S32 unit_j = unit + j;
 	    if(unit_j >= 0 && unit_j < Parameter::all_unit)
