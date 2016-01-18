@@ -16,6 +16,7 @@ class Observer {
     NUM_AMP,
     PART_CONFIG,
     FIN_CONFIG,
+    MEMB_HEIGHT,
     
     NUM_FILES,
   };
@@ -45,6 +46,9 @@ class Observer {
       break;
     case FIN_CONFIG:
       fname = "fin_config.xyz";
+      break;
+    case MEMB_HEIGHT:
+      fname = "memb_height.txt";
       break;
     default:
       std::cerr << "Unknown type\n";
@@ -130,6 +134,97 @@ public:
 #else
     fprintf(ptr_f[DIFFUSION], "%.15g\n", difsum);
 #endif
+  }
+
+  //NOTE: these two routines are designed to calculate a bending rigidity of bilayer membrane.
+  //NOTE: we will not support MPI version for this routine.
+  PS::S32 DetermineMembNormalVect(const Tpsys& sys) {
+    const PS::S32 num = sys.getNumberOfParticleLocal();
+    PS::F64vec max_cord(0.0, 0.0, 0.0);
+    for(PS::S32 i = 0; i < num; i++) {
+      max_cord.x = (max_cord.x < sys[i].pos.x) ? sys[i].pos.x : max_cord.x;
+      max_cord.y = (max_cord.y < sys[i].pos.y) ? sys[i].pos.y : max_cord.y;
+      max_cord.z = (max_cord.z < sys[i].pos.z) ? sys[i].pos.z : max_cord.z;
+    }
+    PS::F64* ptr_beg = &max_cord[0];
+    const PS::S32 min_id = std::distance(ptr_beg, std::min_element(ptr_beg, ptr_beg + 3));
+    assert(min_id >= 0 && min_id < 3);
+    
+    return min_id;
+  }
+  
+  //NOTE: we will not support MPI version for this routine.
+  //    : this function is not thread safe.
+  void MembHeight(const Tpsys& sys, const PS::F64vec& box_leng) {
+    static bool is_first_call = true;
+    static PS::S32 n_id = -1, l_id[] = {-1, -1};
+    static PS::U32 box_dim[] = {0xffffffff, 0xffffffff};
+    static PS::F64 len_c[] = {0.0, 0.0};
+    static std::vector<PS::S32> num_in_bin;
+    static std::vector<PS::F64> height;
+
+    //initialization of several parameters.
+    if(is_first_call) {
+      n_id = DetermineMembNormalVect(sys);
+      PS::S32 cnt = 0;
+      for(PS::S32 i = 0; i < 3; i++) {
+	if(i != n_id) l_id[cnt++] = i;
+      }
+      
+      box_dim[0] = static_cast<PS::U32>(box_leng[l_id[0]] / (2.0 * Parameter::Reo * 1.5)); //NOTE: len_c ~ 1.5 * bilayer thickness
+      box_dim[1] = static_cast<PS::U32>(box_leng[l_id[1]] / (2.0 * Parameter::Reo * 1.5));
+      
+      num_in_bin.resize(box_dim[0] * box_dim[1], 0);
+      height.resize(box_dim[0] * box_dim[1], 0.0);
+      
+      len_c[0] = box_leng[l_id[0]] / box_dim[0];
+      len_c[1] = box_leng[l_id[1]] / box_dim[1];
+
+      //print header inform
+      fprintf(ptr_f[MEMB_HEIGHT], "#box_dim %u %u len_c %.15g %.15g\n", box_dim[0], box_dim[1], len_c[0], len_c[1]);
+      
+      is_first_call = false;
+    }
+
+    //calculation of membrane height.
+    num_in_bin.assign(num_in_bin.size(), 0);
+    height.assign(height.size(), 0.0);
+    const PS::S32 num = sys.getNumberOfParticleLocal();
+    for(PS::S32 i = 0; i < num; i++) {
+      PS::U32 id[] = {
+	static_cast<PS::U32>(sys[i].pos[l_id[0]] / len_c[0]),
+	static_cast<PS::U32>(sys[i].pos[l_id[1]] / len_c[1])
+      };
+      if(id[0] == box_dim[0]) id[0]--;
+      if(id[1] == box_dim[1]) id[1]--;
+      
+      const PS::U32 hash = id[0] + id[1] * box_dim[0];
+      num_in_bin[hash]++;
+      height[hash] += sys[i].pos[n_id];
+    }
+    
+    for(PS::U32 i = 0; i < height.size(); i++) {
+      if(num_in_bin[i] == 0) {
+	std::cerr << "cutoff length may be small.\n";
+	std::cerr << "cutoff length len_c is " << len_c[0] << " " << len_c[1] << std::endl;
+	std::cerr << __FILE__ << " " << __LINE__ << std::endl;
+	PS::Abort();
+      }
+      height[i] /= num_in_bin[i];
+    }
+    
+    //write height
+    PS::S32 cnt = 0;
+    for(PS::S32 iy = 0; iy < box_dim[1]; iy++) {
+      for(PS::S32 ix = 0; ix < box_dim[0]; ix++) {
+	const PS::F64 bin_pos[] = {
+	  (ix + 0.5) * len_c[0],
+	  (iy + 0.5) * len_c[1],
+	};
+	fprintf(ptr_f[MEMB_HEIGHT], "%.15g %.15g %.15g\n", 
+		bin_pos[0], bin_pos[1], height[cnt++]);
+      }
+    }
   }
 
   void Trajectory(const Tpsys& sys) {

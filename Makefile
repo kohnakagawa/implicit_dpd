@@ -11,6 +11,8 @@ endif
 WARNINGS = -Wall -Wunused-variable #-Wnon-virtual-dtor -Woverloaded-virtual
 DEBUG = -O0 -g -DDEBUG
 
+MEMB_HEIGHT = -DCALC_HEIGHT
+
 ifeq ($(CXX),icpc)
 RELEASE = -O3 -ipo -no-prec-div -xHOST
 endif
@@ -27,6 +29,7 @@ CFLAGS = $(RELEASE)
 CFLAGS += $(WARNINGS)
 CFLAGS += $(OPENMP)
 CFLAGS += $(STDCPP11)
+#CFLAGS += $(MEMB_HEIGHT)
 
 INCLUDE = -I./FDPS/src
 

@@ -9,6 +9,15 @@
 
 #ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
 #error "MPI is not supported yet!"
+
+#ifdef CALC_HEIGHT
+#error "MPI version of CALC_HEIGHT is not supported!"
+#endif
+
+#endif
+
+#ifdef CALC_HEIGHT
+#warning "will calculate the membrane height. This calculation causes performance loss."
 #endif
 
 static_assert(Parameter::head_unit == 1, "head_unit should be 1.");
@@ -44,6 +53,11 @@ namespace  {
     observer.KineticTempera(system);
     observer.Pressure(system, bonded_vir, param.ibox_leng);
     observer.Diffusion(system, param.amp_num);
+    
+#ifdef CALC_HEIGHT
+    observer.MembHeight(system, param.box_leng);
+#endif
+
     //observer.ConfigTempera();
   }
   
