@@ -300,7 +300,18 @@ public:
     CalcInterCoef();
     amp_num = init_amp_num;
   }
-
+  
+  template<class Tpsys>
+  void RemoveCMDrift(Tpsys& sys) const {
+    PS::F64vec cmvel(0.0, 0.0, 0.0);
+    const PS::S32 num = sys.getNumberOfParticleLocal();
+    for(PS::S32 i = 0; i < num; i++)
+      cmvel += sys[i].vel;
+    cmvel /= num;
+    for(PS::S32 i = 0; i < num; i++)
+      sys[i].vel -= cmvel;
+  }
+  
   template<class Tpsys>
   PS::U32 LoadParticleConfig(Tpsys& sys) const {
     const std::string fname = cdir + "/init_config.xyz";
@@ -314,6 +325,8 @@ public:
       PS::Abort();
     }
     fclose(fp);
+    RemoveCMDrift(sys);
+    
     return cur_time;
   }
 
