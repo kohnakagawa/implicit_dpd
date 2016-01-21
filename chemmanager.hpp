@@ -90,7 +90,7 @@ public:
     
     for(PS::S32 i = 0; i < old_amp_num; i++) {
       const PS::F64 rnd = PS::MT::genrand_real1();
-      if(rnd >= param.p_thresld) {
+      if(rnd <= param.p_thresld) {
 	const PS::U32 head_id = glob_topol[Parameter::all_unit * i          ];
 	const PS::U32 tail_id = glob_topol[Parameter::all_unit * (i + 1) - 1];
 	PS::F64vec h2e = sys[tail_id].pos - sys[head_id].pos;

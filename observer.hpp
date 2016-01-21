@@ -132,6 +132,10 @@ public:
 #endif
   }
 
+  void NumAmp(const PS::S32 amp_num) {
+    fprintf(ptr_f[NUM_AMP], "%d\n", amp_num);
+  }
+
   void Trajectory(const Tpsys& sys) {
     io_util::WriteXYZForm(sys,
 			  sys.getNumberOfParticleLocal(),

@@ -45,6 +45,7 @@ namespace  {
     observer.KineticTempera(system);
     observer.Pressure(system, bonded_vir, param.ibox_leng);
     observer.Diffusion(system, param.amp_num);
+    observer.NumAmp(param.amp_num);
     //observer.ConfigTempera();
   }
   
