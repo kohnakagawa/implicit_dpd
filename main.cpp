@@ -100,7 +100,7 @@ int main(int argc, char *argv[]) {
 
   const PS::U32 seed = 123;
   ChemManager<FPDPD> chemmanag(seed);
-  system.ExpandParticleBuffer(param.max_amp_num);
+  system.ExpandParticleBuffer(param.max_amp_num * Parameter::all_unit);
   fbonded.ExpandTopolBuffer(param.max_amp_num * Parameter::all_unit);
 
   do_observe_macro(observer, system, param, bonded_vir);
