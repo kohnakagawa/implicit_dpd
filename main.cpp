@@ -3,6 +3,7 @@
 #include "io_util.hpp"
 #include "parameter.hpp"
 #include "f_calculator.hpp"
+#include "chemmanager.hpp"
 #include "observer.hpp"
 #include "driftkick.hpp"
 #include <sys/time.h>
@@ -57,7 +58,7 @@ namespace  {
 #ifdef CALC_HEIGHT
     observer.MembHeight(system, param.box_leng);
 #endif
-
+    observer.NumAmp(param.amp_num);
     //observer.ConfigTempera();
   }
   
@@ -110,6 +111,12 @@ int main(int argc, char *argv[]) {
 
   Observer<PS::ParticleSystem<FPDPD> > observer(cdir);
   observer.Initialize();
+
+  const PS::U32 seed = 123;
+  ChemManager<FPDPD> chemmanag(seed);
+  system.ExpandParticleBuffer(param.max_amp_num * Parameter::all_unit);
+  fbonded.ExpandTopolBuffer(param.max_amp_num * Parameter::all_unit);
+
   do_observe_macro(observer, system, param, bonded_vir);
   do_observe_micro(observer, system);
 
@@ -134,6 +141,8 @@ int main(int argc, char *argv[]) {
     fbonded.CalcListedForce(system, bonded_vir);
     
     kick(system, param.dt);
+    
+    if(!chemmanag.RandomChemEvent(system, fbonded.glob_topol, param) ) break;
 
     if(Parameter::time % Parameter::step_mac == 0)
       do_observe_macro(observer, system, param, bonded_vir);

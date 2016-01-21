@@ -48,6 +48,10 @@ struct ForceBonded {
     }
   }
 
+  void ExpandTopolBuffer(const PS::S32 n) {
+    glob_topol.reserve(n);
+  }
+
   //for intra cell
   static void StoreBondForceWithARLaw(const PS::F64vec&	__restrict dr,
 				      const PS::F64&	__restrict inv_dr,
