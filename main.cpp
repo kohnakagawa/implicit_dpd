@@ -1,12 +1,13 @@
 #include <iostream>
+#include <sys/time.h>
 #include "particle_simulator.hpp"
 #include "io_util.hpp"
+#include "user_defs.h"
 #include "parameter.hpp"
 #include "f_calculator.hpp"
 #include "chemmanager.hpp"
 #include "observer.hpp"
 #include "driftkick.hpp"
-#include <sys/time.h>
 
 #ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
 #error "MPI is not supported yet!"
@@ -19,6 +20,10 @@
 
 #ifdef CALC_HEIGHT
 #warning "will calculate the membrane height. This calculation causes performance loss."
+#endif
+
+#ifdef CHEM_MODE
+#warning "Chemical reaction occurs."
 #endif
 
 static_assert(Parameter::head_unit == 1, "head_unit should be 1.");
@@ -58,7 +63,10 @@ namespace  {
 #ifdef CALC_HEIGHT
     observer.MembHeight(system, param.box_leng);
 #endif
+
+#ifdef CHEM_MODE
     observer.NumAmp(param.amp_num);
+#endif
     //observer.ConfigTempera();
   }
   
@@ -112,10 +120,12 @@ int main(int argc, char *argv[]) {
   Observer<PS::ParticleSystem<FPDPD> > observer(cdir);
   observer.Initialize();
 
+#ifdef CHEM_MODE
   const PS::U32 seed = 123;
   ChemManager<FPDPD> chemmanag(seed);
   system.ExpandParticleBuffer(param.max_amp_num * Parameter::all_unit);
   fbonded.ExpandTopolBuffer(param.max_amp_num * Parameter::all_unit);
+#endif
 
   do_observe_macro(observer, system, param, bonded_vir);
   do_observe_micro(observer, system);
@@ -141,8 +151,10 @@ int main(int argc, char *argv[]) {
     fbonded.CalcListedForce(system, bonded_vir);
     
     kick(system, param.dt);
-    
+
+#ifdef CHEM_MODE
     if(!chemmanag.RandomChemEvent(system, fbonded.glob_topol, param) ) break;
+#endif
 
     if(Parameter::time % Parameter::step_mac == 0)
       do_observe_macro(observer, system, param, bonded_vir);
