@@ -48,12 +48,12 @@ class ChemManager {
 		     PS::ReallocatableArray<PS::U32>& glob_topol) {
     FP new_ptcl;
     new_ptcl.prop = prop;
+    new_ptcl.amp_id = new_amp_id;
     
     for(PS::U32 i = 0; i < part_num; i++) {
       const PS::U32 base_pid = glob_topol[tpl_beg_id++];
       
       new_ptcl.id = new_ptcl_id;
-      new_ptcl.amp_id = new_amp_id;
       new_ptcl.unit = unit_beg + i;
       new_ptcl.pos = sys[base_pid].pos + tang_vec;
       ApplyPBC(new_ptcl.pos, box_leng, ibox_leng);
@@ -66,6 +66,8 @@ class ChemManager {
       new_ptcl.vel_buf = 0.0;
       new_ptcl.acc = 0.0;
       new_ptcl.press = 0.0;
+
+      new_ptcl.density.fill(0.0);
 
       sys.AddNewParticle(new_ptcl);
       
