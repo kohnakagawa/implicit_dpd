@@ -110,6 +110,38 @@ void StoreBendForceWithARLaw(const PS::F64vec*	__restrict dr,
   F[2] += Ftb1;
 }
 
+void bondsangles() {
+  PS::F64vec Fbb[bond_n], pos_buf[bond_n], dr[bond_n - 1];
+  PS::F64  dist2[bond_n - 1], inv_dr[bond_n - 1];
+  PS::F64vec d_vir;
+  PS::F64 d_lap = 0.0;
+
+  pos_buf[0] = x[0];
+  pos_buf[1] = x[1];
+    
+  dr[0] = pos_buf[1] - pos_buf[0];
+  dist2[0] = dr[0] * dr[0];
+  inv_dr[0] = 1.0 / std::sqrt(dist2[0]);
+    
+  StoreBondForceWithARLaw(dr[0], inv_dr[0], d_vir, d_lap, &Fbb[0]);
+
+#pragma unroll
+  for(PS::U32 unit = 2; unit < bond_n; unit++) {
+    pos_buf[unit] = x[unit];
+    dr[unit - 1] = pos_buf[unit] - pos_buf[unit - 1];
+    dist2[unit - 1] = dr[unit - 1] * dr[unit - 1];
+    inv_dr[unit - 1] = 1.0 / std::sqrt(dist2[unit - 1]);
+      
+    StoreBondForceWithARLaw(dr[unit - 1], inv_dr[unit - 1], d_vir, d_lap, &Fbb[unit - 1]);
+    StoreBendForceWithARLaw(&dr[unit - 2], &inv_dr[unit - 2], dist2, d_vir, d_lap, &Fbb[unit - 2]);
+  }
+
+  //Store the sum of force.
+#pragma unroll
+  for(PS::U32 unit = 0; unit < bond_n; unit++)
+    f[unit] += Fbb[unit];
+}
+
 void bonds() {
   PS::F64vec Fbb[bond_n], pos_buf[bond_n], dr[bond_n - 1];
   PS::F64  dist2[bond_n - 1], inv_dr[bond_n - 1];
@@ -286,5 +318,11 @@ int main() {
   clear_force();
   bonds();
   lammps_bonds();
+  check_error();
+
+  clear_force();
+  lammps_bonds();
+  lammps_angles();
+  bondsangles();
   check_error();
 }
