@@ -30,11 +30,11 @@ CFLAGS += -DPAIRWISE_DPD
 
 INCLUDE = -I../../FDPS/src -I../../
 
-TARGET = angle_test.out
+TARGET = bondbend.out
 
 all:$(TARGET)
 
-angle_test.out: angletest.cpp
+bondbend.out: bondbendtest.cpp
 	$(CXX) $(CFLAGS) $(INCLUDE) $< $(LIBRARY) -o $@
 
 clean:

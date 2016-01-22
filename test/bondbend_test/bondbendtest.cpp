@@ -6,13 +6,22 @@
 #include "f_calculator.hpp"
 #include <ctime>
 
+static_assert(Parameter::bond_leng != 0.0, "bond_leng should not be 0.0");
+
 constexpr int sys = 16;
+
 std::array<PS::F64vec, sys> x;
 std::array<PS::F64vec, sys> f_ref, f;
+
 constexpr int nanglelist = sys - 2;
 int anglelist[nanglelist][3];
+
 constexpr int bond_n = sys;
 const double cf_b = 12.0;
+const double cf_s = 10.0;
+
+constexpr int nbondlist = sys - 1;
+int bondlist[nbondlist][2];
 
 void clear_force() {
   for(int i = 0; i < sys; i++)
@@ -35,6 +44,35 @@ void make_angle_list() {
     anglelist[i][1] = i + 1;
     anglelist[i][2] = i + 2;
   }
+}
+
+void make_bond_list() {
+  for(int i = 0; i < nbondlist; i++) {
+    bondlist[i][0] = i;
+    bondlist[i][1] = i + 1;
+  }
+}
+
+void StoreBondForceWithARLaw(const PS::F64vec&	__restrict dr,
+			     const PS::F64&	__restrict inv_dr,
+			     PS::F64vec&	__restrict d_vir,
+			     PS::F64&		__restrict d_lap,
+			     PS::F64vec*	__restrict F)
+{
+  const PS::F64 cf_bond = cf_s * (inv_dr - Parameter::ibond);
+    
+  const PS::F64vec Fbond(cf_bond * dr.x, cf_bond * dr.y, cf_bond * dr.z);
+
+  //NOTE: The value of virial is twice.
+  d_vir.x += 2.0 * dr.x * Fbond.x;
+  d_vir.y += 2.0 * dr.y * Fbond.y;
+  d_vir.z += 2.0 * dr.z * Fbond.z;
+
+  //NOTE: The value of lap is twice.
+  d_lap += 2.0 * cf_s * (6.0 * Parameter::ibond - 4.0 * inv_dr);
+    
+  F[0] -= Fbond;
+  F[1] += Fbond;
 }
 
 void StoreBendForceWithARLaw(const PS::F64vec*	__restrict dr,
@@ -72,6 +110,35 @@ void StoreBendForceWithARLaw(const PS::F64vec*	__restrict dr,
   F[2] += Ftb1;
 }
 
+void bonds() {
+  PS::F64vec Fbb[bond_n], pos_buf[bond_n], dr[bond_n - 1];
+  PS::F64  dist2[bond_n - 1], inv_dr[bond_n - 1];
+  PS::F64vec d_vir;
+  PS::F64 d_lap = 0.0;
+
+  pos_buf[0] = x[0];
+  pos_buf[1] = x[1];
+    
+  dr[0] = pos_buf[1] - pos_buf[0];
+  dist2[0] = dr[0] * dr[0];
+  inv_dr[0] = 1.0 / std::sqrt(dist2[0]);
+    
+  StoreBondForceWithARLaw(dr[0], inv_dr[0], d_vir, d_lap, &Fbb[0]);
+
+  for(PS::U32 unit = 2; unit < bond_n; unit++) {
+    pos_buf[unit] = x[unit];
+    dr[unit - 1] = pos_buf[unit] - pos_buf[unit - 1];
+    dist2[unit - 1] = dr[unit - 1] * dr[unit - 1];
+    inv_dr[unit - 1] = 1.0 / std::sqrt(dist2[unit - 1]);
+      
+    StoreBondForceWithARLaw(dr[unit - 1], inv_dr[unit - 1], d_vir, d_lap, &Fbb[unit - 1]);
+  }
+
+  //Store the sum of force.
+  for(PS::U32 unit = 0; unit < bond_n; unit++)
+    f[unit] = Fbb[unit];
+}
+
 void angles() {
   PS::F64vec Fbb[bond_n], pos_buf[bond_n], dr[bond_n - 1];
   PS::F64  dist2[bond_n - 1], inv_dr[bond_n - 1];
@@ -97,6 +164,34 @@ void angles() {
   //Store the sum of force.
   for(PS::U32 unit = 0; unit < bond_n; unit++)
     f[unit] = Fbb[unit];
+}
+
+void lammps_bonds() {
+  for (int n = 0; n < nbondlist; n++) {
+    const int i1 = bondlist[n][0];
+    const int i2 = bondlist[n][1];
+
+    const double delx = x[i1][0] - x[i2][0];
+    const double dely = x[i1][1] - x[i2][1];
+    const double delz = x[i1][2] - x[i2][2];
+
+    const double rsq = delx*delx + dely*dely + delz*delz;
+    const double r  = sqrt(rsq);
+    const double dr = r - Parameter::bond_leng;
+    const double rk = cf_s * dr;
+
+    // force & energy
+    const double fbond = -rk / r * Parameter::ibond;
+
+    // apply force to each of 2 atoms
+    f_ref[i1][0] += delx*fbond;
+    f_ref[i1][1] += dely*fbond;
+    f_ref[i1][2] += delz*fbond;
+
+    f_ref[i2][0] -= delx*fbond;
+    f_ref[i2][1] -= dely*fbond;
+    f_ref[i2][2] -= delz*fbond;
+  }
 }
 
 void lammps_angles() {
@@ -160,16 +255,9 @@ void lammps_angles() {
   }
 }
 
-int main() {
-  clear_force();
-  generate_chain();
-  make_angle_list();
-  
-  angles();
-  lammps_angles();
-  
+void check_error() {
   int err = 0;
-  const double eps = 1.0e-14;
+  const double eps = 1.0e-13;
   for(int i = 0; i < sys; i++) {
     for(int j = 0; j < 3; j++) {
       if(fabs(f_ref[i][j] - f[i][j]) > eps) {
@@ -179,9 +267,24 @@ int main() {
       }
     }
   }
-  if(err != 0) {
+  if(err != 0)
     std::cerr << "error count is " << err << std::endl;
-  } else {
-    std::cerr << "PASS\n";
-  }
+  else
+    std::cerr << "Check PASS\n";
+}
+
+int main() {
+  generate_chain();
+  make_angle_list();
+  make_bond_list();
+
+  clear_force();  
+  angles();
+  lammps_angles();
+  check_error();
+
+  clear_force();
+  bonds();
+  lammps_bonds();
+  check_error();
 }
