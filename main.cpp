@@ -26,6 +26,11 @@
 #warning "Chemical reaction occurs."
 #endif
 
+#ifdef USE_GPU
+#warning "will use gpu."
+#include "force_gpu.cuh"
+#endif
+
 static_assert(Parameter::head_unit == 1, "head_unit should be 1.");
 static_assert(Parameter::tail_unit == 3, "tail_unit should be 3.");
 static_assert(Parameter::bond_leng != 0.0, "bond_leng should be not 0.0.");
@@ -106,13 +111,30 @@ int main(int argc, char *argv[]) {
   system.exchangeParticle(dinfo);
 
   PS::TreeForForceShort<RESULT::Density, EPI::Density, EPJ::Density>::Gather dens_tree;
-  dens_tree.initialize(3 * system.getNumberOfParticleGlobal() );
-  dens_tree.calcForceAllAndWriteBack(CalcDensity(), system, dinfo);
-
   PS::TreeForForceShort<RESULT::ForceDPD, EPI::DPD, EPJ::DPD>::Gather force_tree;
+  dens_tree.initialize(3 * system.getNumberOfParticleGlobal() );
   force_tree.initialize(3 * system.getNumberOfParticleGlobal() );
+#ifdef USE_GPU
+  const PS::S32 n_walk_limit = 200;
+  const PS::S32 tag_max = 1;
+  dens_tree.calcForceAllAndWriteBackMultiWalk(DispatchKernel<DensityPolicy, EPI::Density, EPJ::Density>,
+					      RetrieveKernel<DensityPolicy, RESULT::Density >,
+					      tag_max,
+					      system,
+					      dinfo,
+					      n_walk_limit);
+					      
+  force_tree.calcForceAllAndWriteBackMultiWalk(DispatchKernel<ForcePolicy, EPI::DPD, EPJ::DPD>,
+					       RetrieveKernel<ForcePolicy, RESULT::ForceDPD>,
+					       tag_max,
+					       system,
+					       dinfo,
+					       n_walk_limit);
+#else
+  dens_tree.calcForceAllAndWriteBack(CalcDensity(), system, dinfo);
   force_tree.calcForceAllAndWriteBack(CalcForceEpEpDPD(), system, dinfo);
-
+#endif
+  
   ForceBonded<PS::ParticleSystem<FPDPD> > fbonded(system, Parameter::all_unit * param.init_amp_num);
   PS::F64vec bonded_vir(0.0, 0.0, 0.0);
   fbonded.CalcListedForce(system, bonded_vir);
@@ -146,8 +168,25 @@ int main(int argc, char *argv[]) {
     dinfo.decomposeDomain();
     system.exchangeParticle(dinfo);
 
+#ifdef USE_GPU
+    dens_tree.calcForceAllAndWriteBackMultiWalk(DispatchKernel<DensityPolicy, EPI::Density, EPJ::Density>,
+					      RetrieveKernel<DensityPolicy, RESULT::Density >,
+					      tag_max,
+					      system,
+					      dinfo,
+					      n_walk_limit);
+					      
+    force_tree.calcForceAllAndWriteBackMultiWalk(DispatchKernel<ForcePolicy, EPI::DPD, EPJ::DPD>,
+						 RetrieveKernel<ForcePolicy, RESULT::ForceDPD>,
+					         tag_max,
+					         system,
+					         dinfo,
+					         n_walk_limit);
+#else
     dens_tree.calcForceAllAndWriteBack(CalcDensity(), system, dinfo);
     force_tree.calcForceAllAndWriteBack(CalcForceEpEpDPD(), system, dinfo);
+#endif
+
     fbonded.CalcListedForce(system, bonded_vir);
     
     kick(system, param.dt);

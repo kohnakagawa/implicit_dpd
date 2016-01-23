@@ -1,5 +1,6 @@
 #CXX = g++
 CXX = icpc
+NVCC = nvcc
 
 ifeq ($(CXX),icpc)
 OPENMP = -openmp -DPARTICLE_SIMULATOR_THREAD_PARALLEL
@@ -30,6 +31,8 @@ CFLAGS += $(STDCPP11)
 
 INCLUDE = -I./FDPS/src
 
+NVCCFLAGS = -Xcompiler="-O0 -std=c++11"
+
 OBJECTS_DPD = main.o
 OBJECTS_CMAKE = config_maker.o
 
@@ -45,6 +48,9 @@ all:$(TARGET_DPD) $(TARGET_CMAKE)
 .SUFFIXES: .c .o
 .c.o:
 	$(CXX) $(CFLAGS) $(INCLUDE) -c $< $(LIBRARY) -o $@
+.SUFFIXES: .cu .o
+.c.o:
+	$(NVCC) $(NVCCFLAGS) $(INCLUDE) -c $< $(LIBRARY) -o $@
 
 $(TARGET_DPD): $(OBJECTS_DPD)
 	$(CXX) $(CFLAGS) $(OBJECTS_DPD) $(LIBRARY) -o $@
