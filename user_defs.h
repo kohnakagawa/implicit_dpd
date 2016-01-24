@@ -5,6 +5,8 @@
 
 #ifdef ENABLE_GPU_CUDA
 
+#define USE_TEXTURE_MEM
+
 #define USE_FLOAT_VEC
 //#define USE_DOUBLE_VEC
 

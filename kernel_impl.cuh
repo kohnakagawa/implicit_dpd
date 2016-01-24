@@ -2,6 +2,13 @@
 
 #include "saruprngCUDA.cuh"
 
+__device__ __forceinline__ uint __float_as_uint( float r )
+{
+  uint u;
+  asm volatile( "mov.b32 %0, %1;" : "=r"( u ) : "f"( r ) );
+  return u;
+}
+
 template<class VecPos, class VecForce, typename T>
 __global__ void ForceKernel(const int2 *ij_disp,
      	  	            const EPI::DensityGPU<VecPos>* epi,
@@ -18,7 +25,7 @@ __global__ void ForceKernel(const int2 *ij_disp,
   for(int j = j_head; j < j_tail; j++) {
     const VecPos rj = epj[j].pos;
 #ifdef USE_FLOAT_VEC
-    const uint prpj = __float_as_int(rj.w);
+    const uint prpj = __float_as_uint(rj.w);
 #else
     const uint prpj = epj[j].prop_;
 #endif
@@ -44,8 +51,8 @@ __global__ void ForceKernel(const int2 *ij_disp,
   const VecPos vi = epi[tid].vel;
 
 #ifdef USE_FLOAT_VEC
-  const uint idi   = __float_as_int(ri.w);
-  const uint prpi  = __float_as_int(vi.w);
+  const uint idi   = __float_as_uint(ri.w);
+  const uint prpi  = __float_as_uint(vi.w);
 #else
   const uint idi   = epi[tid].id_;
   const uint prpi  = epi[tid].prop_;
@@ -65,8 +72,8 @@ __global__ void ForceKernel(const int2 *ij_disp,
     const VecPos vj = epj[j].vel;
 
 #ifdef USE_FLOAT_VEC    
-    const uint idj   = __float_as_int(rj.w);
-    const uint prpj = __float_as_int(vj.w);
+    const uint idj   = __float_as_uint(rj.w);
+    const uint prpj = __float_as_uint(vj.w);
 #else
     const uint idj   = epj[j].id_;
     const uint prpj = epj[j].prop_;
@@ -98,22 +105,43 @@ __global__ void ForceKernel(const int2 *ij_disp,
 #ifdef PAIRWISE_DPD
     const T cf_co = 25.0 * one_m_dr;
     const T cf_mbd = 0.0;
+
+#else
+
+#ifdef USE_TEXTURE_MEM
+    const T cf_co = tex2D(cf_c, prpj, prpi) * (dr - Parameter::arc) * (dr - Parameter::rc) * (dr >= Parameter::arc);
+
+    T cf_mbd = 0.0;
+    for(int k = 0; k < Parameter::prop_num; k++)
+      cf_mbd += densij[k] * tex3D(cf_m, k, prpj, prpi);
+    cf_mbd *= one_m_dr;
+    
 #else
     const T cf_co = cf_c[prpi][prpj] * (dr - Parameter::arc) * (dr - Parameter::rc) * (dr >= Parameter::arc);
-    
+
     T cf_mbd = 0.0;
     for(int k = 0; k < Parameter::prop_num; k++)
       cf_mbd += densij[k] * cf_m[prpi][prpj][k];
     cf_mbd *= one_m_dr;
-#endif
+#endif //USE_TEXTURE_MEM
+
+#endif //PAIRWISE_DPD
     const T wrij = one_m_dr;
     //const float wrij = sqrtf(one_m_dr);
     const T sq_wrij = sqrtf(wrij);
     
     const T drij_dvij = drij.x * dvij.x + drij.y * dvij.y + drij.z * dvij.z;
+
+#ifdef USE_TEXTURE_MEM
+    T all_cf = (cf_co + cf_mbd +
+      		tex2D(cf_r, prpj, prpi) * sq_wrij * rnd -
+		tex2D(cf_g, prpj, prpi) * wrij * drij_dvij * inv_dr) * inv_dr;
+#else
     T all_cf = (cf_co + cf_mbd +
       		cf_r[prpi][prpj] * sq_wrij * rnd - 
 		cf_g[prpi][prpj] * wrij * drij_dvij * inv_dr) * inv_dr;
+#endif
+
     if(dr2 < Parameter::rc2) all_cf = 0.0;
     
     const VecForce dF = {all_cf * drij.x, all_cf * drij.y, all_cf * drij.z};

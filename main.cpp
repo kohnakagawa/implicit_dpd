@@ -223,7 +223,8 @@ int main(int argc, char *argv[]) {
 
   //print configuration for restart
   observer.FinConfig(system);
-  
+
+  cleanup_GPU();
   observer.CleanUp();
   param.DumpAllParam();
   

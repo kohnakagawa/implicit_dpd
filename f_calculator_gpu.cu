@@ -17,10 +17,28 @@ cuda_ptr<EPJ::DPDGPU<VecPos> > ForcePolicy::dev_epj;
 cuda_ptr<RESULT::ForceGPU<VecForce> > ForcePolicy::dev_force;
 
 namespace {
-  __device__ float cf_m[Parameter::prop_num][Parameter::prop_num][Parameter::prop_num];
-  __device__ float cf_c[Parameter::prop_num][Parameter::prop_num];
-  __device__ float cf_r[Parameter::prop_num][Parameter::prop_num];
-  __device__ float cf_g[Parameter::prop_num][Parameter::prop_num];
+#ifdef USE_TEXTURE_MEM
+  cudaArray *cf_m_d = nullptr;
+  cudaArray *cf_c_d = nullptr, *cf_r_d = nullptr, *cf_g_d = nullptr;
+#ifdef USE_FLOAT_VEC
+  texture<float, cudaTextureType3D, cudaReadModeElementType> cf_m;
+  texture<float, cudaTextureType2D, cudaReadModeElementType> cf_c;
+  texture<float, cudaTextureType2D, cudaReadModeElementType> cf_r;
+  texture<float, cudaTextureType2D, cudaReadModeElementType> cf_g;
+
+#else
+  texture<int2, cudaTextureType3D, cudaReadModeElementType> cf_m;
+  texture<int2, cudaTextureType2D, cudaReadModeElementType> cf_c;
+  texture<int2, cudaTextureType2D, cudaReadModeElementType> cf_r;
+  texture<int2, cudaTextureType2D, cudaReadModeElementType> cf_g;
+#endif
+
+#else
+  __device__ Dtype cf_m[Parameter::prop_num][Parameter::prop_num][Parameter::prop_num];
+  __device__ Dtype cf_c[Parameter::prop_num][Parameter::prop_num];
+  __device__ Dtype cf_r[Parameter::prop_num][Parameter::prop_num];
+  __device__ Dtype cf_g[Parameter::prop_num][Parameter::prop_num];
+#endif
 
   enum {
     N_THREAD_GPU = 32,
@@ -32,11 +50,62 @@ namespace {
   bool gpu_inited = false;
   cuda_ptr<int2> ij_disp;
 
+  //NOTE (TexType, BufType) = (float, float) or (int2, double)
+  template<typename TexType, typename BufType>
+  void set_texture_val() {
+    BufType cf_m_h[Parameter::prop_num][Parameter::prop_num][Parameter::prop_num];
+    BufType cf_c_h[Parameter::prop_num][Parameter::prop_num];
+    BufType cf_r_h[Parameter::prop_num][Parameter::prop_num];
+    BufType cf_g_h[Parameter::prop_num][Parameter::prop_num];
+    
+    for(int i = 0; i < Parameter::prop_num; i++) {
+      for(int j = 0; j < Parameter::prop_num; j++) {
+	cf_c_h[i][j] = Parameter::cf_c[i][j];
+	cf_r_h[i][j] = Parameter::cf_r[i][j];
+	cf_g_h[i][j] = Parameter::cf_g[i][j];
+      }
+    }
+
+    for(int i = 0; i < Parameter::prop_num; i++)
+      for(int j = 0; j < Parameter::prop_num; j++)
+	for(int k = 0; k < Parameter::prop_num; k++)
+	  cf_m_h[i][j][k] = Parameter::cf_m[i][j][k];
+
+    cudaChannelFormatDesc cdesc = cudaCreateChannelDesc<TexType>();
+
+    //3D array copy
+    const cudaExtent ext = make_cudaExtent(Parameter::prop_num, Parameter::prop_num, Parameter::prop_num);
+    cudaMalloc3DArray(&cf_m_d, &cdesc, ext);
+    cudaMemcpy3DParms copyParams = {0};
+    copyParams.srcPtr = make_cudaPitchedPtr(cf_m_h,
+					    Parameter::prop_num * sizeof(TexType),
+					    Parameter::prop_num, Parameter::prop_num);
+    copyParams.dstArray = cf_m_d;
+    copyParams.extent = ext;
+    copyParams.kind   = cudaMemcpyHostToDevice;
+    cudaMemcpy3D(&copyParams);
+    cudaBindTextureToArray(cf_m, cf_m_d, cdesc);
+
+    //2D array copy
+    const size_t size2d = Parameter::prop_num * Parameter::prop_num * sizeof(TexType);
+#define Create2DTextBuffer(array) \
+    cudaMallocArray(&array##_d, &cdesc, Parameter::prop_num, Parameter::prop_num); \
+    cudaMemcpyToArray(array##_d, 0, 0, array##_h, size2d, cudaMemcpyHostToDevice); \
+    array.normalized = false; \
+    cudaBindTextureToArray(array, array##_d, cdesc);
+
+    Create2DTextBuffer(cf_c);
+    Create2DTextBuffer(cf_r);
+    Create2DTextBuffer(cf_g);
+#undef Create2DTextBuffer
+
+  }
+
   void set_const_gpu() {
-    float cf_m_h[Parameter::prop_num][Parameter::prop_num][Parameter::prop_num];
-    float cf_c_h[Parameter::prop_num][Parameter::prop_num];
-    float cf_r_h[Parameter::prop_num][Parameter::prop_num];
-    float cf_g_h[Parameter::prop_num][Parameter::prop_num];
+    Dtype cf_m_h[Parameter::prop_num][Parameter::prop_num][Parameter::prop_num];
+    Dtype cf_c_h[Parameter::prop_num][Parameter::prop_num];
+    Dtype cf_r_h[Parameter::prop_num][Parameter::prop_num];
+    Dtype cf_g_h[Parameter::prop_num][Parameter::prop_num];
     
     for(int i = 0; i < Parameter::prop_num; i++) {
       for(int j = 0; j < Parameter::prop_num; j++) {
@@ -68,6 +137,19 @@ namespace {
   }
 };
 
+void cleanup_GPU() {
+  //deallocate gpu resource and FDPS resource which is not deallocated in tree_for_force
+
+#ifdef USE_TEXTURE_MEM
+  cudaFreeArray(cf_m_d);
+  cudaFreeArray(cf_c_d);
+  cudaFreeArray(cf_r_d);
+  cudaFreeArray(cf_g_d);
+#endif
+  
+  //TODO: add deallocate memory decleared in tree_for_force_impl.hpp
+}
+
 #include "kernel_impl.cuh"
 
 template<class Policy, class EPI, class EPJ>
@@ -81,7 +163,18 @@ PS::S32 DispatchKernel(const PS::S32 tag,
 
   //allocate array
   if(!gpu_inited) {
+#ifdef USE_TEXTURE_MEM
+
+#ifdef USE_FLOAT_VEC
+    set_texture_val<float, float>();
+#else
+    set_texture_val<int2, double>();
+#endif
+    
+#else
     set_const_gpu();
+#endif
+    
     ij_disp.allocate(N_WALK_LIMIT + 2);    
     gpu_inited = true;
   }
@@ -161,12 +254,13 @@ PS::S32 DispatchKernel<ForcePolicy,   EPI::DPD,     EPJ::DPD    >(const PS::S32 
 
 template
 PS::S32 RetrieveKernel<DensityPolicy, RESULT::Density> (const PS::S32 tag,
-					 const PS::S32 n_walk,
-					 const PS::S32 ni[],
-					 RESULT::Density * force[]);
+							const PS::S32 n_walk,
+							const PS::S32 ni[],
+							RESULT::Density * force[]);
 
 template
 PS::S32 RetrieveKernel<ForcePolicy, RESULT::ForceDPD> (const PS::S32 tag,
-					  const PS::S32 n_walk,
-					  const PS::S32 ni[],
-					  RESULT::ForceDPD * force[]);
+						       const PS::S32 n_walk,
+						       const PS::S32 ni[],
+						       RESULT::ForceDPD * force[]);
+
