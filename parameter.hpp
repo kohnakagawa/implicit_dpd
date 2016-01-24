@@ -6,6 +6,7 @@
 #include <limits>
 #include <map>
 #include <cassert>
+#include "io_util.hpp"
 
 class Parameter {
   std::string cdir;
@@ -470,19 +471,7 @@ public:
 
 };
 
-constexpr char Parameter::atom_type[21];
-
-PS::F64 Parameter::cf_c[Parameter::prop_num][Parameter::prop_num];
-PS::F64 Parameter::cf_g[Parameter::prop_num][Parameter::prop_num];
-PS::F64 Parameter::cf_r[Parameter::prop_num][Parameter::prop_num];
-PS::F64 Parameter::cf_m[Parameter::prop_num][Parameter::prop_num][Parameter::prop_num];
-PS::F64 Parameter::cf_s;
-PS::F64 Parameter::cf_b;
-
-PS::F64vec Parameter::box_leng, Parameter::ibox_leng;
-
-PS::U32 Parameter::time;
-PS::U32 Parameter::all_time, Parameter::step_mic, Parameter::step_mac;
+//constexpr char Parameter::atom_type[21];
 
 template<>
 inline PS::F64 Parameter::cf_spring<true>(const PS::F64 inv_dr) {

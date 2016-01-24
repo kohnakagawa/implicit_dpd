@@ -1,10 +1,13 @@
 #pragma once
 
+#include "saruprngCUDA.cuh"
+
 template<class VecPos, class VecForce, typename T>
-__global__ void DensityKernel(const int2 *ij_disp,
-			      const EPI::DensityGPU<VecPos>* epi,
-			      const EPJ::DensityGPU<VecPos>* epj,
-			      RESULT::DensityGPU<VecForce>* result) {
+__global__ void ForceKernel(const int2 *ij_disp,
+     	  	            const EPI::DensityGPU<VecPos>* epi,
+			    const EPJ::DensityGPU<VecPos>* epj,
+			    RESULT::DensityGPU<T>* result,
+			    const uint seed) {
   const int tid = blockDim.x * blockIdx.x + threadIdx.x;
   const VecPos ri = epi[tid].pos;
   T d_sum[Parameter::prop_num] = {0.f};
@@ -26,7 +29,7 @@ __global__ void DensityKernel(const int2 *ij_disp,
   }
 
   for(int k = 0; k < Parameter::prop_num; k++)
-    result.dens[k] = d_sum[k];
+    result[tid].dens[k] = d_sum[k];
 }
 
 template<class VecPos, class VecForce, typename T>
@@ -55,18 +58,18 @@ __global__ void ForceKernel(const int2 *ij_disp,
   const int j_head = ij_disp[epi[tid].id_walk    ].y;
   const int j_tail = ij_disp[epi[tid].id_walk + 1].y;
   
-  VecForce fsum = {0.f, 0.f, 0.f, 0.f};
-  VecForce psum = {0.f, 0.f, 0.f, 0.f};
+  VecForce fsum = {0.f, 0.f, 0.f};
+  VecForce psum = {0.f, 0.f, 0.f};
   for(int j = j_head; j < j_tail; j++) {
     const VecPos rj = epj[j].pos;
     const VecPos vj = epj[j].vel;
 
 #ifdef USE_FLOAT_VEC    
     const uint idj   = __float_as_int(rj.w);
-    const uint propj = __float_as_int(vj.w);
+    const uint prpj = __float_as_int(vj.w);
 #else
     const uint idj   = epj[j].id_;
-    const uint propj = epj[j].prop_;
+    const uint prpj = epj[j].prop_;
 #endif    
     
     const VecForce drij = {ri.x - rj.x, ri.y - rj.y, ri.z - rj.z};
@@ -83,7 +86,7 @@ __global__ void ForceKernel(const int2 *ij_disp,
     }
     
     SaruGPU saru(m_i, m_j, seed);
-    const T rnd = saru.nrml();
+    const T rnd = saru.nrml_f();
     
     const T dr2 = drij.x * drij.x + drij.y * drij.y + drij.z * drij.z;
     
@@ -96,11 +99,11 @@ __global__ void ForceKernel(const int2 *ij_disp,
     const T cf_co = 25.0 * one_m_dr;
     const T cf_mbd = 0.0;
 #else
-    const T cf_co = Parameter::cf_c[prpi][prpj] * (dr - Parameter::arc) * (dr - Parameter::rc) * (dr >= Parameter::arc);
+    const T cf_co = cf_c[prpi][prpj] * (dr - Parameter::arc) * (dr - Parameter::rc) * (dr >= Parameter::arc);
     
-    const T cf_mbd = 0.0;
+    T cf_mbd = 0.0;
     for(int k = 0; k < Parameter::prop_num; k++)
-      cf_mbd += densij[k] * const_gpu::cf_m[prpi][prpj][k];
+      cf_mbd += densij[k] * cf_m[prpi][prpj][k];
     cf_mbd *= one_m_dr;
 #endif
     const T wrij = one_m_dr;
@@ -108,10 +111,10 @@ __global__ void ForceKernel(const int2 *ij_disp,
     const T sq_wrij = sqrtf(wrij);
     
     const T drij_dvij = drij.x * dvij.x + drij.y * dvij.y + drij.z * dvij.z;
-    const T all_cf = (cf_co + cf_mbd +
-			  const_gpu::cf_r[prpi][prpj] * sq_wrij * rnd - 
-			  const_gpu::cf_g[prpi][prpj] * wrij * drij_dvij * inv_dr) * inv_dr;
-    if(dr2 < Parameter::dr2) all_cf = 0.0;
+    T all_cf = (cf_co + cf_mbd +
+      		cf_r[prpi][prpj] * sq_wrij * rnd - 
+		cf_g[prpi][prpj] * wrij * drij_dvij * inv_dr) * inv_dr;
+    if(dr2 < Parameter::rc2) all_cf = 0.0;
     
     const VecForce dF = {all_cf * drij.x, all_cf * drij.y, all_cf * drij.z};
     const VecForce dP = {dF.x * drij.x, dF.y * drij.y, dF.z * drij.z};

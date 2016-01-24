@@ -1,10 +1,16 @@
 #include <iostream>
 #include <sys/time.h>
 #include "particle_simulator.hpp"
-#include "io_util.hpp"
 #include "user_defs.h"
 #include "parameter.hpp"
+#ifdef ENABLE_GPU_CUDA
+#warning "will use gpu."
+#include "ptcl_class.hpp"
+#include "bdf_calculator.hpp"
+#include "f_calculator_gpu.cuh"
+#else
 #include "f_calculator.hpp"
+#endif
 #include "chemmanager.hpp"
 #include "observer.hpp"
 #include "driftkick.hpp"
@@ -26,10 +32,11 @@
 #warning "Chemical reaction occurs."
 #endif
 
-#ifdef USE_GPU
-#warning "will use gpu."
-#include "force_gpu.cuh"
-#endif
+constexpr char Parameter::atom_type[21];
+
+PS::F64vec Parameter::box_leng, Parameter::ibox_leng;
+PS::U32 Parameter::time;
+PS::U32 Parameter::all_time, Parameter::step_mic, Parameter::step_mac;
 
 static_assert(Parameter::head_unit == 1, "head_unit should be 1.");
 static_assert(Parameter::tail_unit == 3, "tail_unit should be 3.");
@@ -114,11 +121,11 @@ int main(int argc, char *argv[]) {
   PS::TreeForForceShort<RESULT::ForceDPD, EPI::DPD, EPJ::DPD>::Gather force_tree;
   dens_tree.initialize(3 * system.getNumberOfParticleGlobal() );
   force_tree.initialize(3 * system.getNumberOfParticleGlobal() );
-#ifdef USE_GPU
+#ifdef ENABLE_GPU_CUDA
   const PS::S32 n_walk_limit = 200;
   const PS::S32 tag_max = 1;
   dens_tree.calcForceAllAndWriteBackMultiWalk(DispatchKernel<DensityPolicy, EPI::Density, EPJ::Density>,
-					      RetrieveKernel<DensityPolicy, RESULT::Density >,
+					      RetrieveKernel<DensityPolicy, RESULT::Density>,
 					      tag_max,
 					      system,
 					      dinfo,
@@ -168,13 +175,13 @@ int main(int argc, char *argv[]) {
     dinfo.decomposeDomain();
     system.exchangeParticle(dinfo);
 
-#ifdef USE_GPU
+#ifdef ENABLE_GPU_CUDA
     dens_tree.calcForceAllAndWriteBackMultiWalk(DispatchKernel<DensityPolicy, EPI::Density, EPJ::Density>,
-					      RetrieveKernel<DensityPolicy, RESULT::Density >,
-					      tag_max,
-					      system,
-					      dinfo,
-					      n_walk_limit);
+					        RetrieveKernel<DensityPolicy, RESULT::Density >,
+					        tag_max,
+					        system,
+					        dinfo,
+					        n_walk_limit);
 					      
     force_tree.calcForceAllAndWriteBackMultiWalk(DispatchKernel<ForcePolicy, EPI::DPD, EPJ::DPD>,
 						 RetrieveKernel<ForcePolicy, RESULT::ForceDPD>,

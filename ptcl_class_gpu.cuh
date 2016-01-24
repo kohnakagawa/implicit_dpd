@@ -1,5 +1,7 @@
 #pragma once
 
+#include "parameter.hpp"
+
 //NOTE: T should be float3 or double3
 namespace RESULT {
   template <class T>
@@ -35,33 +37,42 @@ namespace EPI {
     __host__ __device__ __forceinline__ const PS::U32& prop() const {
       return prop_;
     }
-    
   };
   template <>
   struct DPDGPU<float4> {
-    float4 pos, vel; //NOTE: id   == __float_as_int(pos.w)
-                     //      prop == __float_as_int(vel.w)
+    union {
+      float4 pos;
+      PS::U32 id_[4];
+    };
+    union {
+      float4 vel;
+      PS::U32 prop_[4];
+    };
+    //NOTE: id   == __float_as_int(pos.w)
+    //      prop == __float_as_int(vel.w)
+
     PS::S32 id_walk;
     float dens[Parameter::prop_num];
 
     __host__ __device__ __forceinline__ PS::U32& id() {
-      return *reinterpret_cast<PS::U32>(&(pos.w));
+      return id_[3];
     }
     __host__ __device__ __forceinline__ const PS::U32& id() const {
-      return *reinterpret_cast<PS::U32>(&(pos.w));
+      return id_[3];
     }
 
     __host__ __device__ __forceinline__ PS::U32& prop() {
-      return *reinterpret_cast<PS::U32>(&(vel.w));
+      return prop_[3];
     }
     __host__ __device__ __forceinline__ const PS::U32& prop() const {
-      return *reinterpret_cast<PS::U32>(&(vel.w));
+      return prop_[3];
     }
-  }
+  };
   
   template <class T>
   struct DensityGPU {
     PS::U32 prop_;
+    PS::S32 id_walk;
     T pos;
 
     __host__ __device__ __forceinline__ PS::U32& prop() {
@@ -73,13 +84,18 @@ namespace EPI {
   };
   template <>
   struct DensityGPU<float4> {
-    float4 pos; //NOTE: prop == __float_as_int(pos.w)
+    union {
+      float4 pos;
+      PS::U32 prop_[4];
+    };
+    //NOTE: prop == __float_as_int(pos.w)
+    PS::S32 id_walk;
     
     __host__ __device__ __forceinline__ PS::U32& prop() {
-      return *reinterpret_cast<PS::U32>(&(pos.w));
+      return prop_[3];
     }
     __host__ __device__ __forceinline__ const PS::U32& prop() const {
-      return *reinterpret_cast<PS::U32>(&(pos.w));
+      return prop_[3];
     }
   };
 };
@@ -104,28 +120,35 @@ namespace EPJ {
     __host__ __device__ __forceinline__ const PS::U32& prop() const {
       return prop_;
     }
-    
   };
   template <>
   struct DPDGPU<float4> {
-    float4 pos, vel; //NOTE: id   == __float_as_int(pos.w)
-                     //      prop == __float_as_int(vel.w)
+    union {
+      float4 pos;
+      PS::U32 id_[4];
+    };
+    union {
+      float4 vel;
+      PS::U32 prop_[4];
+    };    
+    //NOTE: id   == __float_as_int(pos.w)
+    //      prop == __float_as_int(vel.w)
     float dens[Parameter::prop_num];
 
     __host__ __device__ __forceinline__ PS::U32& id() {
-      return *reinterpret_cast<PS::U32>(&(pos.w));
+      return id_[3];
     }
     __host__ __device__ __forceinline__ const PS::U32& id() const {
-      return *reinterpret_cast<PS::U32>(&(pos.w));
+      return id_[3];
     }
 
     __host__ __device__ __forceinline__ PS::U32& prop() {
-      return *reinterpret_cast<PS::U32>(&(vel.w));
+      return prop_[3];
     }
     __host__ __device__ __forceinline__ const PS::U32& prop() const {
-      return *reinterpret_cast<PS::U32>(&(vel.w));
+      return prop_[3];
     }
-  }
+  };
   
   template <class T>
   struct DensityGPU {
@@ -141,13 +164,17 @@ namespace EPJ {
   };
   template <>
   struct DensityGPU<float4> {
-    float4 pos; //NOTE: prop == __float_as_int(pos.w)
+    union {
+      float4 pos;
+      PS::U32 prop_[4];
+    };
+    //NOTE: prop == __float_as_int(pos.w)
     
     __host__ __device__ __forceinline__ PS::U32& prop() {
-      return *reinterpret_cast<PS::U32>(&(pos.w));
+      return prop_[3];
     }
     __host__ __device__ __forceinline__ const PS::U32& prop() const {
-      return *reinterpret_cast<PS::U32>(&(pos.w));
+      return prop_[3];
     }
   };  
 };
@@ -156,16 +183,16 @@ namespace EPJ {
 
 typedef float4 VecPos;
 typedef float3 VecForce;
+typedef float  Dtype;
 
 #elif defined USE_DOUBLE_VEC
 
 typedef double3 VecPos;
 typedef double3 VecForce;
+typedef double  Dtype;
 
 #else
 
 #error "Vector type is not specified in user_defs.h"
 
 #endif
-
-

@@ -8,6 +8,8 @@
 #include "f_calculator.hpp"
 #include <cstring>
 
+constexpr char Parameter::atom_type[21];
+
 static_assert(Parameter::bond_leng != 0.0, "Please check Parameter::bond_leng != 0.0");
 
 class ConfigMaker {

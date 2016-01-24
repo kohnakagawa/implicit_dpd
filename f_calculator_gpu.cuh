@@ -4,6 +4,7 @@
 #include "cuda_ptr.cuh"
 #include "user_defs.h"
 #include "ptcl_class_gpu.cuh"
+#include "parameter.hpp"
 
 template<class Policy, class EPI, class EPJ>
 PS::S32 DispatchKernel(const PS::S32 tag,
@@ -14,16 +15,16 @@ PS::S32 DispatchKernel(const PS::S32 tag,
 		       const PS::S32 * n_epj);
 
 template<class Policy, class RESULT>
-PS::S32 RetriveKernel(const PS::S32 tag,
-		      const PS::S32 n_walk,
-		      const PS::S32 ni[],
-		      RESULT * force[]);
+PS::S32 RetrieveKernel(const PS::S32 tag,
+	     	       const PS::S32 n_walk,
+		       const PS::S32 ni[],
+		       RESULT * force[]);
 
 struct DensityPolicy {
   static bool init_call;
   static cuda_ptr<EPI::DensityGPU<VecPos> > dev_epi;
   static cuda_ptr<EPJ::DensityGPU<VecPos> > dev_epj;
-  static cuda_ptr<RESULT::DensityGPU<VecForce> > dev_force;
+  static cuda_ptr<RESULT::DensityGPU<Dtype> > dev_force;
   
   template<class EPI, class EPJ>
   static void CopyToBuffer(const PS::S32 n_walk,

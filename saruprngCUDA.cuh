@@ -129,11 +129,12 @@ class SaruGPU
 
         template<class Real> __device__ inline Real s();
         template<class Real> __device__ inline Real s(Real low, Real high);
-        template <unsigned int steps> __device__ inline double uni_open();
-        template <unsigned int steps> __device__ inline float uni_open();
-        template <typename T> __device__ inline T uni_open();
-        __device__ inline double nrml();
-        __device__ inline float nrml();
+        template <unsigned int steps> __device__ inline double uni_open_d();
+        template <unsigned int steps> __device__ inline float uni_open_f();
+        __device__ inline double uni_open_d();
+	__device__ inline float uni_open_f();
+        __device__ inline double nrml_d();
+        __device__ inline float nrml_f();
       
         /* nvcc doesn't like private members in emulation mode */
 #ifndef __DEVICE_EMULATION__
@@ -457,7 +458,7 @@ __device__ inline double SaruGPU::s(double low, double high)
     }
 
 template<unsigned int steps>
-__device__ inline float SaruGPU::uni_open()
+__device__ inline float SaruGPU::uni_open_f()
 {
 #if 1 //faster version on x86
   return (static_cast<float>(static_cast<signed int>(u32<steps>() >> 1) ) + 0.5f) * (1.0f / 2147483648.0f);
@@ -467,7 +468,7 @@ __device__ inline float SaruGPU::uni_open()
 }
 
 template<unsigned int steps>
-__device__ inline double SaruGPU::uni_open()
+__device__ inline double SaruGPU::uni_open_d()
 {
 #if 1 //faster version on x86
   return (static_cast<double>(static_cast<signed int>(u32<steps>() >> 1) ) + 0.5) * (1.0 / 2147483648.0);
@@ -476,20 +477,24 @@ __device__ inline double SaruGPU::uni_open()
 #endif
 }
 
-template<typename T>
-__device__ inline T SaruGPU::uni_open()
+__device__ inline double SaruGPU::uni_open_d()
 {
-  return uni_open<1>();
+  return uni_open_d<1>();
 }
 
-__device__ inline float SaruGPU::nrml()
+__device__ inline float SaruGPU::uni_open_f()
 {
-  return sqrtf(-2.0f * logf(uni_open<float>() ) ) * cosf(2.0f * M_PI * uni_open<float>() );
+  return uni_open_f<1>();
 }
 
-__device__ inline double SaruGPU::nrml()
+__device__ inline float SaruGPU::nrml_f()
 {
-  return sqrt(-2.0 * log(uni_open<double>() ) ) * cos(2.0 * M_PI * uni_open<double>() );
+  return sqrtf(-2.f * logf(uni_open_f() ) ) * cosf(2.f * M_PI * uni_open_f() );
+}
+
+__device__ inline double SaruGPU::nrml_d()
+{
+  return sqrt(-2.0 * log(uni_open_d() ) ) * cos(2.0 * M_PI * uni_open_d() );
 }
 
 #endif /* SARUPRNG_CUH */
