@@ -20,8 +20,6 @@ PS::S32 RetrieveKernel(const PS::S32 tag,
 		       const PS::S32 ni[],
 		       RESULT * force[]);
 
-void cleanup_GPU();
-
 struct DensityPolicy {
   static bool init_call;
   static cuda_ptr<EPI::DensityGPU<VecPos> > dev_epi;

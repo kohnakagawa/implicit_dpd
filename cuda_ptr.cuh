@@ -8,16 +8,12 @@
  
 template <typename T>
 struct cuda_ptr{
-  T *dev_ptr;
-  T *host_ptr;
-  int size;
+  T *dev_ptr = nullptr;
+  T *host_ptr = nullptr;
+  int size = -1;
   thrust::device_ptr<T> thrust_ptr;
   
-  cuda_ptr(){
-    dev_ptr  = nullptr;
-    host_ptr = nullptr;
-    size     = -1;
-  }
+  cuda_ptr(){}
   ~cuda_ptr(){ deallocate(); }
  
   void allocate(const int size_){
@@ -71,5 +67,84 @@ private:
     checkCudaErrors(cudaFree(dev_ptr));
     checkCudaErrors(cudaFreeHost(host_ptr));
   }
+};
+
+//for texture memory
+template<typename T, size_t Nx, size_t Ny> //Height Width
+struct cuda2D_ptr {
+  size_t size[2] = {Nx, Ny};
+  T host[Nx][Ny];
+  cudaArray *dev_ptr = nullptr;
+  cudaChannelFormatDesc cdesc;
   
+  cuda2D_ptr(cudaChannelFormatDesc cdesc_) {
+    cdesc = cdesc_;
+    allocate();
+  }
+  ~cuda2D_ptr() {
+    deallocate();
+  }
+  
+  template<typename U>
+  void host2host(U cpy[Nx][Ny]) {
+    for(size_t i = 0; i < Nx; i++)
+      for(size_t j = 0; j < Ny; j++)
+	host[i][j] = (T)cpy[i][j];
+  }
+  
+  void host2dev() {
+    cudaMemcpyToArray(dev_ptr, 0, 0, host, Nx * Ny * sizeof(T), cudaMemcpyHostToDevice);
+  }
+  
+private:
+  void allocate() {
+    cudaMallocArray(&dev_ptr, &cdesc, Ny, Nx);
+  }
+
+  void deallocate() {
+    cudaFreeArray(dev_ptr);
+  }
+};
+
+template<typename T, size_t Nx, size_t Ny, size_t Nz>
+struct cuda3D_ptr {
+  size_t size[3] = {Nx, Ny, Nz};
+  T host[Nx][Ny][Nz];
+  cudaArray *dev_ptr = nullptr;
+  cudaChannelFormatDesc cdesc;
+  cudaExtent ext = {Nz, Ny, Nx};
+  
+  cuda3D_ptr(cudaChannelFormatDesc cdesc_) {
+    cdesc = cdesc_;
+    allocate();
+  }
+  ~cuda3D_ptr() {
+    deallocate();
+  }
+
+  template<typename U>
+  void host2host(U cpy[Nx][Ny][Nz]) {
+    for(size_t i = 0; i < Nx; i++)
+      for(size_t j = 0; j < Ny; j++)
+	for(size_t k = 0; k < Nz; k++)
+	  host[i][j][k] = (T)cpy[i][j][k];
+  }
+
+  void host2dev() {
+    cudaMemcpy3DParms copyParams = {0};
+    copyParams.srcPtr = make_cudaPitchedPtr(host, Nz * sizeof(T), Nz, Ny);
+    copyParams.dstArray = dev_ptr;
+    copyParams.extent = ext;
+    copyParams.kind   = cudaMemcpyHostToDevice;
+    cudaMemcpy3D(&copyParams);
+  }
+
+private:
+  void allocate() {
+    cudaMalloc3DArray(&dev_ptr, &cdesc, ext);
+  }
+
+  void deallocate() {
+    cudaFreeArray(dev_ptr);
+  }
 };
