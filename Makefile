@@ -37,9 +37,9 @@ ifeq ($(use_gpu_cuda),yes)
 COMMON_FLAGS += -DENABLE_GPU_CUDA
 CUDA_HOME = /usr/local/cuda
 NVCC = $(CUDA_HOME)/bin/nvcc
-NVCCFLAGS = $(COMMON_FLAGS) -ccbin=$(CXX) -arch=sm_35 -Xcompiler "$(COMMON_FLAGS) $(WARNINGS) $(OPENMP) $(OPT_FLAGS)"
+NVCCFLAGS = $(COMMON_FLAGS) -ccbin=$(CXX) -arch=sm_35 -Xcompiler "$(COMMON_FLAGS) $(WARNINGS) $(OPT_FLAGS)"
 LIBRARY = -L$(CUDA_HOME)/lib64 -lcudart
-INCLUDE +=  -I$(CUDA_HOME)/include/
+INCLUDE += -I$(CUDA_HOME)/include/
 OBJECTS_DPD += f_calculator_gpu.o
 endif
 

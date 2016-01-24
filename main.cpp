@@ -3,6 +3,7 @@
 #include "particle_simulator.hpp"
 #include "user_defs.h"
 #include "parameter.hpp"
+
 #ifdef ENABLE_GPU_CUDA
 #warning "will use gpu."
 #include "ptcl_class.hpp"
@@ -11,6 +12,7 @@
 #else
 #include "f_calculator.hpp"
 #endif
+
 #include "chemmanager.hpp"
 #include "observer.hpp"
 #include "driftkick.hpp"

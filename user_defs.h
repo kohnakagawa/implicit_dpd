@@ -2,9 +2,8 @@
 
 #define CALC_HEIGHT // calculate membrane height or not
 #define CHEM_MODE   // chem mode on or off
-#define USE_GPU     // use gpu or not
 
-#ifdef USE_GPU
+#ifdef ENABLE_GPU_CUDA
 
 #define USE_FLOAT_VEC
 //#define USE_DOUBLE_VEC
