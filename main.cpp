@@ -9,11 +9,15 @@
 #include "ptcl_class.hpp"
 #include "bdf_calculator.hpp"
 #include "f_calculator_gpu.cuh"
+#include "device_inform.cuh"
 #else
 #include "f_calculator.hpp"
 #endif
 
+#ifdef CHEM_MODE
 #include "chemmanager.hpp"
+#endif
+
 #include "observer.hpp"
 #include "driftkick.hpp"
 
@@ -93,6 +97,17 @@ namespace  {
 int main(int argc, char *argv[]) {
   timer_start();
   
+#ifdef ENABLE_GPU_CUDA
+  if(argc == 3) {
+    const PS::S32 dev_id = std::atoi(argv[2]);
+    cudaSetDevice(dev_id);
+    print_device_inform(dev_id);
+  } else {
+    std::cerr << "gpu device id is not specified.\n";
+    PS::Abort();
+  }
+#endif
+
   PS::Initialize(argc, argv);
   
   const std::string cdir = argv[1];
