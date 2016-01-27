@@ -4,7 +4,7 @@
 #include <cstdlib>
 #include <thrust/fill.h>
 #include <thrust/device_ptr.h>
-#include "cuda_error.cuh"
+#include <helper_cuda.h>
  
 template <typename T>
 struct cuda_ptr{
@@ -14,7 +14,7 @@ struct cuda_ptr{
   thrust::device_ptr<T> thrust_ptr;
   
   cuda_ptr(){}
-  ~cuda_ptr(){ deallocate(); }
+  ~cuda_ptr(){}
  
   void allocate(const int size_){
     size = size_;
@@ -62,7 +62,6 @@ struct cuda_ptr{
     return dev_ptr;
   }
 
-private:
   void deallocate(){
     checkCudaErrors(cudaFree(dev_ptr));
     checkCudaErrors(cudaFreeHost(host_ptr));
@@ -81,9 +80,7 @@ struct cuda2D_ptr {
     cdesc = cdesc_;
     allocate();
   }
-  ~cuda2D_ptr() {
-    deallocate();
-  }
+  ~cuda2D_ptr() {}
   
   template<typename U>
   void host2host(U cpy[Nx][Ny]) {
@@ -93,20 +90,20 @@ struct cuda2D_ptr {
   }
   
   void host2dev() {
-    cudaMemcpyToArray(dev_ptr, 0, 0, host, Nx * Ny * sizeof(T), cudaMemcpyHostToDevice);
+    checkCudaErrors(cudaMemcpyToArray(dev_ptr, 0, 0, host, Nx * Ny * sizeof(T), cudaMemcpyHostToDevice) );
+  }
+
+  void deallocate() {
+    checkCudaErrors(cudaFreeArray(dev_ptr) );
   }
   
 private:
   void allocate() {
-    cudaMallocArray(&dev_ptr, &cdesc, Ny, Nx);
-  }
-
-  void deallocate() {
-    cudaFreeArray(dev_ptr);
+    checkCudaErrors(cudaMallocArray(&dev_ptr, &cdesc, Ny, Nx) );
   }
 };
 
-template<typename T, size_t Nx, size_t Ny, size_t Nz>
+template<typename T, size_t Nx, size_t Ny, size_t Nz> //Height Width Depth
 struct cuda3D_ptr {
   size_t size[3] = {Nx, Ny, Nz};
   T host[Nx][Ny][Nz];
@@ -118,9 +115,7 @@ struct cuda3D_ptr {
     cdesc = cdesc_;
     allocate();
   }
-  ~cuda3D_ptr() {
-    deallocate();
-  }
+  ~cuda3D_ptr() {}
 
   template<typename U>
   void host2host(U cpy[Nx][Ny][Nz]) {
@@ -136,15 +131,15 @@ struct cuda3D_ptr {
     copyParams.dstArray = dev_ptr;
     copyParams.extent = ext;
     copyParams.kind   = cudaMemcpyHostToDevice;
-    cudaMemcpy3D(&copyParams);
-  }
-
-private:
-  void allocate() {
-    cudaMalloc3DArray(&dev_ptr, &cdesc, ext);
+    checkCudaErrors(cudaMemcpy3D(&copyParams) );
   }
 
   void deallocate() {
-    cudaFreeArray(dev_ptr);
+    checkCudaErrors(cudaFreeArray(dev_ptr) );
+  }
+  
+private:
+  void allocate() {
+    checkCudaErrors(cudaMalloc3DArray(&dev_ptr, &cdesc, ext) );
   }
 };
