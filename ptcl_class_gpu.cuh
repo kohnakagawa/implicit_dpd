@@ -2,14 +2,15 @@
 
 #include "parameter.hpp"
 
-//NOTE: T should be float3 or double3 or float4
 namespace RESULT {
+  //NOTE: T should be double3 or float4.
   template <class T>
   struct ForceGPU {
     T acc;
     T press;
   };
   
+  //NOTE: T should be  double or float.
   template <class T>
   struct DensityGPU {
     T dens[Parameter::prop_num];
@@ -19,10 +20,10 @@ namespace RESULT {
 namespace EPI {
   template <class T> //NOTE T should be double3
   struct DPDGPU {
-    PS::U32 id_, prop_;
+    T pos; PS::U32 id_;
+    T vel; PS::U32 prop_;
     PS::S32 id_walk;
-    T pos, vel;
-    T dens[Parameter::prop_num];
+    double dens[Parameter::prop_num];
     
     __host__ __device__ __forceinline__ PS::U32& id() {
       return id_;
@@ -71,9 +72,8 @@ namespace EPI {
   
   template <class T>
   struct DensityGPU {
-    PS::U32 prop_;
+    T pos; PS::U32 prop_;
     PS::S32 id_walk;
-    T pos;
 
     __host__ __device__ __forceinline__ PS::U32& prop() {
       return prop_;
@@ -101,11 +101,11 @@ namespace EPI {
 } //End of namespace EPI
 
 namespace EPJ {
-  template <class T> //NOTE T should be float3 or double3
+  template <class T> //NOTE T should be double3
   struct DPDGPU {
-    PS::U32 id_, prop_;
-    T pos, vel;
-    T dens[Parameter::prop_num];
+    T pos; PS::U32 id_;
+    T vel; PS::U32 prop_;
+    double dens[Parameter::prop_num];
     
     __host__ __device__ __forceinline__ PS::U32& id() {
       return id_;
@@ -152,8 +152,7 @@ namespace EPJ {
   
   template <class T>
   struct DensityGPU {
-    PS::U32 prop_;
-    T pos;
+    T pos; PS::U32 prop_;
 
     __host__ __device__ __forceinline__ PS::U32& prop() {
       return prop_;
