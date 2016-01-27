@@ -1,20 +1,22 @@
 #include "f_calculator_gpu.cuh"
 #include "ptcl_class.hpp"
 
+//static members for calculating non-bonded force
 PS::F64 Parameter::cf_c[Parameter::prop_num][Parameter::prop_num];
 PS::F64 Parameter::cf_g[Parameter::prop_num][Parameter::prop_num];
 PS::F64 Parameter::cf_r[Parameter::prop_num][Parameter::prop_num];
 PS::F64 Parameter::cf_m[Parameter::prop_num][Parameter::prop_num][Parameter::prop_num];
 
-bool DensityPolicy::init_call = true;
-cuda_ptr<EPI::DensityGPU<VecPos> > DensityPolicy::dev_epi;
-cuda_ptr<EPJ::DensityGPU<VecPos> > DensityPolicy::dev_epj;
-cuda_ptr<RESULT::DensityGPU<Dtype> > DensityPolicy::dev_force;
+bool Policy::Density::init_call = true;
+cuda_ptr<EPI::DensityGPU<VecPos> > Policy::Density::dev_epi;
+cuda_ptr<EPJ::DensityGPU<VecPos> > Policy::Density::dev_epj;
+cuda_ptr<RESULT::DensityGPU<Dtype> > Policy::Density::dev_force;
 
-bool ForcePolicy::init_call = true;
-cuda_ptr<EPI::DPDGPU<VecPos> > ForcePolicy::dev_epi;
-cuda_ptr<EPJ::DPDGPU<VecPos> > ForcePolicy::dev_epj;
-cuda_ptr<RESULT::ForceGPU<VecForce> > ForcePolicy::dev_force;
+bool Policy::Force::init_call = true;
+cuda_ptr<EPI::DPDGPU<VecPos> > Policy::Force::dev_epi;
+cuda_ptr<EPJ::DPDGPU<VecPos> > Policy::Force::dev_epj;
+cuda_ptr<RESULT::ForceGPU<VecForce> > Policy::Force::dev_force;
+//
 
 namespace {
 #ifdef USE_TEXTURE_MEM
@@ -41,12 +43,12 @@ namespace {
   texture<int2, cudaTextureType2D, cudaReadModeElementType> cf_g;
 #endif //USE_FLOAT_VEC
 
-#else //USE_TEXTURE_MEM
+#else
   __device__ Dtype cf_m[Parameter::prop_num][Parameter::prop_num][Parameter::prop_num];
   __device__ Dtype cf_c[Parameter::prop_num][Parameter::prop_num];
   __device__ Dtype cf_r[Parameter::prop_num][Parameter::prop_num];
   __device__ Dtype cf_g[Parameter::prop_num][Parameter::prop_num];
-#endif
+#endif //USE_TEXTURE_MEM
 
   enum {
     N_THREAD_GPU = 32,
@@ -80,6 +82,13 @@ namespace {
     cudaBindTextureToArray(cf_c, ptr_cf_c.dev_ptr, ptr_cf_c.cdesc);
     cudaBindTextureToArray(cf_r, ptr_cf_r.dev_ptr, ptr_cf_r.cdesc);
     cudaBindTextureToArray(cf_g, ptr_cf_g.dev_ptr, ptr_cf_g.cdesc);
+  }
+
+  void clean_up_texture_mem() {
+    ptr_cf_m.deallocate();
+    ptr_cf_c.deallocate();
+    ptr_cf_r.deallocate();
+    ptr_cf_g.deallocate();
   }
 
 #else
@@ -121,7 +130,23 @@ namespace {
 
 #endif //USE_TEXTURE_MEM
 
-};
+  template<class Policy>
+  void clean_up_device_mem() {
+    Policy::dev_epi.deallocate();
+    Policy::dev_epj.deallocate();
+    Policy::dev_force.deallocate();
+  }
+  
+}; //end of anonymous namespace
+
+void clean_up_gpu() {
+  clean_up_device_mem<Policy::Density>();
+  clean_up_device_mem<Policy::Force>();
+
+#ifdef USE_TEXTURE_MEM
+  clean_up_texture_mem();
+#endif
+}
 
 #include "kernel_impl.cuh"
 
@@ -204,30 +229,30 @@ PS::S32 RetrieveKernel(const PS::S32 tag,
 
 //instantiate
 template
-PS::S32 DispatchKernel<DensityPolicy, EPI::Density, EPJ::Density>(const PS::S32 tag,
-								  const PS::S32 n_walk,
-								  const EPI::Density ** epi,
-								  const PS::S32 * n_epi,
-								  const EPJ::Density ** epj,
-								  const PS::S32 * n_epj);
+PS::S32 DispatchKernel<Policy::Density, EPI::Density, EPJ::Density>(const PS::S32 tag,
+								    const PS::S32 n_walk,
+								    const EPI::Density ** epi,
+								    const PS::S32 * n_epi,
+								    const EPJ::Density ** epj,
+								    const PS::S32 * n_epj);
 
 template
-PS::S32 DispatchKernel<ForcePolicy,   EPI::DPD,     EPJ::DPD    >(const PS::S32 tag,
-								  const PS::S32 n_walk,
-								  const EPI::DPD ** epi,
-								  const PS::S32 * n_epi,
-								  const EPJ::DPD ** epj,
-								  const PS::S32 * n_epj);
+PS::S32 DispatchKernel<Policy::Force,   EPI::DPD,     EPJ::DPD    >(const PS::S32 tag,
+								    const PS::S32 n_walk,
+								    const EPI::DPD ** epi,
+								    const PS::S32 * n_epi,
+								    const EPJ::DPD ** epj,
+								    const PS::S32 * n_epj);
 
 template
-PS::S32 RetrieveKernel<DensityPolicy, RESULT::Density> (const PS::S32 tag,
-							const PS::S32 n_walk,
-							const PS::S32 ni[],
-							RESULT::Density * force[]);
+PS::S32 RetrieveKernel<Policy::Density, RESULT::Density> (const PS::S32 tag,
+							  const PS::S32 n_walk,
+							  const PS::S32 ni[],
+							  RESULT::Density * force[]);
 
 template
-PS::S32 RetrieveKernel<ForcePolicy, RESULT::ForceDPD> (const PS::S32 tag,
-						       const PS::S32 n_walk,
-						       const PS::S32 ni[],
-						       RESULT::ForceDPD * force[]);
+PS::S32 RetrieveKernel<Policy::Force, RESULT::ForceDPD> (const PS::S32 tag,
+							 const PS::S32 n_walk,
+							 const PS::S32 ni[],
+							 RESULT::ForceDPD * force[]);
 

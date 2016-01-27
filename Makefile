@@ -19,7 +19,10 @@ INCLUDE = -I./FDPS/src
 
 #COMMON_FLAGS = $(DEBUG)
 COMMON_FLAGS = $(RELEASE)
-#COMMON_FLAGS = $(PROFILE)
+
+ifeq ($(COMMON_FLAGS), $(DEBUG))
+CUDA_DEBUG = -G
+endif
 
 COMMON_FLAGS += -std=c++11
 
@@ -37,9 +40,9 @@ ifeq ($(use_gpu_cuda),yes)
 COMMON_FLAGS += -DENABLE_GPU_CUDA
 CUDA_HOME = /usr/local/cuda
 NVCC = $(CUDA_HOME)/bin/nvcc
-NVCCFLAGS = $(COMMON_FLAGS) -ccbin=$(CXX) -arch=sm_35 -Xcompiler "$(COMMON_FLAGS) $(WARNINGS) $(OPT_FLAGS)"
+NVCCFLAGS = $(COMMON_FLAGS) -ccbin=$(CXX) -arch=sm_35 -Xcompiler "$(COMMON_FLAGS) $(WARNINGS) $(OPT_FLAGS)" $(CUDA_DEBUG)
 LIBRARY = -L$(CUDA_HOME)/lib64 -lcudart
-INCLUDE += -I$(CUDA_HOME)/include/
+INCLUDE += -I$(CUDA_HOME)/include/ -I$(CUDA_HOME)/samples/common/inc/
 OBJECTS_DPD += f_calculator_gpu.o
 endif
 

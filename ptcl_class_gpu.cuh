@@ -2,7 +2,7 @@
 
 #include "parameter.hpp"
 
-//NOTE: T should be float3 or double3
+//NOTE: T should be float3 or double3 or float4
 namespace RESULT {
   template <class T>
   struct ForceGPU {
@@ -14,7 +14,7 @@ namespace RESULT {
   struct DensityGPU {
     T dens[Parameter::prop_num];
   };
-};
+}
 
 namespace EPI {
   template <class T> //NOTE T should be double3
@@ -98,7 +98,7 @@ namespace EPI {
       return prop_[3];
     }
   };
-};
+} //End of namespace EPI
 
 namespace EPJ {
   template <class T> //NOTE T should be float3 or double3
@@ -177,12 +177,12 @@ namespace EPJ {
       return prop_[3];
     }
   };  
-};
+} //end of namespace EPJ
 
 #ifdef USE_FLOAT_VEC
 
 typedef float4 VecPos;
-typedef float3 VecForce;
+typedef float4 VecForce;
 typedef float  Dtype;
 
 #elif defined USE_DOUBLE_VEC

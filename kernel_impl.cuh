@@ -17,7 +17,7 @@ __global__ void ForceKernel(const int2 *ij_disp,
 			    const uint seed) {
   const int tid = blockDim.x * blockIdx.x + threadIdx.x;
   const VecPos ri = epi[tid].pos;
-  T d_sum[Parameter::prop_num] = {0.f};
+  T d_sum[Parameter::prop_num] = {(T)0.0};
   
   const int j_head = ij_disp[epi[tid].id_walk    ].y;
   const int j_tail = ij_disp[epi[tid].id_walk + 1].y;
@@ -31,8 +31,8 @@ __global__ void ForceKernel(const int2 *ij_disp,
 #endif
     const VecForce drij = {ri.x - rj.x, ri.y - rj.y, ri.z - rj.z};
     const T dr2 = drij.x * drij.x + drij.y * drij.y + drij.z * drij.z;
-    const T dr = sqrt(dr2);
-    d_sum[prpj] += (Parameter::rc - dr) * (Parameter::rc - dr) * (dr < Parameter::rc);
+    const T dr = sqrtf(dr2);
+    d_sum[prpj] += (Parameter::rc - dr) * (Parameter::rc - dr) * (dr < Parameter::rc) * (dr != 0.0);
   }
 
   for(int k = 0; k < Parameter::prop_num; k++)
@@ -64,9 +64,10 @@ __global__ void ForceKernel(const int2 *ij_disp,
   
   const int j_head = ij_disp[epi[tid].id_walk    ].y;
   const int j_tail = ij_disp[epi[tid].id_walk + 1].y;
+
+  VecForce fsum = {(T)0.0};
+  VecForce psum = {(T)0.0};
   
-  VecForce fsum = {0.f, 0.f, 0.f};
-  VecForce psum = {0.f, 0.f, 0.f};
   for(int j = j_head; j < j_tail; j++) {
     const VecPos rj = epj[j].pos;
     const VecPos vj = epj[j].vel;
@@ -86,11 +87,10 @@ __global__ void ForceKernel(const int2 *ij_disp,
     for(int k = 0; k < Parameter::prop_num; k++)
       densij[k] = densi[k] + epj[j].dens[k];
     
-    uint m_i = idi, m_j = idj;
-    if(idi > idj) { //m_i <= m_j
-      m_i = idj;
-      m_j = idi;
-    }
+    uint m_i, m_j;
+    const bool flag = (idi > idj); //m_i < m_j
+    m_i = flag ? idj : idi;
+    m_j = flag ? idi : idj;
     
     SaruGPU saru(m_i, m_j, seed);
     const T rnd = saru.nrml_f();
@@ -127,7 +127,7 @@ __global__ void ForceKernel(const int2 *ij_disp,
 
 #endif //PAIRWISE_DPD
     const T wrij = one_m_dr;
-    //const float wrij = sqrtf(one_m_dr);
+    //const T wrij = sqrtf(one_m_dr);
     const T sq_wrij = sqrtf(wrij);
     
     const T drij_dvij = drij.x * dvij.x + drij.y * dvij.y + drij.z * dvij.z;
@@ -142,10 +142,11 @@ __global__ void ForceKernel(const int2 *ij_disp,
 		cf_g[prpi][prpj] * wrij * drij_dvij * inv_dr) * inv_dr;
 #endif
 
-    if(dr2 < Parameter::rc2) all_cf = 0.0;
+    if(dr2 >= Parameter::rc2 || dr2 == 0.0) all_cf = 0.0;
     
     const VecForce dF = {all_cf * drij.x, all_cf * drij.y, all_cf * drij.z};
     const VecForce dP = {dF.x * drij.x, dF.y * drij.y, dF.z * drij.z};
+    
     fsum.x += dF.x; fsum.y += dF.y; fsum.z += dF.z;
     psum.x += dP.x; psum.y += dP.y; psum.z += dP.z;
   }

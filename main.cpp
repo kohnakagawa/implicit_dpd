@@ -96,6 +96,8 @@ namespace  {
 
 int main(int argc, char *argv[]) {
   timer_start();
+
+  PS::Initialize(argc, argv);
   
 #ifdef ENABLE_GPU_CUDA
   if(argc == 3) {
@@ -107,8 +109,6 @@ int main(int argc, char *argv[]) {
     PS::Abort();
   }
 #endif
-
-  PS::Initialize(argc, argv);
   
   const std::string cdir = argv[1];
   Parameter param(cdir);
@@ -141,15 +141,15 @@ int main(int argc, char *argv[]) {
 #ifdef ENABLE_GPU_CUDA
   const PS::S32 n_walk_limit = 200;
   const PS::S32 tag_max = 1;
-  dens_tree.calcForceAllAndWriteBackMultiWalk(DispatchKernel<DensityPolicy, EPI::Density, EPJ::Density>,
-					      RetrieveKernel<DensityPolicy, RESULT::Density>,
+  dens_tree.calcForceAllAndWriteBackMultiWalk(DispatchKernel<Policy::Density, EPI::Density, EPJ::Density>,
+					      RetrieveKernel<Policy::Density, RESULT::Density>,
 					      tag_max,
 					      system,
 					      dinfo,
 					      n_walk_limit);
 					      
-  force_tree.calcForceAllAndWriteBackMultiWalk(DispatchKernel<ForcePolicy, EPI::DPD, EPJ::DPD>,
-					       RetrieveKernel<ForcePolicy, RESULT::ForceDPD>,
+  force_tree.calcForceAllAndWriteBackMultiWalk(DispatchKernel<Policy::Force, EPI::DPD, EPJ::DPD>,
+					       RetrieveKernel<Policy::Force, RESULT::ForceDPD>,
 					       tag_max,
 					       system,
 					       dinfo,
@@ -193,15 +193,15 @@ int main(int argc, char *argv[]) {
     system.exchangeParticle(dinfo);
 
 #ifdef ENABLE_GPU_CUDA
-    dens_tree.calcForceAllAndWriteBackMultiWalk(DispatchKernel<DensityPolicy, EPI::Density, EPJ::Density>,
-					        RetrieveKernel<DensityPolicy, RESULT::Density >,
+    dens_tree.calcForceAllAndWriteBackMultiWalk(DispatchKernel<Policy::Density, EPI::Density, EPJ::Density>,
+					        RetrieveKernel<Policy::Density, RESULT::Density >,
 					        tag_max,
 					        system,
 					        dinfo,
 					        n_walk_limit);
 					      
-    force_tree.calcForceAllAndWriteBackMultiWalk(DispatchKernel<ForcePolicy, EPI::DPD, EPJ::DPD>,
-						 RetrieveKernel<ForcePolicy, RESULT::ForceDPD>,
+    force_tree.calcForceAllAndWriteBackMultiWalk(DispatchKernel<Policy::Force, EPI::DPD, EPJ::DPD>,
+						 RetrieveKernel<Policy::Force, RESULT::ForceDPD>,
 					         tag_max,
 					         system,
 					         dinfo,
@@ -241,6 +241,10 @@ int main(int argc, char *argv[]) {
 
   observer.CleanUp();
   param.DumpAllParam();
+
+#ifdef ENABLE_GPU_CUDA
+  clean_up_gpu();
+#endif
   
   PS::Finalize();
 }

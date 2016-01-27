@@ -9,8 +9,10 @@ void print_device_inform(const int device_id) {
   cudaDriverGetVersion(&driverVersion);
   cudaRuntimeGetVersion(&runtimeVersion);
 
-  float peak_mem_bw = (float) deviceProp.memoryClockRate * 1e3 * 2 * deviceProp.memoryBusWidth / 8;
+  const float peak_mem_bw = (float) deviceProp.memoryClockRate * 1e3 * 2 * deviceProp.memoryBusWidth / 8;
 
+  printf("\n");
+  printf("******** GPU Information ********\n");
   printf("CUDA Driver Version, %d.%d\n", driverVersion/1000, (driverVersion%100)/10 );
   printf("CUDA Runtime Version, %d.%d\n", runtimeVersion/1000, (runtimeVersion%100)/10);
   printf("CUDA Capability Major/Minor version number, %d.%d\n", deviceProp.major, deviceProp.minor);
