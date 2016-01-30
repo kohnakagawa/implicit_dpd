@@ -2,6 +2,7 @@
 
 //#define CALC_HEIGHT // calculate membrane height or not
 //#define CHEM_MODE   // chem mode on or off
+//#define PAIRWISE_DPD
 
 #ifdef ENABLE_GPU_CUDA
 

@@ -10,10 +10,10 @@ __device__ __forceinline__ uint __float_as_uint( float r )
 }
 
 template<class VecPos, class VecForce, typename T>
-__global__ void ForceKernel(const int2 *ij_disp,
-     	  	            const EPI::DensityGPU<VecPos>* epi,
-			    const EPJ::DensityGPU<VecPos>* epj,
-			    RESULT::DensityGPU<T>* result,
+__global__ void ForceKernel(const int2* __restrict__ ij_disp,
+     	  	            const EPI::DensityGPU<VecPos>* __restrict__ epi,
+			    const EPJ::DensityGPU<VecPos>* __restrict__ epj,
+			    RESULT::DensityGPU<T>* __restrict__ result,
 			    const uint seed) {
   const int tid = blockDim.x * blockIdx.x + threadIdx.x;
   const VecPos ri = epi[tid].pos;
@@ -23,10 +23,11 @@ __global__ void ForceKernel(const int2 *ij_disp,
   const int j_tail = ij_disp[epi[tid].id_walk + 1].y;
   
   for(int j = j_head; j < j_tail; j++) {
-    const VecPos rj = epj[j].pos;
 #ifdef USE_FLOAT_VEC
+    const VecPos rj = __ldg(&epj[j].pos);
     const uint prpj = __float_as_uint(rj.w);
 #else
+    const VecPos rj = epj[j].pos;
     const uint prpj = epj[j].prop_;
 #endif
     const VecForce drij = {ri.x - rj.x, ri.y - rj.y, ri.z - rj.z};
@@ -40,10 +41,10 @@ __global__ void ForceKernel(const int2 *ij_disp,
 }
 
 template<class VecPos, class VecForce, typename T>
-__global__ void ForceKernel(const int2 *ij_disp,
-			    const EPI::DPDGPU<VecPos>* epi,
-			    const EPJ::DPDGPU<VecPos>* epj,
-			    RESULT::ForceGPU<VecForce>* force,
+__global__ void ForceKernel(const int2* __restrict__ ij_disp,
+			    const EPI::DPDGPU<VecPos>* __restrict__ epi,
+			    const EPJ::DPDGPU<VecPos>* __restrict__ epj,
+			    RESULT::ForceGPU<VecForce>* __restrict__ force,
 			    const uint seed) {
   const int tid = blockDim.x * blockIdx.x + threadIdx.x;
   

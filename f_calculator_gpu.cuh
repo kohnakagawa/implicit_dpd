@@ -109,6 +109,9 @@ namespace Policy {
       
 	  dev_epi[ni_tot].id()  = epi[iw][i].id;
 	  dev_epi[ni_tot].prop() = epi[iw][i].prop;
+	  
+	  for(PS::S32 k = 0; k < Parameter::prop_num; k++)
+	    dev_epi[ni_tot].dens[k] = epi[iw][i].dens[k];
 
 	  dev_epi[ni_tot].id_walk = iw;
 	  ni_tot++;
@@ -125,6 +128,9 @@ namespace Policy {
       
 	  dev_epj[nj_tot].id() = epj[iw][j].id;
 	  dev_epj[nj_tot].prop() = epj[iw][j].prop;
+
+	  for(PS::S32 k = 0; k < Parameter::prop_num; k++)
+	    dev_epj[nj_tot].dens[k] = epj[iw][j].dens[k];
       
 	  nj_tot++;
 	}

@@ -140,6 +140,7 @@ namespace {
 }; //end of anonymous namespace
 
 void clean_up_gpu() {
+  ij_disp.deallocate();
   clean_up_device_mem<Policy::Density>();
   clean_up_device_mem<Policy::Force>();
 

@@ -92,6 +92,7 @@ namespace  {
 			       const PS::ParticleSystem<FPDPD>& system) {
     observer.Trajectory(system);
   }
+
 }
 
 int main(int argc, char *argv[]) {

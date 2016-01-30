@@ -2,6 +2,7 @@ CXX = g++
 #CXX = icpc
 
 use_gpu_cuda = yes
+#gpu_profile = yes
 
 OPENMP = -DPARTICLE_SIMULATOR_THREAD_PARALLEL
 ifeq ($(CXX),icpc)
@@ -41,6 +42,11 @@ COMMON_FLAGS += -DENABLE_GPU_CUDA
 CUDA_HOME = /usr/local/cuda
 NVCC = $(CUDA_HOME)/bin/nvcc
 NVCCFLAGS = $(COMMON_FLAGS) -ccbin=$(CXX) -arch=sm_35 -Xcompiler "$(COMMON_FLAGS) $(WARNINGS) $(OPT_FLAGS)" $(CUDA_DEBUG)
+
+ifeq ($(gpu_profile),yes)
+NVCCFLAGS += -lineinfo
+endif
+
 LIBRARY = -L$(CUDA_HOME)/lib64 -lcudart
 INCLUDE += -I$(CUDA_HOME)/include/ -I$(CUDA_HOME)/samples/common/inc/
 OBJECTS_DPD += f_calculator_gpu.o
