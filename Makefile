@@ -44,7 +44,7 @@ NVCC = $(CUDA_HOME)/bin/nvcc
 NVCCFLAGS = $(COMMON_FLAGS) -ccbin=$(CXX) -arch=sm_35 -Xcompiler "$(COMMON_FLAGS) $(WARNINGS) $(OPT_FLAGS)" $(CUDA_DEBUG)
 
 ifeq ($(gpu_profile),yes)
-NVCCFLAGS += -lineinfo
+NVCCFLAGS += -lineinfo -Xptxas -v
 endif
 
 LIBRARY = -L$(CUDA_HOME)/lib64 -lcudart
