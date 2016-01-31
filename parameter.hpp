@@ -318,7 +318,7 @@ public:
     PS::U32 line_num = 0;
     PS::U32 cur_time = 0;
     io_util::ReadXYZForm(sys, line_num, cur_time, fp);
-    if(line_num / all_unit != init_amp_num) {
+    if(line_num / all_unit != static_cast<PS::U32>(init_amp_num) ) {
       std::cerr << line_num / all_unit << " " << init_amp_num << std::endl;
       std::cerr << "# of lines is not equal to the run input parameter information.\n";
       PS::Abort();

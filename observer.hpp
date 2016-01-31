@@ -124,7 +124,7 @@ public:
     PS::F64 difsum_mol = 0.0;
     for(PS::S32 i = 0; i < amp_num; i++) {
       PS::F64vec dsumr_mol = 0.0;
-      for(PS::S32 k = 0; k < Parameter::all_unit; k++)
+      for(PS::U32 k = 0; k < Parameter::all_unit; k++)
 	dsumr_mol += sys[Parameter::all_unit * i + k].delta_sumr;
       dsumr_mol /= Parameter::all_unit;
       difsum_mol += dsumr_mol * dsumr_mol;
