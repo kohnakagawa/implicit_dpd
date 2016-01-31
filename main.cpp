@@ -63,6 +63,8 @@ int main(int argc, char *argv[]) {
   PS::ParticleSystem<FPDPD> system;
   system.initialize();
   system.setNumberOfParticleLocal(param.init_amp_num * Parameter::all_unit);
+  
+  
   Parameter::time = param.LoadParticleConfig(system);
   param.CheckParticleConfigIsValid(system);
 
