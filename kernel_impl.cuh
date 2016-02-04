@@ -20,6 +20,7 @@ __global__ void ForceKernel(const int2* __restrict__ ij_disp,
 
   __shared__ T d_sum_sh[N_THREAD_GPU * Parameter::prop_num];
   T* d_sum = &(d_sum_sh[threadIdx.x * Parameter::prop_num]);
+#pragma unroll
   for(int k = 0; k < Parameter::prop_num; k++)
     d_sum[k] = 0.0;
   

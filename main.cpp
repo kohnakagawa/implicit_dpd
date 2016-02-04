@@ -49,7 +49,7 @@ static_assert(Parameter::tail_unit == 3, "tail_unit should be 3.");
 static_assert(Parameter::bond_leng != 0.0, "bond_leng should be not 0.0.");
 static_assert(Parameter::Reo < 3.0, "Reo should be less than 3.0.");
 
-namespace  {
+namespace {
   timeval tv_beg, tv_end;
   double time_diff(timeval& tv1, timeval& tv2) {
     return tv2.tv_sec - tv1.tv_sec + (tv2.tv_usec - tv1.tv_usec) * 1.0e-6;
@@ -92,8 +92,7 @@ namespace  {
 			       const PS::ParticleSystem<FPDPD>& system) {
     observer.Trajectory(system);
   }
-
-}
+} //end of anonymous namespace
 
 int main(int argc, char *argv[]) {
   timer_start();

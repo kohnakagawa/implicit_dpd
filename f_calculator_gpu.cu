@@ -51,10 +51,10 @@ namespace {
 #endif //USE_TEXTURE_MEM
 
   enum {
-    N_THREAD_GPU = 32,
+    N_THREAD_GPU = 64,
     N_WALK_LIMIT = 1000,
-    NI_LIMIT     = N_WALK_LIMIT*1000,
-    NJ_LIMIT     = N_WALK_LIMIT*10000,
+    NI_LIMIT     = N_WALK_LIMIT * 1000,
+    NJ_LIMIT     = N_WALK_LIMIT * 10000,
   };
 
   bool gpu_inited = false;
@@ -78,10 +78,10 @@ namespace {
     cf_r.normalized = false;
     cf_g.normalized = false;
     
-    cudaBindTextureToArray(cf_m, ptr_cf_m.dev_ptr, ptr_cf_m.cdesc);
-    cudaBindTextureToArray(cf_c, ptr_cf_c.dev_ptr, ptr_cf_c.cdesc);
-    cudaBindTextureToArray(cf_r, ptr_cf_r.dev_ptr, ptr_cf_r.cdesc);
-    cudaBindTextureToArray(cf_g, ptr_cf_g.dev_ptr, ptr_cf_g.cdesc);
+    checkCudaErrors(cudaBindTextureToArray(cf_m, ptr_cf_m.dev_ptr, ptr_cf_m.cdesc));
+    checkCudaErrors(cudaBindTextureToArray(cf_c, ptr_cf_c.dev_ptr, ptr_cf_c.cdesc));
+    checkCudaErrors(cudaBindTextureToArray(cf_r, ptr_cf_r.dev_ptr, ptr_cf_r.cdesc));
+    checkCudaErrors(cudaBindTextureToArray(cf_g, ptr_cf_g.dev_ptr, ptr_cf_g.cdesc));
   }
 
   void clean_up_texture_mem() {
@@ -136,8 +136,7 @@ namespace {
     Policy::dev_epj.deallocate();
     Policy::dev_force.deallocate();
   }
-  
-}; //end of anonymous namespace
+} //end of anonymous namespace
 
 void clean_up_gpu() {
   ij_disp.deallocate();
