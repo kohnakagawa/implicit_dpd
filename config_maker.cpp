@@ -24,6 +24,8 @@ class ConfigMaker {
   PS::F64 lip_len	= std::numeric_limits<PS::F64>::quiet_NaN();
   
   PS::F64 sph_rad	= std::numeric_limits<PS::F64>::quiet_NaN();
+  PS::F64 upper_the     = std::numeric_limits<PS::F64>::quiet_NaN();
+  
   PS::F64 cyl_l		= std::numeric_limits<PS::F64>::quiet_NaN();
   PS::F64 cyl_r		= std::numeric_limits<PS::F64>::quiet_NaN();
 
@@ -152,12 +154,14 @@ class ConfigMaker {
     const PS::F64 min_box_leng = box_leng.getMin();
     assert(sph_rad >= 0.0 && sph_rad <= 0.5 * min_box_leng);
     
+    const PS::F64 up_the = upper_the * M_PI / 180.0; //NOTE: the unit of upper_theta is not radian.
+    
     const PS::F64 q_thick = 0.5 * Parameter::all_unit * Parameter::bond_leng;
     const PS::F64 out_rad = sph_rad + q_thick, in_rad  = sph_rad - q_thick;
     PS::F64 d_the_out = lip_len / out_rad, d_the_in = lip_len / in_rad;
-    const PS::S32 out_the_elem = static_cast<PS::S32>(M_PI / d_the_out), in_the_elem  = static_cast<PS::S32>(M_PI / d_the_in);
-    d_the_out = M_PI / out_the_elem;
-    d_the_in  = M_PI / in_the_elem;
+    const PS::S32 out_the_elem = static_cast<PS::S32>(up_the / d_the_out), in_the_elem = static_cast<PS::S32>(up_the / d_the_in);
+    d_the_out = up_the / out_the_elem;
+    d_the_in  = up_the / in_the_elem;
     
     PS::U32 idx = 0;
     MakeLineForEachTheta(out_the_elem, d_the_out, 0.0, out_rad, -1.0, idx); //out
@@ -165,7 +169,7 @@ class ConfigMaker {
     
     const PS::U32 residue = prtcls.size() - idx;
     if(residue > 0)
-      MakeLineForEachTheta(in_the_elem, d_the_in, 0.5, in_rad, -1.0, idx);
+      MakeLineForEachTheta(in_the_elem, d_the_in, 0.5, in_rad, 1.0, idx);
   }
 
   void MakeLineForEachAxis(const PS::S32 elem,
@@ -180,7 +184,7 @@ class ConfigMaker {
     
     PS::F64vec cent = 0.5 * box_leng;
     for(PS::S32 i = 0; i < elem; i++) {
-      cent[axis] = elem * lip_len;
+      cent[axis] = i * lip_len;
       const bool flag = MakeSphLine(h_pi, cent, rad, sign, idx);
       if(!flag) return;
     }
@@ -201,9 +205,10 @@ class ConfigMaker {
     assert(cyl_l >= 0.0 && cyl_l <= box_leng[axis]);
     assert(cyl_r >= 0.0 && (2.0 * cyl_r + Parameter::all_unit * Parameter::bond_leng) < box_leng[axis]);
     
+    const PS::S32 z_elem = static_cast<PS::S32>(box_leng[axis] / lip_len);
     PS::U32 idx = 0;
-    MakeLineForEachAxis(out_the_elem, d_the_out, 0.0, out_rad, -1.0, axis, idx); //out
-    MakeLineForEachAxis(in_the_elem, d_the_in, 0.0, in_rad, 1.0, axis, idx);  //in
+    MakeLineForEachAxis(z_elem, d_the_out, 0.0, out_rad, -1.0, axis, idx); //out
+    MakeLineForEachAxis(z_elem, d_the_in, 0.0, in_rad, 1.0, axis, idx);  //in
     
     const PS::U32 residue = prtcls.size() - idx;
     if(residue > 0)
@@ -255,8 +260,10 @@ class ConfigMaker {
     Parameter::Matching(&(box_leng[0]), std::string("box_leng"), tag_val, 3);
     Parameter::Matching(&amp_num, "amp_num", tag_val, 1);
     Parameter::Matching(&mode, "mode", tag_val, 1);
-    if(MODE_EQ("sphere"))
+    if(MODE_EQ("sphere")) {
       Parameter::Matching(&sph_rad, "sph_rad", tag_val, 1);
+      Parameter::Matching(&upper_the, "upper_the", tag_val, 1);
+    }
     if(MODE_EQ("cylind")) {
       Parameter::Matching(&cyl_l, "cyl_l", tag_val, 1);
       Parameter::Matching(&cyl_r, "cyl_r", tag_val, 1);
