@@ -9,6 +9,8 @@ __device__ __forceinline__ uint __float_as_uint( float r )
   return u;
 }
 
+#if 0
+
 template<class VecPos, class VecForce, typename T>
 __global__ void ForceKernel(const int2* __restrict__ ij_disp,
      	  	            const EPI::DensityGPU<VecPos>* __restrict__ epi,
@@ -41,11 +43,151 @@ __global__ void ForceKernel(const int2* __restrict__ ij_disp,
     d_sum[prpj] += ((T)Parameter::rc - dr) * ((T)Parameter::rc - dr) * (dr < (T)Parameter::rc) * (dr != 0.0);
   }
 
+#pragma unroll
   for(int k = 0; k < Parameter::prop_num; k++)
     result[tid].dens[k] = d_sum[k];
 }
 
-#if 1
+#else
+
+//tuned version
+template<class VecPos, class VecForce, typename T>
+__global__ void ForceKernel(const int2* __restrict__ ij_disp,
+     	  	            const EPI::DensityGPU<VecPos>* __restrict__ epi,
+			    const EPJ::DensityGPU<VecPos>* __restrict__ epj,
+			    RESULT::DensityGPU<T>* __restrict__ result,
+			    const uint seed) {
+  const int tid = blockDim.x * blockIdx.x + threadIdx.x;
+  const VecPos ri = epi[tid].pos;
+
+  __shared__ T d_sum_sh[N_THREAD_GPU * Parameter::prop_num];
+  T* d_sum = &(d_sum_sh[threadIdx.x * Parameter::prop_num]);
+#pragma unroll
+  for(int k = 0; k < Parameter::prop_num; k++)
+    d_sum[k] = 0.0;
+  
+  const int j_head = ij_disp[epi[tid].id_walk    ].y;
+  const int j_tail = ij_disp[epi[tid].id_walk + 1].y;
+  
+  int j = j_head;
+  const int res_loop_cnt = ( (j_tail - j_head) & 7);
+  const int ini_loop = (res_loop_cnt & 3) + j_head;
+  const int nxt_loop = res_loop_cnt + j_head;
+  
+  for(; j < ini_loop; j++) {
+#ifdef USE_FLOAT_VEC
+    const VecPos rj = __ldg(&epj[j].pos);
+    const uint prpj = __float_as_uint(rj.w);
+#else
+    const VecPos rj = epj[j].pos;
+    const uint prpj = epj[j].prop_;
+#endif
+    const VecForce drij = {ri.x - rj.x, ri.y - rj.y, ri.z - rj.z};
+    const T dr2 = drij.x * drij.x + drij.y * drij.y + drij.z * drij.z;
+    const T dr = sqrtf(dr2);
+    d_sum[prpj] += ((T)Parameter::rc - dr) * ((T)Parameter::rc - dr) * (dr2 < (T)Parameter::rc2) * (dr2 != 0.0);
+  } //end of for j
+
+  //unroll 4
+  for(; j < nxt_loop; j += 4) {
+#ifdef USE_FLOAT_VEC
+    const VecPos rj0 = __ldg(&epj[j    ].pos); const uint prpj0 = __float_as_uint(rj0.w);
+    const VecPos rj1 = __ldg(&epj[j + 1].pos); const uint prpj1 = __float_as_uint(rj1.w);
+    const VecPos rj2 = __ldg(&epj[j + 2].pos); const uint prpj2 = __float_as_uint(rj2.w);
+    const VecPos rj3 = __ldg(&epj[j + 3].pos); const uint prpj3 = __float_as_uint(rj3.w);
+#else
+    const VecPos rj0 = epj[j    ].pos; const uint prpj0 = epj[j    ].prop_;
+    const VecPos rj1 = epj[j + 1].pos; const uint prpj1 = epj[j + 1].prop_;
+    const VecPos rj2 = epj[j + 2].pos; const uint prpj2 = epj[j + 2].prop_;
+    const VecPos rj3 = epj[j + 3].pos; const uint prpj3 = epj[j + 3].prop_;
+#endif
+    const VecForce drij0 = {ri.x - rj0.x, ri.y - rj0.y, ri.z - rj0.z};
+    const VecForce drij1 = {ri.x - rj1.x, ri.y - rj1.y, ri.z - rj1.z};
+    const VecForce drij2 = {ri.x - rj2.x, ri.y - rj2.y, ri.z - rj2.z};
+    const VecForce drij3 = {ri.x - rj3.x, ri.y - rj3.y, ri.z - rj3.z};
+
+    const T dr2_0 = drij0.x * drij0.x + drij0.y * drij0.y + drij0.z * drij0.z;
+    const T dr2_1 = drij1.x * drij1.x + drij1.y * drij1.y + drij1.z * drij1.z;
+    const T dr2_2 = drij2.x * drij2.x + drij2.y * drij2.y + drij2.z * drij2.z;
+    const T dr2_3 = drij3.x * drij3.x + drij3.y * drij3.y + drij3.z * drij3.z;
+    
+    const T dr_0 = sqrtf(dr2_0);
+    const T dr_1 = sqrtf(dr2_1);
+    const T dr_2 = sqrtf(dr2_2);
+    const T dr_3 = sqrtf(dr2_3);
+
+    d_sum[prpj0] += ((T)Parameter::rc - dr_0) * ((T)Parameter::rc - dr_0) * (dr2_0 < (T)Parameter::rc2) * (dr2_0 != 0.0);
+    d_sum[prpj1] += ((T)Parameter::rc - dr_1) * ((T)Parameter::rc - dr_1) * (dr2_1 < (T)Parameter::rc2) * (dr2_1 != 0.0);
+    d_sum[prpj2] += ((T)Parameter::rc - dr_2) * ((T)Parameter::rc - dr_2) * (dr2_2 < (T)Parameter::rc2) * (dr2_2 != 0.0);
+    d_sum[prpj3] += ((T)Parameter::rc - dr_3) * ((T)Parameter::rc - dr_3) * (dr2_3 < (T)Parameter::rc2) * (dr2_3 != 0.0);
+  }
+  
+  //unroll 8
+  for(; j < j_tail; j += 8) {
+#ifdef USE_FLOAT_VEC
+    const VecPos rj0 = __ldg(&epj[j    ].pos); const uint prpj0 = __float_as_uint(rj0.w);
+    const VecPos rj1 = __ldg(&epj[j + 1].pos); const uint prpj1 = __float_as_uint(rj1.w);
+    const VecPos rj2 = __ldg(&epj[j + 2].pos); const uint prpj2 = __float_as_uint(rj2.w);
+    const VecPos rj3 = __ldg(&epj[j + 3].pos); const uint prpj3 = __float_as_uint(rj3.w);
+    const VecPos rj4 = __ldg(&epj[j + 4].pos); const uint prpj4 = __float_as_uint(rj4.w);
+    const VecPos rj5 = __ldg(&epj[j + 5].pos); const uint prpj5 = __float_as_uint(rj5.w);
+    const VecPos rj6 = __ldg(&epj[j + 6].pos); const uint prpj6 = __float_as_uint(rj6.w);
+    const VecPos rj7 = __ldg(&epj[j + 7].pos); const uint prpj7 = __float_as_uint(rj7.w);
+#else
+    const VecPos rj0 = epj[j    ].pos; const uint prpj0 = epj[j    ].prop_;
+    const VecPos rj1 = epj[j + 1].pos; const uint prpj1 = epj[j + 1].prop_;
+    const VecPos rj2 = epj[j + 2].pos; const uint prpj2 = epj[j + 2].prop_;
+    const VecPos rj3 = epj[j + 3].pos; const uint prpj3 = epj[j + 3].prop_;
+    const VecPos rj4 = epj[j + 4].pos; const uint prpj4 = epj[j + 4].prop_;
+    const VecPos rj5 = epj[j + 5].pos; const uint prpj5 = epj[j + 5].prop_;
+    const VecPos rj6 = epj[j + 6].pos; const uint prpj6 = epj[j + 6].prop_;
+    const VecPos rj7 = epj[j + 7].pos; const uint prpj7 = epj[j + 7].prop_;
+#endif
+    const VecForce drij0 = {ri.x - rj0.x, ri.y - rj0.y, ri.z - rj0.z};
+    const VecForce drij1 = {ri.x - rj1.x, ri.y - rj1.y, ri.z - rj1.z};
+    const VecForce drij2 = {ri.x - rj2.x, ri.y - rj2.y, ri.z - rj2.z};
+    const VecForce drij3 = {ri.x - rj3.x, ri.y - rj3.y, ri.z - rj3.z};
+    const VecForce drij4 = {ri.x - rj4.x, ri.y - rj4.y, ri.z - rj4.z};
+    const VecForce drij5 = {ri.x - rj5.x, ri.y - rj5.y, ri.z - rj5.z};
+    const VecForce drij6 = {ri.x - rj6.x, ri.y - rj6.y, ri.z - rj6.z};
+    const VecForce drij7 = {ri.x - rj7.x, ri.y - rj7.y, ri.z - rj7.z};
+    
+    const T dr2_0 = drij0.x * drij0.x + drij0.y * drij0.y + drij0.z * drij0.z;
+    const T dr2_1 = drij1.x * drij1.x + drij1.y * drij1.y + drij1.z * drij1.z;
+    const T dr2_2 = drij2.x * drij2.x + drij2.y * drij2.y + drij2.z * drij2.z;
+    const T dr2_3 = drij3.x * drij3.x + drij3.y * drij3.y + drij3.z * drij3.z;
+    const T dr2_4 = drij4.x * drij4.x + drij4.y * drij4.y + drij4.z * drij4.z;
+    const T dr2_5 = drij5.x * drij5.x + drij5.y * drij5.y + drij5.z * drij5.z;
+    const T dr2_6 = drij6.x * drij6.x + drij6.y * drij6.y + drij6.z * drij6.z;
+    const T dr2_7 = drij7.x * drij7.x + drij7.y * drij7.y + drij7.z * drij7.z;
+
+    const T dr_0 = sqrtf(dr2_0);
+    const T dr_1 = sqrtf(dr2_1);
+    const T dr_2 = sqrtf(dr2_2);
+    const T dr_3 = sqrtf(dr2_3);
+    const T dr_4 = sqrtf(dr2_4);
+    const T dr_5 = sqrtf(dr2_5);
+    const T dr_6 = sqrtf(dr2_6);
+    const T dr_7 = sqrtf(dr2_7);
+    
+    d_sum[prpj0] += ((T)Parameter::rc - dr_0) * ((T)Parameter::rc - dr_0) * (dr2_0 < (T)Parameter::rc2) * (dr2_0 != 0.0);
+    d_sum[prpj1] += ((T)Parameter::rc - dr_1) * ((T)Parameter::rc - dr_1) * (dr2_1 < (T)Parameter::rc2) * (dr2_1 != 0.0);
+    d_sum[prpj2] += ((T)Parameter::rc - dr_2) * ((T)Parameter::rc - dr_2) * (dr2_2 < (T)Parameter::rc2) * (dr2_2 != 0.0);
+    d_sum[prpj3] += ((T)Parameter::rc - dr_3) * ((T)Parameter::rc - dr_3) * (dr2_3 < (T)Parameter::rc2) * (dr2_3 != 0.0);
+    d_sum[prpj4] += ((T)Parameter::rc - dr_4) * ((T)Parameter::rc - dr_4) * (dr2_4 < (T)Parameter::rc2) * (dr2_4 != 0.0);
+    d_sum[prpj5] += ((T)Parameter::rc - dr_5) * ((T)Parameter::rc - dr_5) * (dr2_5 < (T)Parameter::rc2) * (dr2_5 != 0.0);
+    d_sum[prpj6] += ((T)Parameter::rc - dr_6) * ((T)Parameter::rc - dr_6) * (dr2_6 < (T)Parameter::rc2) * (dr2_6 != 0.0);
+    d_sum[prpj7] += ((T)Parameter::rc - dr_7) * ((T)Parameter::rc - dr_7) * (dr2_7 < (T)Parameter::rc2) * (dr2_7 != 0.0);
+  } //end of for j
+
+#pragma unroll
+  for(int k = 0; k < Parameter::prop_num; k++)
+    result[tid].dens[k] = d_sum[k];
+}
+
+#endif
+
+#if 0
 
 template<class VecPos, class VecForce, typename T>
 __global__ void ForceKernel(const int2* __restrict__ ij_disp,

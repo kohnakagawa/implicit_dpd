@@ -85,6 +85,7 @@ Saru n=s.fork<123>();
  */
 
 #include <math.h>
+#include <curand_globals.h>
 
 class SaruGPU
     {
@@ -133,8 +134,8 @@ class SaruGPU
         template <unsigned int steps> __device__ inline float uni_open_f();
         __device__ inline double uni_open_d();
 	__device__ inline float uni_open_f();
-        __device__ inline double nrml_d();
-        __device__ inline float nrml_f();
+        __device__ __forceinline__ double nrml_d();
+        __device__ __forceinline__ float nrml_f();
       
         /* nvcc doesn't like private members in emulation mode */
 #ifndef __DEVICE_EMULATION__
@@ -489,7 +490,14 @@ __device__ inline float SaruGPU::uni_open_f()
 
 __device__ inline float SaruGPU::nrml_f()
 {
-  return sqrtf(-2.f * logf(uni_open_f() ) ) * cosf(2.f * M_PI * uni_open_f() );
+  const unsigned int x = u32<1>();
+  const unsigned int y = u32<1>();
+  
+  const float u = x * CURAND_2POW32_INV + (CURAND_2POW32_INV / 2);
+  const float v = y * CURAND_2POW32_INV_2PI + (CURAND_2POW32_INV_2PI / 2);
+  
+  const float s = sqrtf(-2.0f * logf(u));
+  return s * __cosf(v);
 }
 
 __device__ inline double SaruGPU::nrml_d()
