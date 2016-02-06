@@ -139,7 +139,7 @@ int main(int argc, char *argv[]) {
   dens_tree.initialize(3 * system.getNumberOfParticleGlobal() );
   force_tree.initialize(3 * system.getNumberOfParticleGlobal() );
 #ifdef ENABLE_GPU_CUDA
-  const PS::S32 n_walk_limit = 200;
+  const PS::S32 n_walk_limit = 800;
   const PS::S32 tag_max = 1;
   dens_tree.calcForceAllAndWriteBackMultiWalk(DispatchKernel<Policy::Density, EPI::Density, EPJ::Density>,
 					      RetrieveKernel<Policy::Density, RESULT::Density>,
@@ -158,7 +158,7 @@ int main(int argc, char *argv[]) {
   dens_tree.calcForceAllAndWriteBack(CalcDensity(), system, dinfo);
   force_tree.calcForceAllAndWriteBack(CalcForceEpEpDPD(), system, dinfo);
 #endif
-  
+
   ForceBonded<PS::ParticleSystem<FPDPD> > fbonded(system, Parameter::all_unit * param.init_amp_num);
   PS::F64vec bonded_vir(0.0, 0.0, 0.0);
   fbonded.CalcListedForce(system, bonded_vir);
