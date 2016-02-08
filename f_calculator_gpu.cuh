@@ -6,9 +6,6 @@
 #include "ptcl_class_gpu.cuh"
 #include "parameter.hpp"
 
-template<class Policy>
-void clean_up_gpu();
-
 template<class Policy, class EPI, class EPJ>
 PS::S32 DispatchKernel(const PS::S32 tag,
 		       const PS::S32 n_walk,
