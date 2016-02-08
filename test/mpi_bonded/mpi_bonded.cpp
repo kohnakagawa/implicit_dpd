@@ -5,6 +5,8 @@
 #include "f_calculator.hpp"
 #include "observer.hpp"
 
+constexpr char Parameter::atom_type[21];
+
 template<class Tpsys>
 void check_val(const Tpsys& sys, const int tag) {
   std::cout << "tag is " << tag << std::endl;
