@@ -54,23 +54,27 @@ int main(int argc, char *argv[]) {
   
   PS::Initialize(argc, argv);
   
+  // Initialize run input parameter
   const std::string cdir = argv[1];
   Parameter param(cdir);
   param.Initialize();
-  param.LoadParam();
-  param.CheckLoaded();
-
+  if(PS::Comm::getRank() == 0) param.LoadParam();
+  
+  // Read restart configuration
   PS::ParticleSystem<FPDPD> system;
   system.initialize();
-  system.setNumberOfParticleLocal(param.init_amp_num * Parameter::all_unit);
+  if(PS::Comm::getRank() == 0) {
+    system.setNumberOfParticleLocal(param.init_amp_num * Parameter::all_unit);
+    Parameter::time = param.LoadParticleConfig(system);
+  } else {
+    system.setNumberOfParticleLocal(0);
+  }
   
-  
-  Parameter::time = param.LoadParticleConfig(system);
+  param.ShareDataWithOtherProc();
+  param.CheckLoaded();
   param.CheckParticleConfigIsValid(system);
 
-  //Initial step & construct classes.
-  drift_and_predict(system, param.dt, param.box_leng, param.ibox_leng);
-  
+  // Share particle data with other processes.
   PS::DomainInfo dinfo;
   const PS::F64 coef_ema = 0.3;
   dinfo.initialize(coef_ema);
@@ -80,6 +84,12 @@ int main(int argc, char *argv[]) {
   dinfo.decomposeDomain();
   system.exchangeParticle(dinfo);
 
+  //Initial step
+  drift_and_predict(system, param.dt, param.box_leng, param.ibox_leng);
+
+  dinfo.decomposeDomain();
+  system.exchangeParticle(dinfo);
+  
   PS::TreeForForceShort<RESULT::Density, EPI::Density, EPJ::Density>::Gather dens_tree;
   dens_tree.initialize(3 * system.getNumberOfParticleGlobal() );
   dens_tree.calcForceAllAndWriteBack(CalcDensity(), system, dinfo);
@@ -88,9 +98,15 @@ int main(int argc, char *argv[]) {
   force_tree.initialize(3 * system.getNumberOfParticleGlobal() );
   force_tree.calcForceAllAndWriteBack(CalcForceEpEpDPD(), system, dinfo);
 
+#ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
   ForceBonded<PS::ParticleSystem<FPDPD> > fbonded(system, Parameter::all_unit * param.init_amp_num);
+#else
+  const PS::S32 est_loc_amp = param.init_amp_num / PS::Comm::getNumberOfProc() + 100;
+  ForceBondedMPI<PS::ParticleSystem<FPDPD> > fbonded(est_loc_amp);
+#endif
+
   PS::F64vec bonded_vir(0.0, 0.0, 0.0);
-  fbonded.CalcListedForce(system, bonded_vir);
+  fbonded.CalcListedForce(system, force_tree.epj_org(), bonded_vir);
 
   Observer<PS::ParticleSystem<FPDPD> > observer(cdir);
   observer.Initialize();
@@ -110,7 +126,14 @@ int main(int argc, char *argv[]) {
 #endif
     drift_and_predict(system, param.dt, param.box_leng, param.ibox_leng);
     
-    dinfo.decomposeDomain();
+    if(Parameter::time % Parameter::sample_freq == 0) {
+      dinfo.collectSampleParticle(system, true); // clear sample ptcl information
+      dinfo.decomposeDomain();
+    } else if(Parameter::time % Parameter::decom_freq == 0) {
+      dinfo.collectSampleParticle(system, false); // do not clear
+      dinfo.decomposeDomain();
+    }
+
     system.exchangeParticle(dinfo);
 
     dens_tree.calcForceAllAndWriteBack(CalcDensity(), system, dinfo);

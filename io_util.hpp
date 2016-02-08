@@ -7,7 +7,7 @@ namespace io_util {
 		       const char* __restrict  mode)
   {
     FILE* f = fopen(filename, mode);
-    if (f == NULL) {
+    if (f == nullptr) {
       std::cerr << filename << ": Cannot open file\n.";
       std::exit(1);
     }
@@ -41,21 +41,20 @@ namespace io_util {
 			      FILE* fp) {
     const PS::S32 num_proc = PS::Comm::getNumberOfProc();
     static PS::ReallocatableArray<FP> ptcl_buf(buf_size);
-    static PS::ReallocatableArray<PS::S32> n_ptcl(num_proc, 0);
-    static PS::ReallocatableArray<PS::S32> n_ptcl_disp(num_proc + 1, 0);
-    PS::S32 n_loc = PS::Comm::getNumberOfParticleLocal();
-    Comm::allGather(&n_loc, 1, n_ptcl.getPointer());
+    static PS::ReallocatableArray<PS::S32> n_ptcl(num_proc);
+    static PS::ReallocatableArray<PS::S32> n_ptcl_disp(num_proc + 1);
+    PS::S32 n_loc = sys.getNumberOfParticleLocal();
+    PS::Comm::allGather(&n_loc, 1, n_ptcl.getPointer());
     n_ptcl_disp[0] = 0;
     for(PS::S32 i = 0; i < num_proc; i++)
       n_ptcl_disp[i + 1] = n_ptcl_disp[i] + n_ptcl[i];
 
     assert(buf_size >= n_ptcl_disp[num_proc]);
     
-    Comm::allGatherV(sys.getParticlePointer(), n_loc,
-		     ptcl_buf.getPointer(), n_ptcl.getPointer(), n_ptcl_disp.getPointer());
+    PS::Comm::allGatherV(sys.getParticlePointer(), n_loc,
+			 ptcl_buf.getPointer(), n_ptcl.getPointer(), n_ptcl_disp.getPointer());
     if(PS::Comm::getRank() == 0)
-      WriteXYZForm(&ptcl_buf, n_ptcl_disp[num_proc], time, fp);
-    
+      WriteXYZForm(&(ptcl_buf[0]), n_ptcl_disp[num_proc], time, fp);
   }
   
   template<class FP>
@@ -90,11 +89,5 @@ namespace io_util {
   template<class FP>
   inline void ReadXYZForm(PS::ParticleSystem<FP>& sys, PS::U32& num, PS::U32& cur_time, FILE* fp) {
     ReadXYZForm(&sys[0], num, cur_time, fp);
-  }
-
-  template<class FP>
-  inline void ReadXYZFormMPI() {
-    
-    
   }
 };

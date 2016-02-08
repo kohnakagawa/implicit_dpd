@@ -125,6 +125,8 @@ public:
   static constexpr PS::F64 search_rad   = 1.2;
   static constexpr PS::F64 arc		= 0.9;
   static constexpr PS::F64 Reo		= 2.0;
+  static constexpr PS::U32 sample_freq  = 8192;
+  static constexpr PS::U32 decom_freq   = 8;
 
   static constexpr char atom_type[21] = {
     'O', 'N', 'C', 'S', 'P', 'Z', 'X', 'O', 'N', 'C', 'S', 'P', 'Z', 'X', 'O', 'N', 'C', 'S', 'P', 'Z', 'X'
@@ -299,7 +301,7 @@ public:
     PS::U32 line_num = 0;
     PS::U32 cur_time = 0;
     io_util::ReadXYZForm(sys, line_num, cur_time, fp);
-    if(line_num / all_unit != init_amp_num) {
+    if(line_num / all_unit != static_cast<PS::U32>(init_amp_num) ) {
       std::cerr << line_num / all_unit << " " << init_amp_num << std::endl;
       std::cerr << "# of lines is not equal to the run input parameter information.\n";
       PS::Abort();
@@ -368,20 +370,25 @@ public:
     assert(std::isfinite(ibox_leng.z) );
 
     assert(init_amp_num > 0);
+    assert(amp_num > 0);
 
     assert(std::isfinite(dt) );
     
     assert(std::isfinite(chi) );
     assert(std::isfinite(kappa));
     assert(std::isfinite(rho_co));
+    
+    assert(time != 0xffffffff);
+    assert(all_time != 0xffffffff);
+    assert(step_mic != 0xffffffff);
+    assert(step_mac != 0xffffffff);
   }
 
-  void DumpAllParam() const {
-    const std::string fname = cdir + "/all_param.txt";
-    std::ofstream fout(fname.c_str());
-    
-#define DUMPTAGANDVAL(val) fout << #val << " = " << val << std::endl
+  void DumpAllParam(std::ostream& ost) const {
+#define DUMPTAGANDVAL(val) ost << #val << " = " << val << std::endl
 
+    DUMPTAGANDVAL(cdir);
+    
     DUMPTAGANDVAL(Tempera);
     DUMPTAGANDVAL(head_unit);
     DUMPTAGANDVAL(tail_unit);
@@ -406,32 +413,33 @@ public:
     DUMPTAGANDVAL(ibox_leng.z);
 
     DUMPTAGANDVAL(init_amp_num);
+    DUMPTAGANDVAL(amp_num);
     DUMPTAGANDVAL(dt);
 
     DUMPTAGANDVAL(chi);
     DUMPTAGANDVAL(kappa);
     DUMPTAGANDVAL(rho_co);
 
-    fout << "NOTE:\n";
-    fout << "cf_r are multiplied by 1 / sqrt(dt).\n";
+    ost << "NOTE:\n";
+    ost << "cf_r are multiplied by 1 / sqrt(dt).\n";
       
-#define DUMPINTRPARAM(val) fout << #val << ":\n";		\
+#define DUMPINTRPARAM(val) ost << #val << ":\n";		\
     for(PS::S32 i = 0; i < prop_num; i++) {			\
       for(PS::S32 j = 0; j < prop_num; j++)			\
-	fout << val[i][j] << " ";				\
-      fout << std::endl;					\
+	ost << val[i][j] << " ";				\
+      ost << std::endl;					\
     } 
 
     DUMPINTRPARAM(cf_c);
     DUMPINTRPARAM(cf_r);
     DUMPINTRPARAM(cf_g);
     
-    fout << "cf_m:\n";
+    ost << "cf_m:\n";
     for(PS::S32 i = 0; i < prop_num; i++)
       for(PS::S32 j = 0; j < prop_num; j++)
 	for(PS::S32 k = 0; k < prop_num; k++)
-	  fout << cf_m[i][j][k] << " ";
-    fout << std::endl;
+	  ost << cf_m[i][j][k] << " ";
+    ost << std::endl;
 
     DUMPTAGANDVAL(cf_s);
     DUMPTAGANDVAL(cf_b);
@@ -440,6 +448,61 @@ public:
 #undef DUMPINTRPARAM
   }
 
+  void DumpAllParam() const {
+#ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
+    if(PS::Comm::getRank() == 0) {
+#endif
+      const std::string fname = cdir + "/all_param.txt";
+      std::ofstream fout(fname.c_str());
+      DumpAllParam(fout);
+#ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
+    }
+#endif
+  }
+
+  //for share data
+  void ShareDataWithOtherProc() {
+    const PS::S32 num_two_body = Parameter::prop_num * Parameter::prop_num;
+    const PS::S32 num_thre_body = Parameter::prop_num * Parameter::prop_num * Parameter::prop_num;
+    
+    // static member
+    PS::Comm::broadcast(&(cf_c[0][0]), num_two_body, 0);
+    PS::Comm::broadcast(&(cf_g[0][0]), num_two_body, 0);
+    PS::Comm::broadcast(&(cf_r[0][0]), num_two_body, 0);
+    PS::Comm::broadcast(&(cf_m[0][0][0]), num_thre_body, 0);
+    PS::Comm::broadcast(&cf_s, Parameter::prop_num, 0);
+    PS::Comm::broadcast(&cf_b, Parameter::prop_num, 0);
+    
+    PS::Comm::broadcast(&rc, 1, 0);
+    PS::Comm::broadcast(&rc2, 1, 0);
+    PS::Comm::broadcast(&irc, 1, 0);
+    
+    PS::Comm::broadcast(&box_leng, 1, 0);
+    PS::Comm::broadcast(&ibox_leng, 1, 0);
+    
+    PS::Comm::broadcast(&time, 1, 0);
+    PS::Comm::broadcast(&all_time, 1, 0);
+    PS::Comm::broadcast(&step_mic, 1, 0);
+    PS::Comm::broadcast(&step_mac, 1, 0);
+    
+    // non static member
+    PS::Comm::broadcast(&init_amp_num, 1, 0);
+    PS::Comm::broadcast(&amp_num, 1, 0);
+    PS::Comm::broadcast(&dt, 1, 0);
+    PS::Comm::broadcast(&chi, 1, 0);
+    PS::Comm::broadcast(&kappa, 1, 0);
+    PS::Comm::broadcast(&rho_co, 1, 0);
+  }
+  
+  //for debug
+  void DebugDumpAllParam() const {
+    std::stringstream ss;
+    const PS::S32 rank = PS::Comm::getRank();
+    ss << cdir << "/debug_dump_rank" << rank << ".txt";
+
+    std::ofstream fout(ss.str().c_str());
+    DumpAllParam(fout);
+  }
 };
 
 constexpr char Parameter::atom_type[21];
