@@ -220,9 +220,7 @@ struct ForceBondedMPI {
     loc_topol_imcmpl.resizeNoInitialize(est_loc_amp * Parameter::all_unit);
     is_real_surf.resizeNoInitialize(est_loc_amp * Parameter::all_unit);
   }
-  ~ForceBondedMPI() {
-    
-  }
+  ~ForceBondedMPI() {}
 
   //for inter cell
   static void StoreBondForceNoARLaw(const PS::F64vec&	__restrict dr,
@@ -232,7 +230,7 @@ struct ForceBondedMPI {
 				    PS::F64vec*		__restrict F,
 				    const bool*		__restrict mask)
   {
-    const double cf_bond = Parameter::cf_spring<Parameter::bond_leng != 0.0>(inv_dr);
+    const PS::F64 cf_bond = Parameter::cf_spring<Parameter::bond_leng != 0.0>(inv_dr);
     
     const PS::F64vec Fbond(cf_bond * dr.x, cf_bond * dr.y, cf_bond * dr.z);
     
@@ -270,7 +268,7 @@ struct ForceBondedMPI {
 			  cf_bd * (dr[0].y - cf_crs[1] * dr[1].y),
 			  cf_bd * (dr[0].z - cf_crs[1] * dr[1].z));
     
-    if(mask[0] or mask[1] or mask[2]) {
+    if (mask[0] or mask[1] or mask[2]) {
       d_vir.x += dr[0].x * Ftb0.x + dr[1].x * Ftb1.x;
       d_vir.y += dr[0].y * Ftb0.y + dr[1].y * Ftb1.y;
       d_vir.z += dr[0].z * Ftb0.z + dr[1].z * Ftb1.z;
@@ -305,12 +303,11 @@ struct ForceBondedMPI {
     inv_dr[0] = 1.0 / std::sqrt(dist2[0]);
     
     ForceBonded<Tpsys>::StoreBondForceWithARLaw(dr[0], inv_dr[0], d_vir, d_lap, &Fbb[0]);
-
 #pragma unroll
     for(PS::U32 unit = 2; unit < bond_n; unit++) {
       pos_buf[unit] = sys[ l_dst[unit] ].pos;
       dr[unit - 1] = pos_buf[unit] - pos_buf[unit - 1];
-      ForceBonded<Tpsys>::MinImage(dr[0]);
+      ForceBonded<Tpsys>::MinImage(dr[unit - 1]);
       dist2[unit - 1] = dr[unit - 1] * dr[unit - 1];
       inv_dr[unit - 1] = 1.0 / std::sqrt(dist2[unit - 1]);
       
@@ -341,6 +338,7 @@ struct ForceBondedMPI {
     if (l_dst[1] != 0xffffffff) pos_buf[1] = epj_org[ l_dst[1] ].pos;
 
     dr[0] = pos_buf[1] - pos_buf[0];
+    ForceBonded<Tpsys>::MinImage(dr[0]);
     dist2[0] = dr[0] * dr[0];
     inv_dr[0] = 1.0 / std::sqrt(dist2[0]);
     
@@ -349,6 +347,7 @@ struct ForceBondedMPI {
     for(PS::U32 unit = 2; unit < bond_n; unit++) {
       if (l_dst[unit] != 0xffffffff) pos_buf[unit] = epj_org[ l_dst[unit] ].pos;
       dr[unit - 1] = pos_buf[unit] - pos_buf[unit - 1];
+      ForceBonded<Tpsys>::MinImage(dr[unit - 1]);
       dist2[unit - 1] = dr[unit - 1] * dr[unit - 1];
       inv_dr[unit - 1] = 1.0 / std::sqrt(dist2[unit - 1]);
 
@@ -361,6 +360,7 @@ struct ForceBondedMPI {
     for(PS::U32 unit = 0; unit < bond_n; unit++) {
       if (mask[unit]) sys[ l_dst[unit] ].acc += Fbb[unit];
     }
+
   }
 
   void MakeLocalBondedList(const Tpsys& sys, const PS::ReallocatableArray<EPJ::DPD>& epj_org) {
@@ -388,16 +388,17 @@ struct ForceBondedMPI {
     all_n = std::distance(ampid.getPointer(), new_end);
     
     cmplt_amp = imcmplt_amp = 0;
-    PS::U32 id_cmpl = 0, id_imcmpl = 0, cnt = ampid[0].is_real, id_bef = ampid[0].amp_id, id_cur;
+    PS::U32 id_cmpl = 0, id_imcmpl = 0, cnt_real = ampid[0].is_real, cnt = 1, id_bef = ampid[0].amp_id, id_cur;
     PS::U32 imcmpl_buf[Parameter::all_unit] = { 0xffffffff };
     bool    isreal_buf[Parameter::all_unit] = { false };
     for(PS::U32 i = 1; i < all_n; i++) {
       id_cur = ampid[i].amp_id;
 
       if(id_cur == id_bef) {
-	cnt += ampid[i].is_real;
+	cnt_real += ampid[i].is_real;
+	cnt++;
       } else {
-	if(cnt == Parameter::all_unit) {
+	if(cnt_real == Parameter::all_unit) {
 	  const PS::U32 beg = i - Parameter::all_unit;
 	  for(PS::U32 j = 0; j < Parameter::all_unit; j++) {
 	    loc_topol_cmpl[id_cmpl++] = ampid[beg + j].idx;
@@ -424,7 +425,8 @@ struct ForceBondedMPI {
 	  }
 	  imcmplt_amp++;
 	}
-	cnt = (ampid[i].is_real);
+	cnt_real = (ampid[i].is_real);
+	cnt = 1;
       }
       id_bef = id_cur;
     }
@@ -461,7 +463,6 @@ struct ForceBondedMPI {
 		       const PS::ReallocatableArray<EPJ::DPD>& epj_org,
 		       PS::F64vec& bonded_vir) {
     MakeLocalBondedList(sys, epj_org);
-    CheckCompleteTopol(sys);
     CheckSurfaceTopol();
     
     PS::F64vec d_vir(0.0); PS::F64 d_lap = 0.0;
@@ -473,23 +474,9 @@ struct ForceBondedMPI {
       CalcBondBendSurface<Parameter::all_unit>(sys, epj_org, i * Parameter::all_unit, d_vir, d_lap);
 
     bonded_vir = d_vir;
-    
-    DumpDebugInform();
-  }
-
-  void DumpDebugInform() const {
-    std::stringstream ss;
-    ss << "./debug_" << PS::Comm::getRank() << ".txt";
-    std::ofstream fout(ss.str().c_str());
-    fout << "cmplt amp\n";
-    for(PS::U32 i = 0; i < Parameter::all_unit * cmplt_amp; i++)
-      fout << loc_topol_cmpl[i] << std::endl;
-    
-    fout << "imcmplt_amp\n";
-    for(PS::U32 i = 0; i < Parameter::all_unit * imcmplt_amp; i++)
-      fout << loc_topol_imcmpl[i] << " " << is_real_surf[i] << std::endl;
   }
   
+  // for debug
   void CheckCompleteTopol(const Tpsys& sys) const {
     for(PS::U32 i = 0; i < cmplt_amp; i++) {
       const PS::U32 amp_id = sys[ loc_topol_cmpl[Parameter::all_unit * i] ].amp_id;

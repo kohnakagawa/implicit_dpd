@@ -1,0 +1,5 @@
+Temperature 1.0
+box_leng 16.0 16.0 16.0
+amp_num 3072
+lip_len 0.5
+mode random

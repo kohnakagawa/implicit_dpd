@@ -1,0 +1,39 @@
+Tempera = 1
+head_unit = 1
+tail_unit = 3
+all_unit = 4
+bond_leng = 0.5
+ibond = 2
+search_rad = 1.2
+arc = 0.9
+Reo = 2
+prop_num = 2
+rc = 1
+rc2 = 1
+irc = 1
+box_leng.x = 32
+box_leng.y = 32
+box_leng.z = 32
+ibox_leng.x = 0.03125
+ibox_leng.y = 0.03125
+ibox_leng.z = 0.03125
+init_amp_num = 1000
+dt = 0.01
+chi = 60
+kappa = 100
+rho_co = 20
+NOTE:
+cf_r are multiplied by 1 / sqrt(dt).
+cf_c:
+-83.3951 1751.3 
+1751.3 8589.7 
+cf_r:
+30 30 
+30 30 
+cf_g:
+4.5 4.5 
+4.5 4.5 
+cf_m:
+0 2.90665 2.90665 2.90665 2.90665 2.90665 2.90665 2.90665 
+cf_s = 20
+cf_b = 10

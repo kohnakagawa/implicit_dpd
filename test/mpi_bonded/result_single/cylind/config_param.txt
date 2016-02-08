@@ -1,0 +1,7 @@
+Temperature 1.0
+box_leng 32.0 32.0 32.0
+amp_num 5000
+lip_len 0.5
+mode cylind
+cyl_l 32.0
+cyl_r 10.0

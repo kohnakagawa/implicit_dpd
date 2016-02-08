@@ -9,13 +9,13 @@ template<class Tpsys>
 void check_val(const Tpsys& sys, const int tag) {
   std::cout << "tag is " << tag << std::endl;
   for(PS::S32 i = 0; i < sys.getNumberOfParticleLocal(); i++) {
-    // assert(std::isfinite(sys[i].acc.x));
-    // assert(std::isfinite(sys[i].acc.y));
-    // assert(std::isfinite(sys[i].acc.z));
+    assert(std::isfinite(sys[i].acc.x));
+    assert(std::isfinite(sys[i].acc.y));
+    assert(std::isfinite(sys[i].acc.z));
 
-    // assert(std::isfinite(sys[i].press.x));
-    // assert(std::isfinite(sys[i].press.y));
-    // assert(std::isfinite(sys[i].press.z));
+    assert(std::isfinite(sys[i].press.x));
+    assert(std::isfinite(sys[i].press.y));
+    assert(std::isfinite(sys[i].press.z));
   }
 }
 
@@ -73,6 +73,7 @@ int main(int argc, char *argv[]) {
   Observer<PS::ParticleSystem<FPDPD> > observer(cdir);
   observer.Initialize();
   observer.Trajectory(system);
+  observer.Pressure(system, bonded_vir, Parameter::ibox_leng);
   
   PS::Finalize();
 }
