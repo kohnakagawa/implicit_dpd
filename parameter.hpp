@@ -122,7 +122,7 @@ public:
   static constexpr PS::U32 all_unit	= head_unit + tail_unit;
   static constexpr PS::F64 bond_leng	= 0.5;
   static constexpr PS::F64 ibond	= (bond_leng != 0.0) ? 1.0 / bond_leng : 0.0;
-  static constexpr PS::F64 search_rad   = 1.2;
+  static constexpr PS::F64 search_rad   = 1.5;
   static constexpr PS::F64 arc		= 0.9;
   static constexpr PS::F64 Reo		= 2.0;
   static constexpr PS::U32 sample_freq  = 8192;
@@ -504,8 +504,6 @@ public:
     DumpAllParam(fout);
   }
 };
-
-constexpr char Parameter::atom_type[21];
 
 PS::F64 Parameter::cf_c[Parameter::prop_num][Parameter::prop_num];
 PS::F64 Parameter::cf_g[Parameter::prop_num][Parameter::prop_num];

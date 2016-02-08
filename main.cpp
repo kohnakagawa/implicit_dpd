@@ -7,6 +7,8 @@
 #include "driftkick.hpp"
 #include <sys/time.h>
 
+constexpr char Parameter::atom_type[21];
+
 static_assert(Parameter::head_unit == 1, "head_unit should be 1.");
 static_assert(Parameter::tail_unit == 3, "tail_unit should be 3.");
 static_assert(Parameter::bond_leng != 0.0, "bond_leng should be not 0.0.");
@@ -99,14 +101,18 @@ int main(int argc, char *argv[]) {
   force_tree.calcForceAllAndWriteBack(CalcForceEpEpDPD(), system, dinfo);
 
 #ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
-  ForceBonded<PS::ParticleSystem<FPDPD> > fbonded(system, Parameter::all_unit * param.init_amp_num);
-#else
   const PS::S32 est_loc_amp = param.init_amp_num / PS::Comm::getNumberOfProc() + 100;
   ForceBondedMPI<PS::ParticleSystem<FPDPD> > fbonded(est_loc_amp);
+#else
+  ForceBonded<PS::ParticleSystem<FPDPD> > fbonded(system, Parameter::all_unit * param.init_amp_num);
 #endif
 
   PS::F64vec bonded_vir(0.0, 0.0, 0.0);
+#ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
   fbonded.CalcListedForce(system, force_tree.epj_org(), bonded_vir);
+#else
+  fbonded.CalcListedForce(system, bonded_vir);
+#endif
 
   Observer<PS::ParticleSystem<FPDPD> > observer(cdir);
   observer.Initialize();
@@ -138,7 +144,11 @@ int main(int argc, char *argv[]) {
 
     dens_tree.calcForceAllAndWriteBack(CalcDensity(), system, dinfo);
     force_tree.calcForceAllAndWriteBack(CalcForceEpEpDPD(), system, dinfo);
+#ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
+    fbonded.CalcListedForce(system, force_tree.epj_org(), bonded_vir);
+#else
     fbonded.CalcListedForce(system, bonded_vir);
+#endif
     
     kick(system, param.dt);
 
