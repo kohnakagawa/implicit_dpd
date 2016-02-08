@@ -95,7 +95,7 @@ PS::S32 DispatchTestKernel(const PS::S32 tag,
   const PS::S32 nblocks = ni_tot_reg / N_THREAD_GPU;
   const PS::S32 nthreads = N_THREAD_GPU;
   
-  ForceTestKernel<float4, float4, float> <<< nblocks, nthreads >>> (ij_disp, Policy::Force::dev_epi, Policy::Force::dev_epj, Policy::Force::dev_force, pairs, num_pairs, length, PAIR_NUM, time_cur);
+  ForceTestKernel<float4, float4, float> <<< nblocks, nthreads >>> (ij_disp, Policy::Force::dev_epi, Policy::Force::dev_epj, Policy::Force::dev_force, pairs, num_pairs, length, PAIR_NUM, time_cur, ni_tot);
   time_cur++;
 
   return 0;

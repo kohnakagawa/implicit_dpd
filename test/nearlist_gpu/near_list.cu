@@ -60,8 +60,7 @@ void search_array(const std::vector<pair_length<float> >& gpu_list,
       if(p == gpu_list[j].pair)
         flag = true;
     }
-    if(!flag)
-      vec.push_back(naiv_list[i]);
+    if (!flag) vec.push_back(naiv_list[i]);
   }
   std::cout << std::setprecision(15);
   for(size_t i = 0; i < vec.size(); i++) 
@@ -178,9 +177,9 @@ int main(int argc, char* argv[]) {
     const PS::S32 tag_max = 1;
     
     if(i != 0) {
-    	 pairs.set_val(0xffffffff);
-    	 length.set_val(0);
-    	 num_pairs.set_val(0);
+      pairs.set_val(0xffffffff);
+      length.set_val(0);
+      num_pairs.set_val(0);
     }
     tree_prtcl.calcForceAllAndWriteBackMultiWalk(DispatchTestKernel,
 						 RetrieveTestKernel,
