@@ -6,6 +6,7 @@
 #include <limits>
 #include <map>
 #include <cassert>
+#include "io_util.hpp"
 
 class Parameter {
   std::string cdir;
@@ -46,10 +47,6 @@ class Parameter {
     std::vector<PS::F64> cf_buf(prop_num * (prop_num + 1) / 2, 0.0);
     Matching(&(cf_buf[0]), std::string("cf_r"), tag_val, prop_num * (prop_num + 1) / 2);
     FillUpperTri(cf_buf, &(cf_r[0][0]), prop_num);
-
-    Matching(&rc, std::string("rc"), tag_val, 1);
-    rc2 = rc * rc;
-    irc = 1.0 / rc;
 
     Matching(&cf_s, std::string("cf_s"), tag_val, 1);
     Matching(&cf_b, std::string("cf_b"), tag_val, 1);
@@ -131,6 +128,9 @@ public:
   static constexpr PS::F64 search_rad   = 1.2;
   static constexpr PS::F64 arc		= 0.9;
   static constexpr PS::F64 Reo		= 2.0;
+  static constexpr PS::F64 rc           = 1.0;
+  static constexpr PS::F64 rc2          = rc * rc;
+  static constexpr PS::F64 irc          = 1.0 / rc;
 
   static constexpr char atom_type[21] = {
     'O', 'N', 'C', 'S', 'P', 'Z', 'X', 'O', 'N', 'C', 'S', 'P', 'Z', 'X', 'O', 'N', 'C', 'S', 'P', 'Z', 'X'
@@ -150,9 +150,6 @@ public:
   static PS::F64 cf_m[prop_num][prop_num][prop_num];
   static PS::F64 cf_s;
   static PS::F64 cf_b;
-
-  //cutoff length
-  static PS::F64 rc, rc2, irc;
   
   //region info
   static PS::F64vec box_leng, ibox_leng;
@@ -203,8 +200,6 @@ public:
 	  cf_m[i][j][k] = std::numeric_limits<PS::F64>::quiet_NaN();
 
     cf_s = cf_b = std::numeric_limits<PS::F64>::quiet_NaN();
-
-    rc = rc2 = irc = std::numeric_limits<PS::F64>::quiet_NaN();
 
     box_leng.x	= box_leng.y = box_leng.z = std::numeric_limits<PS::F64>::quiet_NaN();
     ibox_leng.x = ibox_leng.y = ibox_leng.z = std::numeric_limits<PS::F64>::quiet_NaN();
@@ -323,7 +318,7 @@ public:
     PS::U32 line_num = 0;
     PS::U32 cur_time = 0;
     io_util::ReadXYZForm(sys, line_num, cur_time, fp);
-    if(line_num / all_unit != init_amp_num) {
+    if(line_num / all_unit != static_cast<PS::U32>(init_amp_num) ) {
       std::cerr << line_num / all_unit << " " << init_amp_num << std::endl;
       std::cerr << "# of lines is not equal to the run input parameter information.\n";
       PS::Abort();
@@ -476,20 +471,7 @@ public:
 
 };
 
-constexpr char Parameter::atom_type[21];
-
-PS::F64 Parameter::cf_c[Parameter::prop_num][Parameter::prop_num];
-PS::F64 Parameter::cf_g[Parameter::prop_num][Parameter::prop_num];
-PS::F64 Parameter::cf_r[Parameter::prop_num][Parameter::prop_num];
-PS::F64 Parameter::cf_m[Parameter::prop_num][Parameter::prop_num][Parameter::prop_num];
-PS::F64 Parameter::cf_s;
-PS::F64 Parameter::cf_b;
-
-PS::F64 Parameter::rc, Parameter::rc2, Parameter::irc;
-PS::F64vec Parameter::box_leng, Parameter::ibox_leng;
-
-PS::U32 Parameter::time;
-PS::U32 Parameter::all_time, Parameter::step_mic, Parameter::step_mac;
+//constexpr char Parameter::atom_type[21];
 
 template<>
 inline PS::F64 Parameter::cf_spring<true>(const PS::F64 inv_dr) {

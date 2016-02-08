@@ -1,11 +1,23 @@
 #include <iostream>
 #include <sys/time.h>
 #include "particle_simulator.hpp"
-#include "io_util.hpp"
 #include "user_defs.h"
 #include "parameter.hpp"
+
+#ifdef ENABLE_GPU_CUDA
+#warning "will use gpu."
+#include "ptcl_class.hpp"
+#include "bdf_calculator.hpp"
+#include "f_calculator_gpu.cuh"
+#include "device_inform.cuh"
+#else
 #include "f_calculator.hpp"
+#endif
+
+#ifdef CHEM_MODE
 #include "chemmanager.hpp"
+#endif
+
 #include "observer.hpp"
 #include "driftkick.hpp"
 
@@ -26,12 +38,18 @@
 #warning "Chemical reaction occurs."
 #endif
 
+constexpr char Parameter::atom_type[21];
+
+PS::F64vec Parameter::box_leng, Parameter::ibox_leng;
+PS::U32 Parameter::time;
+PS::U32 Parameter::all_time, Parameter::step_mic, Parameter::step_mac;
+
 static_assert(Parameter::head_unit == 1, "head_unit should be 1.");
 static_assert(Parameter::tail_unit == 3, "tail_unit should be 3.");
 static_assert(Parameter::bond_leng != 0.0, "bond_leng should be not 0.0.");
 static_assert(Parameter::Reo < 3.0, "Reo should be less than 3.0.");
 
-namespace  {
+namespace {
   timeval tv_beg, tv_end;
   double time_diff(timeval& tv1, timeval& tv2) {
     return tv2.tv_sec - tv1.tv_sec + (tv2.tv_usec - tv1.tv_usec) * 1.0e-6;
@@ -74,12 +92,23 @@ namespace  {
 			       const PS::ParticleSystem<FPDPD>& system) {
     observer.Trajectory(system);
   }
-}
+} //end of anonymous namespace
 
 int main(int argc, char *argv[]) {
   timer_start();
-  
+
   PS::Initialize(argc, argv);
+  
+#ifdef ENABLE_GPU_CUDA
+  if(argc == 3) {
+    const PS::S32 dev_id = std::atoi(argv[2]);
+    cudaSetDevice(dev_id);
+    print_device_inform(dev_id);
+  } else {
+    std::cerr << "gpu device id is not specified.\n";
+    PS::Abort();
+  }
+#endif
   
   const std::string cdir = argv[1];
   Parameter param(cdir);
@@ -106,12 +135,29 @@ int main(int argc, char *argv[]) {
   system.exchangeParticle(dinfo);
 
   PS::TreeForForceShort<RESULT::Density, EPI::Density, EPJ::Density>::Gather dens_tree;
-  dens_tree.initialize(3 * system.getNumberOfParticleGlobal() );
-  dens_tree.calcForceAllAndWriteBack(CalcDensity(), system, dinfo);
-
   PS::TreeForForceShort<RESULT::ForceDPD, EPI::DPD, EPJ::DPD>::Gather force_tree;
+  dens_tree.initialize(3 * system.getNumberOfParticleGlobal() );
   force_tree.initialize(3 * system.getNumberOfParticleGlobal() );
+#ifdef ENABLE_GPU_CUDA
+  const PS::S32 n_walk_limit = 800;
+  const PS::S32 tag_max = 1;
+  dens_tree.calcForceAllAndWriteBackMultiWalk(DispatchKernel<Policy::Density, EPI::Density, EPJ::Density>,
+					      RetrieveKernel<Policy::Density, RESULT::Density>,
+					      tag_max,
+					      system,
+					      dinfo,
+					      n_walk_limit);
+					      
+  force_tree.calcForceAllAndWriteBackMultiWalk(DispatchKernel<Policy::Force, EPI::DPD, EPJ::DPD>,
+					       RetrieveKernel<Policy::Force, RESULT::ForceDPD>,
+					       tag_max,
+					       system,
+					       dinfo,
+					       n_walk_limit);
+#else
+  dens_tree.calcForceAllAndWriteBack(CalcDensity(), system, dinfo);
   force_tree.calcForceAllAndWriteBack(CalcForceEpEpDPD(), system, dinfo);
+#endif
 
   ForceBonded<PS::ParticleSystem<FPDPD> > fbonded(system, Parameter::all_unit * param.init_amp_num);
   PS::F64vec bonded_vir(0.0, 0.0, 0.0);
@@ -146,8 +192,25 @@ int main(int argc, char *argv[]) {
     dinfo.decomposeDomain();
     system.exchangeParticle(dinfo);
 
+#ifdef ENABLE_GPU_CUDA
+    dens_tree.calcForceAllAndWriteBackMultiWalk(DispatchKernel<Policy::Density, EPI::Density, EPJ::Density>,
+					        RetrieveKernel<Policy::Density, RESULT::Density >,
+					        tag_max,
+					        system,
+					        dinfo,
+					        n_walk_limit);
+					      
+    force_tree.calcForceAllAndWriteBackMultiWalk(DispatchKernel<Policy::Force, EPI::DPD, EPJ::DPD>,
+						 RetrieveKernel<Policy::Force, RESULT::ForceDPD>,
+					         tag_max,
+					         system,
+					         dinfo,
+					         n_walk_limit);
+#else
     dens_tree.calcForceAllAndWriteBack(CalcDensity(), system, dinfo);
     force_tree.calcForceAllAndWriteBack(CalcForceEpEpDPD(), system, dinfo);
+#endif
+
     fbonded.CalcListedForce(system, bonded_vir);
     
     kick(system, param.dt);
@@ -175,9 +238,13 @@ int main(int argc, char *argv[]) {
 
   //print configuration for restart
   observer.FinConfig(system);
-  
+
   observer.CleanUp();
   param.DumpAllParam();
+
+#ifdef ENABLE_GPU_CUDA
+  clean_up_gpu();
+#endif
   
   PS::Finalize();
 }

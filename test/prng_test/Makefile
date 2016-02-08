@@ -1,5 +1,6 @@
 CXX = g++
 #CXX = icpc
+NVCC = nvcc
 
 ifeq ($(CXX),icpc)
 OPENMP = -openmp -DPARTICLE_SIMULATOR_THREAD_PARALLEL
@@ -29,13 +30,14 @@ CFLAGS += $(WARNINGS)
 CFLAGS += $(STDCPP11)
 CFLAGS += -DPAIRWISE_DPD
 
-INCLUDE = -I../../FDPS/src -I../../
+CUDA_HOME = /usr/local/cuda
+INCLUDE = -I../../FDPS/src -I../../ -I$(CUDA_HOME)/include/ -I$(CUDA_HOME)/samples/common/inc/
 
 OBJECTS = prng_test.o
 
 TARGET = prng_test.out
 
-all:$(TARGET)
+all:$(TARGET) cuda_prng.out
 
 .SUFFIXES:
 .SUFFIXES: .cpp .o
@@ -45,5 +47,8 @@ all:$(TARGET)
 $(TARGET): $(OBJECTS)
 	$(CXX) $(CFLAGS) $(OBJECTS) $(LIBRARY) -o $@
 
+cuda_prng.out: prng_test.cu
+	$(NVCC) -O3 -std=c++11 -arch=sm_35 $(INCLUDE) $< -o $@
+
 clean:
-	rm -f $(OBJECTS) $(TARGET) core.* *~
+	rm -f $(OBJECTS) $(TARGET) core.* *~ cuda_prng.out
