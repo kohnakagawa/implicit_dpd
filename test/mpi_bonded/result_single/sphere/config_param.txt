@@ -1,7 +1,0 @@
-Temperature 1.0
-box_leng 32.0 32.0 32.0
-amp_num 10000
-lip_len 0.5
-mode sphere
-sph_rad 10.0
-upper_the 150.0
