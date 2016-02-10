@@ -9,7 +9,7 @@
 #define USE_TEXTURE_MEM
 
 #define USE_FLOAT_VEC
-//#define USE_DOUBLE_VEC
+// #define USE_DOUBLE_VEC // Do not support now
 
 #if defined (USE_DOUBLE_VEC) && defined (USE_FLOAT_VEC)
 #error "Please choose USE_DOUBLE_VEC or USE_FLOAT_VEC."
