@@ -2,6 +2,7 @@
 
 #include <numeric>
 #include <algorithm>
+#include <parallel/algorithm>
 
 template<class Tpsys>
 struct ForceBonded {
@@ -210,7 +211,6 @@ struct ForceBondedMPI {
   PS::ReallocatableArray<ampid2idx> ampid, ampid_buf;
   PS::ReallocatableArray<PS::U32> loc_topol_cmpl, loc_topol_imcmpl;
   PS::ReallocatableArray<bool> is_real_surf; //real particle or phantom on surface
-  PS::RadixSort<PS::U32> rsorter;
 
   explicit ForceBondedMPI(const int est_loc_amp) {
     ampid.resizeNoInitialize(est_loc_amp);
@@ -391,16 +391,15 @@ struct ForceBondedMPI {
       ampid[i].is_real  = (i < real_n);
     }
     
-    // rsorter.lsdSort(ampid.getPointer(), ampid_buf.getPointer(), 0, all_n);
-    std::sort(ampid.getPointer(),
-	      ampid.getPointer() + all_n,
-	      [](const ampid2idx& i, const ampid2idx& j) {
-		const PS::U32 ikey = i.getKey(), jkey = j.getKey();
-		if(ikey != jkey)
-		  return (ikey < jkey);
-		else
-		  return (i.is_real > j.is_real);
-	      } );
+    __gnu_parallel::sort(ampid.getPointer(),
+			 ampid.getPointer() + all_n,
+			 [](const ampid2idx& i, const ampid2idx& j) {
+			   const PS::U32 ikey = i.getKey(), jkey = j.getKey();
+			   if(ikey != jkey)
+			     return (ikey < jkey);
+			   else
+			     return (i.is_real > j.is_real);
+			 } );
     const auto new_end = std::unique(ampid.getPointer(),
 				     ampid.getPointer() + all_n,
 				     [](const ampid2idx& i, const ampid2idx& j) {

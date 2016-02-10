@@ -137,7 +137,7 @@ public:
 #ifdef PARTICLE_SIMULATOR_THREAD_PARALLEL
     //ASSUME: Molecular topology is constant during simulation.
     //        This routine is valid for constant amphiphile number simulation.
-    assert(num % Parameter::all_unit == 0);
+    assert(num_loc % Parameter::all_unit == 0);
     
     PS::F64 difsum_mol = 0.0;
     for(PS::U32 i = 0; i < amp_num; i++) {
