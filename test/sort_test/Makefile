@@ -1,11 +1,13 @@
 CXX = g++
 #CXX = icpc
 
+#use_tbb = yes
+
 ifeq ($(CXX),icpc)
-OPENMP = -openmp -DPARTICLE_SIMULATOR_THREAD_PARALLEL
+OPENMP = -openmp
 endif
 ifeq ($(CXX),g++)
-OPENMP = -fopenmp -DPARTICLE_SIMULATOR_THREAD_PARALLEL
+OPENMP = -fopenmp
 endif
 
 WARNINGS = -Wall -Wnon-virtual-dtor -Woverloaded-virtual -Wunused-variable
@@ -20,16 +22,17 @@ endif
 
 STDCPP11 = -std=c++11
 
-CFLAGS = $(DEBUG)
-#CFLAGS = $(RELEASE)
+#CFLAGS = $(DEBUG)
+CFLAGS = $(RELEASE)
 #CFLAGS = $(PROFILE)
 
 CFLAGS += $(WARNINGS)
 CFLAGS += $(STDCPP11)
-CFLAGS += -DPAIRWISE_DPD
 CFLAGS += $(OPENMP)
 
-INCLUDE = -I../../FDPS/src -I../../
+ifeq ($(use_tbb),yes)
+LIBRARY = -ltbb
+endif
 
 TARGET = sort.out
 
