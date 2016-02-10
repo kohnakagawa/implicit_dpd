@@ -121,7 +121,7 @@ struct ForceBonded {
 
     pos_buf[0] = sys[ l_dst[0] ].pos;
     pos_buf[1] = sys[ l_dst[1] ].pos;
-    
+
     dr[0] = pos_buf[1] - pos_buf[0];
     MinImage(dr[0]);
     dist2[0] = dr[0] * dr[0];
@@ -230,19 +230,22 @@ struct ForceBondedMPI {
 				    PS::F64vec*		__restrict F,
 				    const bool*		__restrict mask)
   {
-    const PS::F64 cf_bond = Parameter::cf_spring<Parameter::bond_leng != 0.0>(inv_dr);
+    const double cf_bond = Parameter::cf_spring<Parameter::bond_leng != 0.0>(inv_dr);
     
     const PS::F64vec Fbond(cf_bond * dr.x, cf_bond * dr.y, cf_bond * dr.z);
     
-    if (mask[0] or mask[1]) {
+    if (mask[0]) {
+      F[0] -= Fbond;
       d_vir.x += dr.x * Fbond.x;
       d_vir.y += dr.y * Fbond.y;
       d_vir.z += dr.z * Fbond.z;
-      d_lap   += Parameter::cf_s * (6.0 * Parameter::ibond - 4.0 * inv_dr);
     }
-    
-    if (mask[0]) F[0] -= Fbond;
-    if (mask[1]) F[1] += Fbond;
+    if (mask[1]) {
+      F[1] += Fbond;
+      d_vir.x += dr.x * Fbond.x;
+      d_vir.y += dr.y * Fbond.y;
+      d_vir.z += dr.z * Fbond.z;
+    }
   }
 
   static void StoreBendForceNoARLaw(const PS::F64vec*	__restrict dr,
@@ -267,17 +270,25 @@ struct ForceBondedMPI {
     const PS::F64vec Ftb1(cf_bd * (dr[0].x - cf_crs[1] * dr[1].x),
 			  cf_bd * (dr[0].y - cf_crs[1] * dr[1].y),
 			  cf_bd * (dr[0].z - cf_crs[1] * dr[1].z));
-    
-    if (mask[0] or mask[1] or mask[2]) {
+
+    if (mask[0]) {
+      F[0] -= Ftb0;
+      d_vir.x += dr[0].x * Ftb0.x;
+      d_vir.y += dr[0].y * Ftb0.y;
+      d_vir.z += dr[0].z * Ftb0.z;
+    }
+    if (mask[1]) {
+      F[1] += Ftb0 - Ftb1;
       d_vir.x += dr[0].x * Ftb0.x + dr[1].x * Ftb1.x;
       d_vir.y += dr[0].y * Ftb0.y + dr[1].y * Ftb1.y;
       d_vir.z += dr[0].z * Ftb0.z + dr[1].z * Ftb1.z;
-      d_lap += 2.0 * cf_bd * inv_dist[0] * inv_dist[1] * ( in_prod * ( in_prod + 2.0 * (dist[0] + dist[1]) ) + dist[0] * dist[1]);
     }
-    
-    if (mask[0]) F[0] -= Ftb0;
-    if (mask[1]) F[1] += Ftb0 - Ftb1;
-    if (mask[2]) F[2] += Ftb1;
+    if (mask[2]) {
+      F[2] += Ftb1;
+      d_vir.x += dr[1].x * Ftb1.x;
+      d_vir.y += dr[1].y * Ftb1.y;
+      d_vir.z += dr[1].z * Ftb1.z;
+    }
   }
 
   //NOTE: minimum image convention is not needed.
@@ -296,7 +307,7 @@ struct ForceBondedMPI {
     
     pos_buf[0] = sys[ l_dst[0] ].pos;
     pos_buf[1] = sys[ l_dst[1] ].pos;
-    
+
     dr[0] = pos_buf[1] - pos_buf[0];
     ForceBonded<Tpsys>::MinImage(dr[0]);
     dist2[0] = dr[0] * dr[0];
@@ -357,10 +368,8 @@ struct ForceBondedMPI {
 
     //Store the sum of force.
 #pragma unroll
-    for(PS::U32 unit = 0; unit < bond_n; unit++) {
+    for(PS::U32 unit = 0; unit < bond_n; unit++)
       if (mask[unit]) sys[ l_dst[unit] ].acc += Fbb[unit];
-    }
-
   }
 
   void MakeLocalBondedList(const Tpsys& sys, const PS::ReallocatableArray<EPJ::DPD>& epj_org) {
@@ -381,17 +390,30 @@ struct ForceBondedMPI {
       ampid[i].idx	= i;
       ampid[i].is_real  = (i < real_n);
     }
-    rsorter.lsdSort(ampid.getPointer(), ampid_buf.getPointer(), 0, all_n);
+    
+    // rsorter.lsdSort(ampid.getPointer(), ampid_buf.getPointer(), 0, all_n);
+    std::sort(ampid.getPointer(),
+	      ampid.getPointer() + all_n,
+	      [](const ampid2idx& i, const ampid2idx& j) {
+		const PS::U32 ikey = i.getKey(), jkey = j.getKey();
+		if(ikey != jkey)
+		  return (ikey < jkey);
+		else
+		  return (i.is_real > j.is_real);
+	      } );
     const auto new_end = std::unique(ampid.getPointer(),
 				     ampid.getPointer() + all_n,
-				     [](const ampid2idx& i, const ampid2idx& j){ return i.getKey() == j.getKey();});
+				     [](const ampid2idx& i, const ampid2idx& j) {
+				       return i.getKey() == j.getKey();
+				     });
     all_n = std::distance(ampid.getPointer(), new_end);
-    
+    ampid[all_n].amp_id = 0xffffffff; // add dummy id
+
     cmplt_amp = imcmplt_amp = 0;
     PS::U32 id_cmpl = 0, id_imcmpl = 0, cnt_real = ampid[0].is_real, cnt = 1, id_bef = ampid[0].amp_id, id_cur;
     PS::U32 imcmpl_buf[Parameter::all_unit] = { 0xffffffff };
     bool    isreal_buf[Parameter::all_unit] = { false };
-    for(PS::U32 i = 1; i < all_n; i++) {
+    for(PS::U32 i = 1; i < all_n + 1; i++) {
       id_cur = ampid[i].amp_id;
 
       if(id_cur == id_bef) {
@@ -436,8 +458,8 @@ struct ForceBondedMPI {
     PS::U32 cnt = 0;
     for (PS::U32 aid = 0; aid < imcmplt_amp; aid++) {
       bool req_flag[Parameter::all_unit] = { false };
-      for(PS::U32 unit = 0; unit < Parameter::all_unit; unit++) {
-	if(is_real_surf[cnt]) {
+      for (PS::U32 unit = 0; unit < Parameter::all_unit; unit++) {
+	if (is_real_surf[cnt]) {
 	  for(PS::S32 j = -2; j < 3; j++) {
 	    const PS::S32 unit_j = unit + j;
 	    if(unit_j >= 0 && unit_j < static_cast<PS::S32>(Parameter::all_unit) )
@@ -450,7 +472,7 @@ struct ForceBondedMPI {
       cnt -= Parameter::all_unit;
 
       for (PS::U32 unit = 0; unit < Parameter::all_unit; unit++) {
-	if(req_flag[unit] && (loc_topol_imcmpl[cnt] == 0xffffffff)) {
+	if (req_flag[unit] && (loc_topol_imcmpl[cnt] == 0xffffffff)) {
 	  std::cerr << "Missing pair particles\n";
 	  PS::Abort();
 	}
@@ -475,8 +497,7 @@ struct ForceBondedMPI {
 
     bonded_vir = d_vir;
   }
-  
-  // for debug
+
   void CheckCompleteTopol(const Tpsys& sys) const {
     for(PS::U32 i = 0; i < cmplt_amp; i++) {
       const PS::U32 amp_id = sys[ loc_topol_cmpl[Parameter::all_unit * i] ].amp_id;
@@ -493,6 +514,5 @@ struct ForceBondedMPI {
       }	
     }
   }
-  
 };
 
