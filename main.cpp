@@ -198,7 +198,9 @@ int main(int argc, char *argv[]) {
   // end of main loop
   
   timer_stop();
-  show_duration();
+
+  if(PS::Comm::getRank() == 0)
+    show_duration();
 
   //print configuration for restart
   observer.FinConfig(system);

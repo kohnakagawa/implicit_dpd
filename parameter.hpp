@@ -156,17 +156,17 @@ public:
   static PS::F64vec box_leng, ibox_leng;
   
   PS::U32 init_amp_num = 0xffffffff, amp_num = 0xffffffff;
-  PS::F64 dt = std::numeric_limits<PS::F64>::quiet_NaN();
+  PS::F64 dt = std::numeric_limits<PS::F64>::signaling_NaN();
 
   //macroscopic val
-  PS::F64 chi = std::numeric_limits<PS::F64>::quiet_NaN();
-  PS::F64 kappa = std::numeric_limits<PS::F64>::quiet_NaN();
-  PS::F64 rho_co = std::numeric_limits<PS::F64>::quiet_NaN();
+  PS::F64 chi = std::numeric_limits<PS::F64>::signaling_NaN();
+  PS::F64 kappa = std::numeric_limits<PS::F64>::signaling_NaN();
+  PS::F64 rho_co = std::numeric_limits<PS::F64>::signaling_NaN();
 
 #ifdef CHEM_MODE
   //for chemical reaction
-  PS::F64 p_thresld   = std::numeric_limits<PS::F64>::quiet_NaN();
-  PS::F64 eps         = std::numeric_limits<PS::F64>::quiet_NaN();
+  PS::F64 p_thresld   = std::numeric_limits<PS::F64>::signaling_NaN();
+  PS::F64 eps         = std::numeric_limits<PS::F64>::signaling_NaN();
   PS::U32 max_amp_num = 0xffffffff; //When amp_num >= max_amp_num, we stop the simulation.
 #endif
 
@@ -189,21 +189,21 @@ public:
   void Initialize() {
     for(PS::S32 i = 0; i < prop_num; i++) {
       for(PS::S32 j = 0; j < prop_num; j++) {
-	cf_c[i][j] = std::numeric_limits<PS::F64>::quiet_NaN();
-	cf_g[i][j] = std::numeric_limits<PS::F64>::quiet_NaN();
-	cf_r[i][j] = std::numeric_limits<PS::F64>::quiet_NaN();
+	cf_c[i][j] = std::numeric_limits<PS::F64>::signaling_NaN();
+	cf_g[i][j] = std::numeric_limits<PS::F64>::signaling_NaN();
+	cf_r[i][j] = std::numeric_limits<PS::F64>::signaling_NaN();
       }
     }
 
     for(PS::S32 i = 0; i < prop_num; i++)
       for(PS::S32 j = 0; j < prop_num; j++)
 	for(PS::S32 k = 0; k < prop_num; k++)
-	  cf_m[i][j][k] = std::numeric_limits<PS::F64>::quiet_NaN();
+	  cf_m[i][j][k] = std::numeric_limits<PS::F64>::signaling_NaN();
 
-    cf_s = cf_b = std::numeric_limits<PS::F64>::quiet_NaN();
+    cf_s = cf_b = std::numeric_limits<PS::F64>::signaling_NaN();
 
-    box_leng.x	= box_leng.y = box_leng.z = std::numeric_limits<PS::F64>::quiet_NaN();
-    ibox_leng.x = ibox_leng.y = ibox_leng.z = std::numeric_limits<PS::F64>::quiet_NaN();
+    box_leng.x	= box_leng.y = box_leng.z = std::numeric_limits<PS::F64>::signaling_NaN();
+    ibox_leng.x = ibox_leng.y = ibox_leng.z = std::numeric_limits<PS::F64>::signaling_NaN();
     
     time = 0xffffffff;
     all_time = step_mic = step_mac = 0xffffffff;
@@ -387,6 +387,7 @@ public:
     assert(std::isfinite(eps));
     assert(max_amp_num >= init_amp_num);
     assert(max_amp_num * Parameter::all_unit < std::numeric_limits<PS::U32>::max() );
+    assert(max_amp_num != 0xffffffff);
 #endif
 
     assert(time != 0xffffffff);
@@ -499,6 +500,12 @@ public:
     PS::Comm::broadcast(&chi, 1, 0);
     PS::Comm::broadcast(&kappa, 1, 0);
     PS::Comm::broadcast(&rho_co, 1, 0);
+
+#ifdef CHEM_MODE
+    PS::Comm::broadcast(&p_thresld, 1, 0);
+    PS::Comm::broadcast(&eps, 1, 0);
+    PS::Comm::broadcast(&max_amp_num, 1, 0);
+#endif
   }
   
   //for debug

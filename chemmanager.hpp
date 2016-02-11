@@ -107,8 +107,8 @@ public:
       PS::F64vec tang_vec(PS::MT::genrand_real1(), PS::MT::genrand_real1(), 0.0);
       tang_vec.z = -(h2e.x * tang_vec.x + h2e.y * tang_vec.y) / h2e.z;
       Normalize(tang_vec);
-      tang_vec *= param.eps;
       Normalize(h2e);
+      tang_vec *= param.eps;
       h2e *= Parameter::bond_leng;
 
       const PS::F64vec copied_pos = tang_vec + epj_org[target_id[2 * i]].pos;
@@ -156,7 +156,7 @@ public:
 	AppendTopol(glob_topol, Parameter::head_unit, new_ptcl_id);
 	CreateAmpPart<Parameter::head_unit, 0                   >(sys, Parameter::Hyphil, new_ptcl_id,
 								  new_amp_id, copied_pos, h2e);
-	AppendTopol(glob_topol, Parameter::tail_unit, new_amp_id);
+	AppendTopol(glob_topol, Parameter::tail_unit, new_ptcl_id);
 	CreateAmpPart<Parameter::tail_unit, Parameter::head_unit>(sys, Parameter::Hyphob, new_ptcl_id,
 								  new_amp_id, copied_pos, h2e);
 	param.amp_num++;

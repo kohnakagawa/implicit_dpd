@@ -134,7 +134,12 @@ public:
       difsum_loc += sys[i].delta_sumr * sys[i].delta_sumr;
     difsum_loc /= num_loc;
 
-#ifdef PARTICLE_SIMULATOR_THREAD_PARALLEL
+#ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
+    PS::F64 difsum = PS::Comm::getSum(difsum_loc);
+    difsum /= PS::Comm::getNumberOfProc();
+    if(PS::Comm::getRank() == 0)
+      fprintf(ptr_f[DIFFUSION], "%.15g\n", difsum);
+#else
     //ASSUME: Molecular topology is constant during simulation.
     //        This routine is valid for constant amphiphile number simulation.
     assert(num_loc % Parameter::all_unit == 0);
@@ -149,11 +154,6 @@ public:
     }
     difsum_mol /= amp_num;
     fprintf(ptr_f[DIFFUSION], "%.15g %.15g\n", difsum_loc, difsum_mol);
-#elif defined PARTICLE_SIMULATOR_MPI_PARALLEL
-    PS::F64 difsum = PS::Comm::getSum(difsum_loc);
-    difsum /= PS::Comm::getNumberOfProc();
-    if(PS::Comm::getRank() == 0)
-      fprintf(ptr_f[DIFFUSION], "%.15g %.15g\n", difsum_loc, difsum);
 #endif
   }
 

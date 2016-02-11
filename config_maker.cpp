@@ -18,18 +18,18 @@ class ConfigMaker {
   std::string cdir, mode;
   std::ifstream fin;
   
-  PS::F64 Tempera	= std::numeric_limits<PS::F64>::quiet_NaN();
+  PS::F64 Tempera	= std::numeric_limits<PS::F64>::signaling_NaN();
   PS::F64vec box_leng;
   PS::U32 amp_num	= 0xffffffff;
-  PS::F64 lip_len	= std::numeric_limits<PS::F64>::quiet_NaN();
+  PS::F64 lip_len	= std::numeric_limits<PS::F64>::signaling_NaN();
   
-  PS::F64 sph_rad	= std::numeric_limits<PS::F64>::quiet_NaN();
-  PS::F64 upper_the     = std::numeric_limits<PS::F64>::quiet_NaN();
+  PS::F64 sph_rad	= std::numeric_limits<PS::F64>::signaling_NaN();
+  PS::F64 upper_the     = std::numeric_limits<PS::F64>::signaling_NaN();
   
-  PS::F64 cyl_l		= std::numeric_limits<PS::F64>::quiet_NaN();
-  PS::F64 cyl_r		= std::numeric_limits<PS::F64>::quiet_NaN();
+  PS::F64 cyl_l		= std::numeric_limits<PS::F64>::signaling_NaN();
+  PS::F64 cyl_r		= std::numeric_limits<PS::F64>::signaling_NaN();
 
-  PS::F64 in_out_rat    = std::numeric_limits<PS::F64>::quiet_NaN();
+  PS::F64 in_out_rat    = std::numeric_limits<PS::F64>::signaling_NaN();
   
   PS::F64 NormalRand(const PS::F64 mean, const PS::F64 sd) const {
     return mean + sd * std::sqrt( -2.0 * std::log(PS::MT::genrand_real3()) ) * std::cos(2.0 * M_PI * PS::MT::genrand_real3() );
@@ -282,8 +282,8 @@ class ConfigMaker {
   void InitializeParticle() {
     for(size_t i = 0; i < prtcls.size(); i++) {
       prtcls[i].id = prtcls[i].prop = prtcls[i].amp_id = prtcls[i].unit = 0xffffffff;
-      prtcls[i].pos.x = prtcls[i].pos.y = prtcls[i].pos.z = std::numeric_limits<PS::F64>::quiet_NaN();
-      prtcls[i].vel.x = prtcls[i].vel.y = prtcls[i].vel.z = std::numeric_limits<PS::F64>::quiet_NaN();
+      prtcls[i].pos.x = prtcls[i].pos.y = prtcls[i].pos.z = std::numeric_limits<PS::F64>::signaling_NaN();
+      prtcls[i].vel.x = prtcls[i].vel.y = prtcls[i].vel.z = std::numeric_limits<PS::F64>::signaling_NaN();
       prtcls[i].vel_buf.x = prtcls[i].vel_buf.y = prtcls[i].vel_buf.z = 0.0;
       prtcls[i].acc.x = prtcls[i].acc.y = prtcls[i].acc.z = 0.0;
     }
@@ -338,7 +338,7 @@ class ConfigMaker {
 public:
   explicit ConfigMaker(const std::string& cdir_) {
     cdir = cdir_;
-    box_leng.x = box_leng.y = box_leng.z = std::numeric_limits<PS::F64>::quiet_NaN();
+    box_leng.x = box_leng.y = box_leng.z = std::numeric_limits<PS::F64>::signaling_NaN();
   }
   ~ConfigMaker() {}
   
