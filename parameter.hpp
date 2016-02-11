@@ -6,6 +6,7 @@
 #include <limits>
 #include <map>
 #include <cassert>
+#include "io_util.hpp"
 
 class Parameter {
   std::string cdir;
@@ -47,10 +48,6 @@ class Parameter {
     Matching(&(cf_buf[0]), std::string("cf_r"), tag_val, prop_num * (prop_num + 1) / 2);
     FillUpperTri(cf_buf, &(cf_r[0][0]), prop_num);
 
-    Matching(&rc, std::string("rc"), tag_val, 1);
-    rc2 = rc * rc;
-    irc = 1.0 / rc;
-
     Matching(&cf_s, std::string("cf_s"), tag_val, 1);
     Matching(&cf_b, std::string("cf_b"), tag_val, 1);
     
@@ -61,6 +58,12 @@ class Parameter {
     Matching(&all_time, std::string("all_time"), tag_val, 1);
     Matching(&step_mic, std::string("step_mic"), tag_val, 1);
     Matching(&step_mac, std::string("step_mac"), tag_val, 1);
+
+#ifdef CHEM_MODE
+    Matching(&p_thresld, std::string("p_thresld"), tag_val, 1);
+    Matching(&eps, std::string("eps"), tag_val, 1);
+    Matching(&max_amp_num, std::string("max_amp_num"), tag_val, 1);
+#endif
   }
 
   void CalcGammaWithHarmonicMean(const PS::S32 i, const PS::S32 j) {
@@ -122,11 +125,13 @@ public:
   static constexpr PS::U32 all_unit	= head_unit + tail_unit;
   static constexpr PS::F64 bond_leng	= 0.5;
   static constexpr PS::F64 ibond	= (bond_leng != 0.0) ? 1.0 / bond_leng : 0.0;
-  static constexpr PS::F64 search_rad   = 1.5;
+  static constexpr PS::F64 search_rad   = 1.7;
   static constexpr PS::F64 arc		= 0.9;
   static constexpr PS::F64 Reo		= 2.0;
-  static constexpr PS::U32 sample_freq  = 8192;
-  static constexpr PS::U32 decom_freq   = 8;
+  static constexpr PS::F64 rc           = 1.0;
+  static constexpr PS::F64 rc2          = rc * rc;
+  static constexpr PS::F64 irc          = 1.0 / rc;
+  static constexpr PS::U32 decom_freq   = 16;
 
   static constexpr char atom_type[21] = {
     'O', 'N', 'C', 'S', 'P', 'Z', 'X', 'O', 'N', 'C', 'S', 'P', 'Z', 'X', 'O', 'N', 'C', 'S', 'P', 'Z', 'X'
@@ -146,20 +151,24 @@ public:
   static PS::F64 cf_m[prop_num][prop_num][prop_num];
   static PS::F64 cf_s;
   static PS::F64 cf_b;
-
-  //cutoff length
-  static PS::F64 rc, rc2, irc;
   
   //region info
   static PS::F64vec box_leng, ibox_leng;
   
-  PS::S32 init_amp_num = -1, amp_num = -1;
+  PS::U32 init_amp_num = 0xffffffff, amp_num = 0xffffffff;
   PS::F64 dt = std::numeric_limits<PS::F64>::quiet_NaN();
 
   //macroscopic val
   PS::F64 chi = std::numeric_limits<PS::F64>::quiet_NaN();
   PS::F64 kappa = std::numeric_limits<PS::F64>::quiet_NaN();
   PS::F64 rho_co = std::numeric_limits<PS::F64>::quiet_NaN();
+
+#ifdef CHEM_MODE
+  //for chemical reaction
+  PS::F64 p_thresld   = std::numeric_limits<PS::F64>::quiet_NaN();
+  PS::F64 eps         = std::numeric_limits<PS::F64>::quiet_NaN();
+  PS::U32 max_amp_num = 0xffffffff; //When amp_num >= max_amp_num, we stop the simulation.
+#endif
 
   //for prng
   static PS::U32 time;
@@ -192,8 +201,6 @@ public:
 	  cf_m[i][j][k] = std::numeric_limits<PS::F64>::quiet_NaN();
 
     cf_s = cf_b = std::numeric_limits<PS::F64>::quiet_NaN();
-
-    rc = rc2 = irc = std::numeric_limits<PS::F64>::quiet_NaN();
 
     box_leng.x	= box_leng.y = box_leng.z = std::numeric_limits<PS::F64>::quiet_NaN();
     ibox_leng.x = ibox_leng.y = ibox_leng.z = std::numeric_limits<PS::F64>::quiet_NaN();
@@ -301,7 +308,7 @@ public:
     PS::U32 line_num = 0;
     PS::U32 cur_time = 0;
     io_util::ReadXYZForm(sys, line_num, cur_time, fp);
-    if(line_num / all_unit != static_cast<PS::U32>(init_amp_num) ) {
+    if(line_num / all_unit != init_amp_num) {
       std::cerr << line_num / all_unit << " " << init_amp_num << std::endl;
       std::cerr << "# of lines is not equal to the run input parameter information.\n";
       PS::Abort();
@@ -312,9 +319,9 @@ public:
 
   template<class Tpsys>
   void CheckParticleConfigIsValid(const Tpsys& sys) const {
-    const PS::S32 num = sys.getNumberOfParticleLocal();
+    const PS::U32 num = sys.getNumberOfParticleLocal();
     PS::F64 kin_temp = 0.0;
-    for(PS::S32 i = 0; i < num; i++) {
+    for(PS::U32 i = 0; i < num; i++) {
       kin_temp += sys[i].vel * sys[i].vel;
       
       assert(sys[i].id >= 0 && sys[i].id < num);
@@ -322,7 +329,7 @@ public:
       assert(sys[i].amp_id >= 0 && sys[i].amp_id < init_amp_num);
       assert(sys[i].unit >= 0 && sys[i].unit < all_unit);
       
-      for(PS::S32 j = 0; j < 3; j++) {
+      for(PS::U32 j = 0; j < 3; j++) {
 	if(!(sys[i].pos[j] <= box_leng[j] && sys[i].pos[j] >= 0.0)) {
 	  std::cerr << "There is a particle in outside range.\n";
 	  std::cerr << __FILE__ << " " << __LINE__ << std::endl;
@@ -357,10 +364,6 @@ public:
     assert(std::isfinite(cf_s));
     assert(std::isfinite(cf_b));
 
-    assert(std::isfinite(rc));
-    assert(std::isfinite(rc2));
-    assert(std::isfinite(irc));
-
     assert(std::isfinite(box_leng.x) );
     assert(std::isfinite(box_leng.y) );
     assert(std::isfinite(box_leng.z) );
@@ -378,6 +381,14 @@ public:
     assert(std::isfinite(kappa));
     assert(std::isfinite(rho_co));
     
+#ifdef CHEM_MODE
+    assert(std::isfinite(p_thresld));
+    assert(p_thresld <= 1.0 && p_thresld >= 0.0);
+    assert(std::isfinite(eps));
+    assert(max_amp_num >= init_amp_num);
+    assert(max_amp_num * Parameter::all_unit < std::numeric_limits<PS::U32>::max() );
+#endif
+
     assert(time != 0xffffffff);
     assert(all_time != 0xffffffff);
     assert(step_mic != 0xffffffff);
@@ -473,10 +484,6 @@ public:
     PS::Comm::broadcast(&cf_s, Parameter::prop_num, 0);
     PS::Comm::broadcast(&cf_b, Parameter::prop_num, 0);
     
-    PS::Comm::broadcast(&rc, 1, 0);
-    PS::Comm::broadcast(&rc2, 1, 0);
-    PS::Comm::broadcast(&irc, 1, 0);
-    
     PS::Comm::broadcast(&box_leng, 1, 0);
     PS::Comm::broadcast(&ibox_leng, 1, 0);
     
@@ -504,19 +511,6 @@ public:
     DumpAllParam(fout);
   }
 };
-
-PS::F64 Parameter::cf_c[Parameter::prop_num][Parameter::prop_num];
-PS::F64 Parameter::cf_g[Parameter::prop_num][Parameter::prop_num];
-PS::F64 Parameter::cf_r[Parameter::prop_num][Parameter::prop_num];
-PS::F64 Parameter::cf_m[Parameter::prop_num][Parameter::prop_num][Parameter::prop_num];
-PS::F64 Parameter::cf_s;
-PS::F64 Parameter::cf_b;
-
-PS::F64 Parameter::rc, Parameter::rc2, Parameter::irc;
-PS::F64vec Parameter::box_leng, Parameter::ibox_leng;
-
-PS::U32 Parameter::time;
-PS::U32 Parameter::all_time, Parameter::step_mic, Parameter::step_mac;
 
 template<>
 inline PS::F64 Parameter::cf_spring<true>(const PS::F64 inv_dr) {

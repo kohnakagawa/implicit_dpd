@@ -5,6 +5,12 @@
 #include "f_calculator.hpp"
 #include "observer.hpp"
 
+constexpr char Parameter::atom_type[21];
+
+PS::F64vec Parameter::box_leng, Parameter::ibox_leng;
+PS::U32 Parameter::time;
+PS::U32 Parameter::all_time, Parameter::step_mic, Parameter::step_mac;
+
 int main(int argc, char *argv[]) {
   PS::Initialize(argc, argv);
 

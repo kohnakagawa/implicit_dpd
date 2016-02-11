@@ -4,6 +4,11 @@
 // #include "static_for.hpp"
 #include "ptcl_class.hpp"
 
+PS::F64 Parameter::cf_c[Parameter::prop_num][Parameter::prop_num];
+PS::F64 Parameter::cf_g[Parameter::prop_num][Parameter::prop_num];
+PS::F64 Parameter::cf_r[Parameter::prop_num][Parameter::prop_num];
+PS::F64 Parameter::cf_m[Parameter::prop_num][Parameter::prop_num][Parameter::prop_num];
+
 struct CalcDensity {
   void operator () (const EPI::Density* __restrict epi,
 		    const PS::S32 ni,

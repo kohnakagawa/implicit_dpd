@@ -1,8 +1,12 @@
-#CXX = g++
-#CXX = icpc
-CXX = mpicxx
+CXX = g++
+# CXX = icpc
+# CXX = mpicxx
 
+ifeq ($(CXX),mpicxx)
 use_mpi = yes
+endif
+
+# use_omp = yes
 # use_gpu_cuda = yes
 # gpu_profile = yes
 
@@ -20,7 +24,7 @@ endif
 
 WARNINGS = -Wall -Wunused-variable #-Wnon-virtual-dtor -Woverloaded-virtual
 DEBUG = -O0 -g -DDEBUG
-RELEASE = -O3 -DNDEBUG
+RELEASE = -O3
 
 INCLUDE = -I./FDPS/src
 
@@ -37,7 +41,10 @@ ifeq ($(CXX),icpc)
 OPT_FLAGS = -ipo -no-prec-div -xHOST
 endif
 ifeq ($(CXX),g++)
-OPT_FLAGS = -ffast-math
+OPT_FLAGS = -ffast-math -funroll-loops
+endif
+ifeq ($(CXX),mpicxx)
+OPT_FLAGS = -ffast-math -funroll-loops
 endif
 
 OBJECTS_DPD = main.o
@@ -47,21 +54,29 @@ ifeq ($(use_gpu_cuda),yes)
 COMMON_FLAGS += -DENABLE_GPU_CUDA
 CUDA_HOME = /usr/local/cuda
 NVCC = $(CUDA_HOME)/bin/nvcc
-NVCCFLAGS = $(COMMON_FLAGS) -ccbin=$(CXX) -arch=sm_35 -Xcompiler "$(COMMON_FLAGS) $(WARNINGS) $(OPT_FLAGS)" $(CUDA_DEBUG)
+NVCCFLAGS = $(COMMON_FLAGS) -arch=sm_35 -Xcompiler "$(COMMON_FLAGS) $(WARNINGS) $(OPT_FLAGS)" $(CUDA_DEBUG)
 
 ifeq ($(gpu_profile),yes)
 NVCCFLAGS += -lineinfo -Xptxas -v
 endif
 
 LIBRARY = -L$(CUDA_HOME)/lib64 -lcudart
+ifeq ($(use_mpi),yes)
+LIBRARY += -lmpi
+endif
+
 INCLUDE += -I$(CUDA_HOME)/include/ -I$(CUDA_HOME)/samples/common/inc/
 OBJECTS_DPD += f_calculator_gpu.o
 endif
 
-CXX_FLAGS = $(COMMON_FLAGS) $(WARNINGS) $(OPENMP) $(OPT_FLAGS)
+CXX_FLAGS = $(COMMON_FLAGS) $(WARNINGS) $(OPT_FLAGS)
 
 ifeq ($(use_mpi),yes)
 CXX_FLAGS += $(MPI)
+endif
+
+ifeq ($(use_omp),yes)
+CXX_FLAGS += $(OPENMP)
 endif
 
 TARGET_DPD = implicit_dpd.out

@@ -4,6 +4,9 @@
 #include <algorithm>
 #include <parallel/algorithm>
 
+PS::F64 Parameter::cf_s;
+PS::F64 Parameter::cf_b;
+
 template<class Tpsys>
 struct ForceBonded {
   PS::ReallocatableArray<PS::U32> glob_topol;
@@ -48,6 +51,10 @@ struct ForceBonded {
       const PS::U32 unit = sys[i].unit;
       glob_topol[aid * Parameter::all_unit + unit] = i;
     }
+  }
+
+  void ExpandTopolBuffer(const PS::U32 n) {
+    glob_topol.reserve(n);
   }
 
   //for intra cell
@@ -199,7 +206,7 @@ struct ForceBonded {
 };
 
 
-template<class Tpsys>
+template<class Tpsys, class Pepj>
 struct ForceBondedMPI {
   struct ampid2idx {
     PS::U32 amp_id, unit, idx;
@@ -207,17 +214,22 @@ struct ForceBondedMPI {
     inline PS::U32 getKey() const { return Parameter::all_unit * amp_id + unit; }
   };
 
-  PS::U32 cmplt_amp = 0, imcmplt_amp = 0;
+  PS::U32 cmplt_amp_ = 0, imcmplt_amp_ = 0;
   PS::ReallocatableArray<ampid2idx> ampid, ampid_buf;
-  PS::ReallocatableArray<PS::U32> loc_topol_cmpl, loc_topol_imcmpl;
+  PS::ReallocatableArray<PS::U32> loc_topol_cmpl_, loc_topol_imcmpl_;
   PS::ReallocatableArray<bool> is_real_surf; //real particle or phantom on surface
+  
+  PS::U32 cmplt_amp()   const { return cmplt_amp_; }
+  PS::U32 imcmplt_amp() const { return imcmplt_amp_; }
+  const PS::ReallocatableArray<PS::U32>& loc_topol_cmpl()   const { return loc_topol_cmpl_;  }
+  const PS::ReallocatableArray<PS::U32>& loc_topol_imcmpl() const { return loc_topol_imcmpl_; }
 
-  explicit ForceBondedMPI(const int est_loc_amp) {
+  explicit ForceBondedMPI(const PS::U32 est_loc_amp) {
     ampid.resizeNoInitialize(est_loc_amp);
     ampid_buf.resizeNoInitialize(est_loc_amp);
     
-    loc_topol_cmpl.resizeNoInitialize(est_loc_amp * Parameter::all_unit);
-    loc_topol_imcmpl.resizeNoInitialize(est_loc_amp * Parameter::all_unit);
+    loc_topol_cmpl_.resizeNoInitialize(est_loc_amp * Parameter::all_unit);
+    loc_topol_imcmpl_.resizeNoInitialize(est_loc_amp * Parameter::all_unit);
     is_real_surf.resizeNoInitialize(est_loc_amp * Parameter::all_unit);
   }
   ~ForceBondedMPI() {}
@@ -303,7 +315,7 @@ struct ForceBondedMPI {
     PS::F64vec Fbb[bond_n], pos_buf[bond_n], dr[bond_n - 1];
     PS::F64  dist2[bond_n - 1], inv_dr[bond_n - 1];
 
-    const PS::U32* l_dst = &(loc_topol_cmpl[beg_bond_id]);
+    const PS::U32* l_dst = &(loc_topol_cmpl_[beg_bond_id]);
     
     pos_buf[0] = sys[ l_dst[0] ].pos;
     pos_buf[1] = sys[ l_dst[1] ].pos;
@@ -334,7 +346,7 @@ struct ForceBondedMPI {
 
   template<PS::U32 bond_n>
   void CalcBondBendSurface(Tpsys& __restrict sys,
-			   const PS::ReallocatableArray<EPJ::DPD>& epj_org,
+			   const PS::ReallocatableArray<Pepj>& epj_org,
 			   const PS::U32 beg_bond_id,
 			   PS::F64vec& __restrict d_vir,
 			   PS::F64&    __restrict d_lap)
@@ -343,7 +355,7 @@ struct ForceBondedMPI {
     PS::F64  dist2[bond_n - 1], inv_dr[bond_n - 1];
 
     const bool* mask = &(is_real_surf[beg_bond_id]);
-    const PS::U32* l_dst = &(loc_topol_imcmpl[beg_bond_id]);
+    const PS::U32* l_dst = &(loc_topol_imcmpl_[beg_bond_id]);
     
     if (l_dst[0] != 0xffffffff) pos_buf[0] = epj_org[ l_dst[0] ].pos;
     if (l_dst[1] != 0xffffffff) pos_buf[1] = epj_org[ l_dst[1] ].pos;
@@ -372,7 +384,7 @@ struct ForceBondedMPI {
       if (mask[unit]) sys[ l_dst[unit] ].acc += Fbb[unit];
   }
 
-  void MakeLocalBondedList(const Tpsys& sys, const PS::ReallocatableArray<EPJ::DPD>& epj_org) {
+  void MakeLocalBondedList(const Tpsys& sys, const PS::ReallocatableArray<Pepj>& epj_org) {
     const PS::U32 real_n = sys.getNumberOfParticleLocal();
     PS::U32 all_n  = epj_org.size();
 
@@ -380,8 +392,8 @@ struct ForceBondedMPI {
     //TODO: remove this region.
     ampid.resizeNoInitialize(all_n);
     ampid_buf.resizeNoInitialize(all_n);
-    loc_topol_cmpl.resizeNoInitialize(all_n);
-    loc_topol_imcmpl.resizeNoInitialize(all_n * Parameter::all_unit);
+    loc_topol_cmpl_.resizeNoInitialize(all_n);
+    loc_topol_imcmpl_.resizeNoInitialize(all_n * Parameter::all_unit);
     is_real_surf.resizeNoInitialize(all_n);
     
     for(PS::U32 i = 0; i < all_n; i++) {
@@ -390,16 +402,23 @@ struct ForceBondedMPI {
       ampid[i].idx	= i;
       ampid[i].is_real  = (i < real_n);
     }
-    
-    __gnu_parallel::sort(ampid.getPointer(),
-			 ampid.getPointer() + all_n,
-			 [](const ampid2idx& i, const ampid2idx& j) {
-			   const PS::U32 ikey = i.getKey(), jkey = j.getKey();
-			   if(ikey != jkey)
-			     return (ikey < jkey);
-			   else
-			     return (i.is_real > j.is_real);
-			 } );
+
+#ifdef PARTICLE_SIMULATOR_THREAD_PARALLEL
+    using __gnu_parallel::sort;
+#else
+    using std::sort;
+#endif
+
+    sort(ampid.getPointer(),
+	 ampid.getPointer() + all_n,
+	 [](const ampid2idx& i, const ampid2idx& j) {
+	   const PS::U32 ikey = i.getKey(), jkey = j.getKey();
+	   if(ikey != jkey)
+	     return (ikey < jkey);
+	   else
+	     return (i.is_real > j.is_real);
+	 } );
+
     const auto new_end = std::unique(ampid.getPointer(),
 				     ampid.getPointer() + all_n,
 				     [](const ampid2idx& i, const ampid2idx& j) {
@@ -408,7 +427,7 @@ struct ForceBondedMPI {
     all_n = std::distance(ampid.getPointer(), new_end);
     ampid[all_n].amp_id = 0xffffffff; // add dummy id
 
-    cmplt_amp = imcmplt_amp = 0;
+    cmplt_amp_ = imcmplt_amp_ = 0;
     PS::U32 id_cmpl = 0, id_imcmpl = 0, cnt_real = ampid[0].is_real, cnt = 1, id_bef = ampid[0].amp_id, id_cur;
     PS::U32 imcmpl_buf[Parameter::all_unit] = { 0xffffffff };
     bool    isreal_buf[Parameter::all_unit] = { false };
@@ -422,9 +441,9 @@ struct ForceBondedMPI {
 	if(cnt_real == Parameter::all_unit) {
 	  const PS::U32 beg = i - Parameter::all_unit;
 	  for(PS::U32 j = 0; j < Parameter::all_unit; j++) {
-	    loc_topol_cmpl[id_cmpl++] = ampid[beg + j].idx;
+	    loc_topol_cmpl_[id_cmpl++] = ampid[beg + j].idx;
 	  }
-	  cmplt_amp++;
+	  cmplt_amp_++;
 	} else {
 	  //initialize buffer
 	  for(PS::U32 j = 0; j < Parameter::all_unit; j++) {
@@ -440,11 +459,11 @@ struct ForceBondedMPI {
 	  }
 
 	  for(PS::U32 j = 0; j < Parameter::all_unit; j++) {
-	    loc_topol_imcmpl[id_imcmpl] = imcmpl_buf[j];
+	    loc_topol_imcmpl_[id_imcmpl] = imcmpl_buf[j];
 	    is_real_surf[id_imcmpl]	= isreal_buf[j];
 	    id_imcmpl++;
 	  }
-	  imcmplt_amp++;
+	  imcmplt_amp_++;
 	}
 	cnt_real = (ampid[i].is_real);
 	cnt = 1;
@@ -455,7 +474,7 @@ struct ForceBondedMPI {
 
   void CheckSurfaceTopol() const {
     PS::U32 cnt = 0;
-    for (PS::U32 aid = 0; aid < imcmplt_amp; aid++) {
+    for (PS::U32 aid = 0; aid < imcmplt_amp_; aid++) {
       bool req_flag[Parameter::all_unit] = { false };
       for (PS::U32 unit = 0; unit < Parameter::all_unit; unit++) {
 	if (is_real_surf[cnt]) {
@@ -471,7 +490,7 @@ struct ForceBondedMPI {
       cnt -= Parameter::all_unit;
 
       for (PS::U32 unit = 0; unit < Parameter::all_unit; unit++) {
-	if (req_flag[unit] && (loc_topol_imcmpl[cnt] == 0xffffffff)) {
+	if (req_flag[unit] && (loc_topol_imcmpl_[cnt] == 0xffffffff)) {
 	  std::cerr << "Missing pair particles\n";
 	  PS::Abort();
 	}
@@ -481,34 +500,34 @@ struct ForceBondedMPI {
   }
 
   void CalcListedForce(Tpsys& sys,
-		       const PS::ReallocatableArray<EPJ::DPD>& epj_org,
+		       const PS::ReallocatableArray<Pepj>& epj_org,
 		       PS::F64vec& bonded_vir) {
     MakeLocalBondedList(sys, epj_org);
     CheckSurfaceTopol();
     
     PS::F64vec d_vir(0.0); PS::F64 d_lap = 0.0;
-    for(PS::U32 i = 0; i < cmplt_amp; i++)
+    for(PS::U32 i = 0; i < cmplt_amp_; i++)
       CalcBondBendLocalCell<Parameter::all_unit>(sys, i * Parameter::all_unit, d_vir, d_lap);
 
     //for inter cell
-    for(PS::U32 i = 0; i < imcmplt_amp; i++)
+    for(PS::U32 i = 0; i < imcmplt_amp_; i++)
       CalcBondBendSurface<Parameter::all_unit>(sys, epj_org, i * Parameter::all_unit, d_vir, d_lap);
 
     bonded_vir = d_vir;
   }
 
   void CheckCompleteTopol(const Tpsys& sys) const {
-    for(PS::U32 i = 0; i < cmplt_amp; i++) {
-      const PS::U32 amp_id = sys[ loc_topol_cmpl[Parameter::all_unit * i] ].amp_id;
+    for(PS::U32 i = 0; i < cmplt_amp_; i++) {
+      const PS::U32 amp_id = sys[ loc_topol_cmpl_[Parameter::all_unit * i] ].amp_id;
       for(PS::U32 j = 1; j < Parameter::all_unit; j++) {
-	assert(loc_topol_cmpl[Parameter::all_unit * i + j] < (PS::U32)sys.getNumberOfParticleLocal() );
-	if(amp_id != sys[ loc_topol_cmpl[Parameter::all_unit * i + j] ].amp_id) {
+	assert(loc_topol_cmpl_[Parameter::all_unit * i + j] < static_cast<PS::U32>(sys.getNumberOfParticleLocal()));
+	if(amp_id != sys[ loc_topol_cmpl_[Parameter::all_unit * i + j] ].amp_id) {
 	  std::cerr << "Fail topology build\n";
-	  std::cerr << amp_id << " " << sys[ loc_topol_cmpl[Parameter::all_unit * i + j] ].amp_id << std::endl;
-	  std::cerr << loc_topol_cmpl[Parameter::all_unit * i + j] << " " << sys.getNumberOfParticleLocal() << std::endl;
+	  std::cerr << amp_id << " " << sys[ loc_topol_cmpl_[Parameter::all_unit * i + j] ].amp_id << std::endl;
+	  std::cerr << loc_topol_cmpl_[Parameter::all_unit * i + j] << " " << sys.getNumberOfParticleLocal() << std::endl;
 	  std::cerr << i << " " << j << std::endl;
 	} else {
-	  assert(loc_topol_cmpl[Parameter::all_unit * i + j] < (PS::U32)sys.getNumberOfParticleLocal());
+	  assert(loc_topol_cmpl_[Parameter::all_unit * i + j] < static_cast<PS::U32>(sys.getNumberOfParticleLocal()));
 	}
       }	
     }

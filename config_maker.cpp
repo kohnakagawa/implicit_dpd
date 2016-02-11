@@ -152,7 +152,12 @@ class ConfigMaker {
 
   void MakeSphSheet() {
     const PS::F64 min_box_leng = box_leng.getMin();
-    assert(sph_rad >= 0.0 && sph_rad <= 0.5 * min_box_leng);
+    if (!(sph_rad >= 0.0 && sph_rad <= 0.5 * min_box_leng)) {
+      std::cerr << "sphere radius is too large.\n";
+      std::cerr << "sph_rad: " << sph_rad << "min_box_leng " << min_box_leng << std::endl;
+      std::exit(1);
+    }
+
     
     const PS::F64 up_the = upper_the * M_PI / 180.0; //NOTE: the unit of upper_theta is not radian.
     
@@ -307,10 +312,26 @@ class ConfigMaker {
 
     const PS::U32 all_n = Parameter::all_unit * amp_num;
     for(size_t i = 0; i < prtcls.size(); i++) {
-      assert(prtcls[i].id >= 0 && prtcls[i].id < all_n);
-      assert(prtcls[i].prop >= 0 && prtcls[i].prop < Parameter::prop_num);
-      assert(prtcls[i].amp_id >= 0 && prtcls[i].amp_id < amp_num);
-      assert(prtcls[i].unit >= 0 && prtcls[i].unit < Parameter::all_unit);
+      if (!(prtcls[i].id >= 0 && prtcls[i].id < all_n)) {
+	std::cerr << "particle id is invalid.\n";
+	std::cerr << "id is " << prtcls[i].id << std::endl;
+	std::exit(1);
+      }
+      if (!(prtcls[i].prop >= 0 && prtcls[i].prop < Parameter::prop_num)) {
+	std::cerr << "particle prop is invalid.\n";
+	std::cerr << "prop is " << prtcls[i].prop << std::endl;
+	std::exit(1);
+      }
+      if (!(prtcls[i].amp_id >= 0 && prtcls[i].amp_id < amp_num)) {
+	std::cerr << "amp_id is invalid.\n";
+	std::cerr << "amp_id is " << prtcls[i].amp_id << std::endl;
+	std::exit(1);
+      }
+      if (!(prtcls[i].unit >= 0 && prtcls[i].unit < Parameter::all_unit)) {
+	std::cerr << "amphiphile unit is invalid\n";
+	std::cerr << "unit is " << prtcls[i].unit << std::endl;
+	std::exit(1);
+      }
     }
   }
   

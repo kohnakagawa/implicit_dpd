@@ -157,12 +157,17 @@ public:
 #endif
   }
 
+  void NumAmp(const PS::U32 amp_num) {
+    if(PS::Comm::getRank() == 0)
+      fprintf(ptr_f[NUM_AMP], "%u\n", amp_num);
+  }
+
   void Trajectory(const Tpsys& sys) {
 #ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
     io_util::WriteXYZFormMPI(sys,
+			     sys.getNumberOfParticleGlobal(),
 			     Parameter::time,
-			     3 * sys.getNumberOfParticleGlobal(),
-			     ptr_f[PART_CONFIG]); //TODO: getNumberOfParticleGlobal should be replaced.
+			     ptr_f[PART_CONFIG]);
 #else
     io_util::WriteXYZForm(sys,
 			  sys.getNumberOfParticleLocal(),
@@ -174,9 +179,9 @@ public:
   void FinConfig(const Tpsys& sys) {
 #ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
     io_util::WriteXYZFormMPI(sys,
+			     sys.getNumberOfParticleGlobal(),
 			     Parameter::time,
-			     3 * sys.getNumberOfParticleGlobal(),
-			     ptr_f[FIN_CONFIG]); //TODO: getNumberOfParticleGlobal should be replaced.
+			     ptr_f[FIN_CONFIG]);
 #else
     io_util::WriteXYZForm(sys,
 			  sys.getNumberOfParticleLocal(),
@@ -186,25 +191,16 @@ public:
   }
 
   void FlushAll() {
-#ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
     if(PS::Comm::getRank() == 0) {
-#endif
       for(PS::S32 i = 0; i < NUM_FILES; i++)
 	fflush(ptr_f[i]);
-#ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
     }
-#endif 
   }
 
   void CleanUp() {
-#ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
     if(PS::Comm::getRank() == 0) {
-#endif
       for(PS::U32 i = 0; i < NUM_FILES; i++)
 	fclose(ptr_f[i]);
-#ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
     }
-#endif 
-    
   }
 };

@@ -1,25 +1,5 @@
 #pragma once
 
-/*
-  1. Random increase case
-  2. 
- */
-
-#ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
-/*
-  NOTE:
-  1. Calculate the increase number of amphiphile.
-  2. Do prefix-sum for all process.
-  3. Calculate ids for each amphiphile molecule.
- */
-class ChemManager {
-public:
-  
-};
-
-#else
-
-//NOTE: PRNG is not thread safe.
 template<class FP>
 class ChemManager {
   PS::ReallocatableArray<PS::U32> target_id;
@@ -38,43 +18,11 @@ class ChemManager {
     pos.z -= std::floor(pos.z * Parameter::ibox_leng.z) * Parameter::box_leng.z;
   }
 
-  template<PS::U32 part_num, PS::U32 unit_beg>
-  void CreateAmpPart(PS::ParticleSystem<FP>& sys,
-		     const PS::U32 prop, 
-		     PS::U32 tpl_beg_id,
-		     PS::U32& new_ptcl_id, const PS::U32 new_amp_id,
-		     const PS::F64vec& tang_vec,
-		     PS::ReallocatableArray<PS::U32>& glob_topol) {
-    FP new_ptcl;
-    new_ptcl.prop = prop;
-    new_ptcl.amp_id = new_amp_id;
-    
-    for(PS::U32 i = 0; i < part_num; i++) {
-      const PS::U32 base_pid = glob_topol[tpl_beg_id++];
-      
-      new_ptcl.id = new_ptcl_id;
-      new_ptcl.unit = unit_beg + i;
-      new_ptcl.pos = sys[base_pid].pos + tang_vec;
-      ApplyPBC(new_ptcl.pos);
-      new_ptcl.delta_sumr = 0.0;
-      
-      new_ptcl.vel.x = GenThermalVeloc();
-      new_ptcl.vel.y = GenThermalVeloc();
-      new_ptcl.vel.z = GenThermalVeloc();
-
-      new_ptcl.vel_buf = 0.0;
-      new_ptcl.acc = 0.0;
-      new_ptcl.press = 0.0;
-
-      new_ptcl.density.fill(0.0);
-
-      sys.AddNewParticle(new_ptcl);
-      
-      //Append topology list.
-      glob_topol.pushBackNoCheck(new_ptcl_id);
-      
-      new_ptcl_id++;
-    }
+  inline void AppendTopol(PS::ReallocatableArray<PS::U32>& glob_topol,
+			  const PS::U32 part_num,
+			  const PS::U32 new_ptcl_id) {
+    for (PS::U32 i = 0; i < part_num; i++)
+      glob_topol.pushBackNoCheck(new_ptcl_id + i);
   }
 
   template<PS::U32 part_num, PS::U32 unit_beg>
@@ -118,7 +66,7 @@ class ChemManager {
     for (PS::U32 i = 0; i < amp_num; i++) {
       const PS::F64 rnd = PS::MT::genrand_real1();
       const PS::U32 head_id = topol[Parameter::all_unit * i];
-      if (rnd <= param.p_thresld && head_id != 0xffffffff && head_id < loc_num) {
+      if ( (rnd <= param.p_thresld) && (head_id < loc_num) ) {
 	const PS::U32 tail_id = topol[Parameter::all_unit * i + 2];
 	target_id.push_back(head_id);
 	target_id.push_back(tail_id);
@@ -128,11 +76,15 @@ class ChemManager {
   
 public:
   ChemManager(const PS::U32 seed) {
+    //NOTE: This PRNG is not thread safe.
     PS::MT::init_genrand(seed);
+    target_id.resizeNoInitialize(10000);
   }
   
+  // MPI version
+  template<class Pepj>
   bool RandomChemEvent(PS::ParticleSystem<FP>& sys,
-		       const PS::ReallocatableArray<EPJ::DPD>& epj_org,
+		       const PS::ReallocatableArray<Pepj>& epj_org,
 		       const PS::ReallocatableArray<PS::U32>& loc_topol_cmpl,
 		       const PS::ReallocatableArray<PS::U32>& loc_topol_imcmpl,
 		       const PS::U32 cmplt_amp,
@@ -144,7 +96,7 @@ public:
     DetermineTargetId(cmplt_amp, loc_topol_cmpl, loc_num, param);
     DetermineTargetId(imcmplt_amp, loc_topol_imcmpl, loc_num, param);
     const PS::U32 incr_num = target_id.size() / 2;
-    PS::U32 offset = 0; //amphiphile offset number
+    PS::U32 offset = 0;      // amphiphile offset number
     PS::Comm::exScan(&incr_num, &offset, 1);
     PS::U32 new_ptcl_id = sys.getNumberOfParticleGlobal() + offset * Parameter::all_unit;
     offset += param.amp_num; // add global offset
@@ -155,8 +107,8 @@ public:
       PS::F64vec tang_vec(PS::MT::genrand_real1(), PS::MT::genrand_real1(), 0.0);
       tang_vec.z = -(h2e.x * tang_vec.x + h2e.y * tang_vec.y) / h2e.z;
       Normalize(tang_vec);
-      Normalize(h2e);
       tang_vec *= param.eps;
+      Normalize(h2e);
       h2e *= Parameter::bond_leng;
 
       const PS::F64vec copied_pos = tang_vec + epj_org[target_id[2 * i]].pos;
@@ -178,32 +130,35 @@ public:
     }
   }
   
+  // normal ver
   bool RandomChemEvent(PS::ParticleSystem<FP>& sys,
 		       PS::ReallocatableArray<PS::U32>& glob_topol,
 		       Parameter& param) {
     PS::U32 new_ptcl_id = sys.getNumberOfParticleLocal();
     PS::U32 new_amp_id = param.amp_num;
-    const PS::S32 old_amp_num = param.amp_num;
+    const PS::U32 old_amp_num = param.amp_num;
     
-    for(PS::S32 i = 0; i < old_amp_num; i++) {
+    for (PS::U32 i = 0; i < old_amp_num; i++) {
       const PS::F64 rnd = PS::MT::genrand_real1();
-      if(rnd <= param.p_thresld) {
-	const PS::U32 head_id = glob_topol[Parameter::all_unit * i          ];
-	const PS::U32 tail_id = glob_topol[Parameter::all_unit * (i + 1) - 1];
+      if (rnd <= param.p_thresld) {
+	const PS::U32 head_id = glob_topol[Parameter::all_unit * i    ];
+	const PS::U32 tail_id = glob_topol[Parameter::all_unit * i + 2];
 	PS::F64vec h2e = sys[tail_id].pos - sys[head_id].pos;
 	ForceBonded<PS::ParticleSystem<FP> >::MinImage(h2e);
 	PS::F64vec tang_vec(PS::MT::genrand_real1(), PS::MT::genrand_real1(), 0.0);
 	tang_vec.z = -(h2e.x * tang_vec.x + h2e.y * tang_vec.y) / h2e.z;
 	Normalize(tang_vec);
+	Normalize(h2e);
 	tang_vec *= param.eps;
-
-	const PS::U32 tpl_beg_id = Parameter::all_unit * i;
-	CreateAmpPart<Parameter::head_unit, 0                   >(sys, Parameter::Hyphil, tpl_beg_id,
-								  new_ptcl_id, new_amp_id, tang_vec,
-								  glob_topol);
-	CreateAmpPart<Parameter::tail_unit, Parameter::head_unit>(sys, Parameter::Hyphob, tpl_beg_id + Parameter::head_unit,
-								  new_ptcl_id, new_amp_id, tang_vec,
-								  glob_topol);
+	h2e *= Parameter::bond_leng;
+	
+	const PS::F64vec copied_pos = tang_vec + sys[head_id].pos;
+	AppendTopol(glob_topol, Parameter::head_unit, new_ptcl_id);
+	CreateAmpPart<Parameter::head_unit, 0                   >(sys, Parameter::Hyphil, new_ptcl_id,
+								  new_amp_id, copied_pos, h2e);
+	AppendTopol(glob_topol, Parameter::tail_unit, new_amp_id);
+	CreateAmpPart<Parameter::tail_unit, Parameter::head_unit>(sys, Parameter::Hyphob, new_ptcl_id,
+								  new_amp_id, copied_pos, h2e);
 	param.amp_num++;
 	new_amp_id++;
 	
@@ -212,7 +167,7 @@ public:
 	assert(sys.getNumberOfParticleLocal() == new_ptcl_id);
 #endif
 
-	if(param.amp_num >= param.max_amp_num) {
+	if (param.amp_num >= param.max_amp_num) {
 	  std::cout << "Now param.amp_num >= param.max_amp_num.\n";
 	  std::cout << "So, simulation will stop.\n";
 	  return false;
@@ -222,10 +177,8 @@ public:
     return true;
   }
 
-  bool CatalChemEvent(PS::ParticleSystem<FP>& sys,
+  /*  bool CatalChemEvent(PS::ParticleSystem<FP>& sys,
 		      Parameter& param) {
     //
-  }
+    }*/
 };
-
-#endif

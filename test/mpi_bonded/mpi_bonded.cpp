@@ -7,6 +7,10 @@
 
 constexpr char Parameter::atom_type[21];
 
+PS::F64vec Parameter::box_leng, Parameter::ibox_leng;
+PS::U32 Parameter::time;
+PS::U32 Parameter::all_time, Parameter::step_mic, Parameter::step_mac;
+
 template<class Tpsys>
 void check_val(const Tpsys& sys, const int tag) {
   std::cout << "tag is " << tag << std::endl;
@@ -62,8 +66,8 @@ int main(int argc, char *argv[]) {
   // bonded test
   PS::F64vec bonded_vir(0.0, 0.0, 0.0);
 #ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
-  const PS::S32 est_loc_amp = param.init_amp_num / PS::Comm::getNumberOfProc() + 100;
-  ForceBondedMPI<PS::ParticleSystem<FPDPD> > fbonded(est_loc_amp);
+  const PS::U32 est_loc_amp = param.init_amp_num / PS::Comm::getNumberOfProc() + 100;
+  ForceBondedMPI<PS::ParticleSystem<FPDPD>, EPJ::DPD> fbonded(est_loc_amp);
   fbonded.CalcListedForce(system, force_tree.epj_org(), bonded_vir);
 #else
   ForceBonded<PS::ParticleSystem<FPDPD> > fbonded(system, Parameter::all_unit * param.init_amp_num);
