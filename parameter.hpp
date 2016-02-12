@@ -169,13 +169,6 @@ public:
   PS::F64 eps         = std::numeric_limits<PS::F64>::signaling_NaN();
   PS::U32 max_amp_num = 0xffffffff; //When amp_num >= max_amp_num, we stop the simulation.
 #endif
-
-#ifdef CHEM_MODE
-  //for chemical reaction
-  PS::F64 p_thresld = std::numeric_limits<PS::F64>::quiet_NaN();
-  PS::F64 eps = std::numeric_limits<PS::F64>::quiet_NaN();
-  PS::S32 max_amp_num = -1; //When amp_num >= max_amp_num, we stop the simulation.
-#endif
   
   //for prng
   static PS::U32 time;

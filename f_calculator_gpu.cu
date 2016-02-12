@@ -23,13 +23,13 @@ namespace {
   cuda3D_ptr<Dtype,
     Parameter::prop_num,
     Parameter::prop_num,
-    Parameter::prop_num> ptr_cf_m(cudaCreateChannelDesc<Dtype>());
+    Parameter::prop_num> ptr_cf_m;
 
   cuda2D_ptr<Dtype,
     Parameter::prop_num,
-    Parameter::prop_num> ptr_cf_c(cudaCreateChannelDesc<Dtype>()),
-                         ptr_cf_r(cudaCreateChannelDesc<Dtype>()),
-                         ptr_cf_g(cudaCreateChannelDesc<Dtype>());
+    Parameter::prop_num> ptr_cf_c,
+                         ptr_cf_r,
+                         ptr_cf_g;
   
 #ifdef USE_FLOAT_VEC
   texture<float, cudaTextureType3D, cudaReadModeElementType> cf_m;
@@ -63,6 +63,11 @@ namespace {
 #ifdef USE_TEXTURE_MEM
 
   void set_texture_val() {
+    ptr_cf_m.allocate(cudaCreateChannelDesc<Dtype>());
+    ptr_cf_c.allocate(cudaCreateChannelDesc<Dtype>());
+    ptr_cf_r.allocate(cudaCreateChannelDesc<Dtype>());
+    ptr_cf_g.allocate(cudaCreateChannelDesc<Dtype>());
+    
     ptr_cf_m.host2host(Parameter::cf_m);
     ptr_cf_c.host2host(Parameter::cf_c);
     ptr_cf_r.host2host(Parameter::cf_r);

@@ -93,7 +93,13 @@ int main(int argc, char *argv[]) {
   PS::Initialize(argc, argv);
   
 #ifdef ENABLE_GPU_CUDA
-  if(argc == 3) {
+#ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
+  // Multi GPU case
+  const PS::S32 dev_id = PS::Comm::getRank() % NUM_GPU_IN_ONE_NODE;
+  cudaSetDevice(dev_id);
+#else
+  // Single GPU case
+  if (argc == 3) {
     const PS::S32 dev_id = std::atoi(argv[2]);
     cudaSetDevice(dev_id);
     print_device_inform(dev_id);
@@ -101,6 +107,7 @@ int main(int argc, char *argv[]) {
     std::cerr << "gpu device id is not specified.\n";
     PS::Abort();
   }
+#endif
 #endif
 
   // Initialize run input parameter
@@ -135,14 +142,13 @@ int main(int argc, char *argv[]) {
 
   // Initial step
   drift_and_predict(system, param.dt, param.box_leng, param.ibox_leng);
-
   dinfo.decomposeDomain();
   system.exchangeParticle(dinfo);
-  
   PS::TreeForForceShort<RESULT::Density, EPI::Density, EPJ::Density>::Gather dens_tree;
   PS::TreeForForceShort<RESULT::ForceDPD, EPI::DPD, EPJ::DPD>::Gather force_tree;
-  dens_tree.initialize(3 * system.getNumberOfParticleGlobal() );
-  force_tree.initialize(3 * system.getNumberOfParticleGlobal() );
+  dens_tree.initialize(5 * system.getNumberOfParticleGlobal() );
+  force_tree.initialize(5 * system.getNumberOfParticleGlobal() );
+  
 #ifdef ENABLE_GPU_CUDA
   const PS::S32 n_walk_limit = 800;
   const PS::S32 tag_max = 1;
@@ -176,14 +182,6 @@ int main(int argc, char *argv[]) {
   
   Observer<PS::ParticleSystem<FPDPD> > observer(cdir);
   observer.Initialize();
-
-#ifdef CHEM_MODE
-  const PS::U32 seed = 123;
-  ChemManager<FPDPD> chemmanag(seed);
-  system.ExpandParticleBuffer(param.max_amp_num * Parameter::all_unit);
-  fbonded.ExpandTopolBuffer(param.max_amp_num * Parameter::all_unit);
-#endif
-
   do_observe_macro(observer, system, param, bonded_vir);
   do_observe_micro(observer, system);
 
@@ -199,11 +197,10 @@ int main(int argc, char *argv[]) {
 #endif
 
   kick(system, param.dt);
-  
   Parameter::time++;
   // End of initial step.
   
-  // main loop
+  // Main MD loop
   const PS::U32 atime = Parameter::time + Parameter::all_time - 1;
   for(; Parameter::time < atime; Parameter::time++) {
     drift_and_predict(system, param.dt, param.box_leng, param.ibox_leng);
@@ -256,22 +253,19 @@ int main(int argc, char *argv[]) {
     if(Parameter::time % Parameter::step_mic == 0)
       do_observe_micro(observer, system);
   }
-  // end of main loop
-  
+  // end of Main MD loop
   timer_stop();
-
   if(PS::Comm::getRank() == 0)
     show_duration();
 
-  //print configuration for restart
+  // print configuration for restart
   observer.FinConfig(system);
 
+  // cleanup
   observer.CleanUp();
   param.DumpAllParam();
-
 #ifdef ENABLE_GPU_CUDA
   clean_up_gpu();
 #endif
-  
   PS::Finalize();
 }

@@ -6,6 +6,10 @@
 
 #ifdef ENABLE_GPU_CUDA
 
+enum {
+  NUM_GPU_IN_ONE_NODE = 2,
+};
+
 #define USE_TEXTURE_MEM
 
 #define USE_FLOAT_VEC

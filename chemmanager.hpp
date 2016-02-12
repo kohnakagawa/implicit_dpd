@@ -35,7 +35,7 @@ class ChemManager {
     FP new_ptcl;
     new_ptcl.prop = prop;
     new_ptcl.amp_id = new_amp_id;
-
+    
     for (PS::U32 i = 0; i < part_num; i++) {
       new_ptcl.id   = new_ptcl_id;
       new_ptcl.unit = unit_beg + i;
