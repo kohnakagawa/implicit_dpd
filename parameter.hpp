@@ -125,7 +125,11 @@ public:
   static constexpr PS::U32 all_unit	= head_unit + tail_unit;
   static constexpr PS::F64 bond_leng	= 0.5;
   static constexpr PS::F64 ibond	= (bond_leng != 0.0) ? 1.0 / bond_leng : 0.0;
+#ifndef PARTICLE_SIMULATOR_MPI_PARALLEL
+  static constexpr PS::F64 search_rad   = 1.2;
+#else
   static constexpr PS::F64 search_rad   = 1.7;
+#endif
   static constexpr PS::F64 arc		= 0.9;
   static constexpr PS::F64 Reo		= 2.0;
   static constexpr PS::F64 rc           = 1.0;
