@@ -161,8 +161,6 @@ class ConfigMaker {
     
     const PS::F64 up_the = upper_the * M_PI / 180.0; //NOTE: the unit of upper_theta is not radian.
     
-    const PS::F64 up_the = upper_the * M_PI / 180.0; //NOTE: the unit of upper_theta is not radian.
-    
     const PS::F64 q_thick = 0.5 * Parameter::all_unit * Parameter::bond_leng;
     const PS::F64 out_rad = sph_rad + q_thick, in_rad  = sph_rad - q_thick;
     PS::F64 d_the_out = lip_len / out_rad, d_the_in = lip_len / in_rad;

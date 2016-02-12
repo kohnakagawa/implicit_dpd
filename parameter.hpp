@@ -190,7 +190,7 @@ public:
   template<bool ibond_is_finite>
   static inline PS::F64 cf_spring(const PS::F64 inv_dr) {
     static_assert((ibond_is_finite == true) or (ibond_is_finite == false), "bond_is_finte should be true or false");
-    return;
+    return 0.0;
   }
 
   void Initialize() {

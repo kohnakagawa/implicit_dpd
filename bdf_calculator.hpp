@@ -7,9 +7,6 @@
 PS::F64 Parameter::cf_s;
 PS::F64 Parameter::cf_b;
 
-PS::F64 Parameter::cf_s;
-PS::F64 Parameter::cf_b;
-
 template<class Tpsys>
 struct ForceBonded {
   PS::ReallocatableArray<PS::U32> glob_topol;
