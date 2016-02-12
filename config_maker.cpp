@@ -18,18 +18,18 @@ class ConfigMaker {
   std::string cdir, mode;
   std::ifstream fin;
   
-  PS::F64 Tempera	= std::numeric_limits<PS::F64>::quiet_NaN();
+  PS::F64 Tempera	= std::numeric_limits<PS::F64>::signaling_NaN();
   PS::F64vec box_leng;
   PS::U32 amp_num	= 0xffffffff;
-  PS::F64 lip_len	= std::numeric_limits<PS::F64>::quiet_NaN();
+  PS::F64 lip_len	= std::numeric_limits<PS::F64>::signaling_NaN();
   
-  PS::F64 sph_rad	= std::numeric_limits<PS::F64>::quiet_NaN();
-  PS::F64 upper_the     = std::numeric_limits<PS::F64>::quiet_NaN();
+  PS::F64 sph_rad	= std::numeric_limits<PS::F64>::signaling_NaN();
+  PS::F64 upper_the     = std::numeric_limits<PS::F64>::signaling_NaN();
   
-  PS::F64 cyl_l		= std::numeric_limits<PS::F64>::quiet_NaN();
-  PS::F64 cyl_r		= std::numeric_limits<PS::F64>::quiet_NaN();
+  PS::F64 cyl_l		= std::numeric_limits<PS::F64>::signaling_NaN();
+  PS::F64 cyl_r		= std::numeric_limits<PS::F64>::signaling_NaN();
 
-  PS::F64 in_out_rat    = std::numeric_limits<PS::F64>::quiet_NaN();
+  PS::F64 in_out_rat    = std::numeric_limits<PS::F64>::signaling_NaN();
   
   PS::F64 NormalRand(const PS::F64 mean, const PS::F64 sd) const {
     return mean + sd * std::sqrt( -2.0 * std::log(PS::MT::genrand_real3()) ) * std::cos(2.0 * M_PI * PS::MT::genrand_real3() );
@@ -152,7 +152,14 @@ class ConfigMaker {
 
   void MakeSphSheet() {
     const PS::F64 min_box_leng = box_leng.getMin();
-    assert(sph_rad >= 0.0 && sph_rad <= 0.5 * min_box_leng);
+    if (!(sph_rad >= 0.0 && sph_rad <= 0.5 * min_box_leng)) {
+      std::cerr << "sphere radius is too large.\n";
+      std::cerr << "sph_rad: " << sph_rad << "min_box_leng " << min_box_leng << std::endl;
+      std::exit(1);
+    }
+
+    
+    const PS::F64 up_the = upper_the * M_PI / 180.0; //NOTE: the unit of upper_theta is not radian.
     
     const PS::F64 up_the = upper_the * M_PI / 180.0; //NOTE: the unit of upper_theta is not radian.
     
@@ -277,8 +284,8 @@ class ConfigMaker {
   void InitializeParticle() {
     for(size_t i = 0; i < prtcls.size(); i++) {
       prtcls[i].id = prtcls[i].prop = prtcls[i].amp_id = prtcls[i].unit = 0xffffffff;
-      prtcls[i].pos.x = prtcls[i].pos.y = prtcls[i].pos.z = std::numeric_limits<PS::F64>::quiet_NaN();
-      prtcls[i].vel.x = prtcls[i].vel.y = prtcls[i].vel.z = std::numeric_limits<PS::F64>::quiet_NaN();
+      prtcls[i].pos.x = prtcls[i].pos.y = prtcls[i].pos.z = std::numeric_limits<PS::F64>::signaling_NaN();
+      prtcls[i].vel.x = prtcls[i].vel.y = prtcls[i].vel.z = std::numeric_limits<PS::F64>::signaling_NaN();
       prtcls[i].vel_buf.x = prtcls[i].vel_buf.y = prtcls[i].vel_buf.z = 0.0;
       prtcls[i].acc.x = prtcls[i].acc.y = prtcls[i].acc.z = 0.0;
     }
@@ -307,17 +314,33 @@ class ConfigMaker {
 
     const PS::U32 all_n = Parameter::all_unit * amp_num;
     for(size_t i = 0; i < prtcls.size(); i++) {
-      assert(prtcls[i].id >= 0 && prtcls[i].id < all_n);
-      assert(prtcls[i].prop >= 0 && prtcls[i].prop < Parameter::prop_num);
-      assert(prtcls[i].amp_id >= 0 && prtcls[i].amp_id < amp_num);
-      assert(prtcls[i].unit >= 0 && prtcls[i].unit < Parameter::all_unit);
+      if (!(prtcls[i].id >= 0 && prtcls[i].id < all_n)) {
+	std::cerr << "particle id is invalid.\n";
+	std::cerr << "id is " << prtcls[i].id << std::endl;
+	std::exit(1);
+      }
+      if (!(prtcls[i].prop >= 0 && prtcls[i].prop < Parameter::prop_num)) {
+	std::cerr << "particle prop is invalid.\n";
+	std::cerr << "prop is " << prtcls[i].prop << std::endl;
+	std::exit(1);
+      }
+      if (!(prtcls[i].amp_id >= 0 && prtcls[i].amp_id < amp_num)) {
+	std::cerr << "amp_id is invalid.\n";
+	std::cerr << "amp_id is " << prtcls[i].amp_id << std::endl;
+	std::exit(1);
+      }
+      if (!(prtcls[i].unit >= 0 && prtcls[i].unit < Parameter::all_unit)) {
+	std::cerr << "amphiphile unit is invalid\n";
+	std::cerr << "unit is " << prtcls[i].unit << std::endl;
+	std::exit(1);
+      }
     }
   }
   
 public:
   explicit ConfigMaker(const std::string& cdir_) {
     cdir = cdir_;
-    box_leng.x = box_leng.y = box_leng.z = std::numeric_limits<PS::F64>::quiet_NaN();
+    box_leng.x = box_leng.y = box_leng.z = std::numeric_limits<PS::F64>::signaling_NaN();
   }
   ~ConfigMaker() {}
   

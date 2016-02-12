@@ -21,13 +21,8 @@
 #include "observer.hpp"
 #include "driftkick.hpp"
 
-#ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
-#error "MPI is not supported yet!"
-
-#ifdef CALC_HEIGHT
+#if defined (PARTICLE_SIMULATOR_MPI_PARALLEL) && defined (CALC_HEIGHT)
 #error "MPI version of CALC_HEIGHT is not supported!"
-#endif
-
 #endif
 
 #ifdef CALC_HEIGHT
@@ -69,7 +64,7 @@ namespace {
     std::cout << d << "d " << h << "h " << m << "m " << s << "s\n";
   }
 
-  //helper functions for observer
+  // helper functions for observer
   inline void do_observe_macro(Observer<PS::ParticleSystem<FPDPD> >& observer,
 			       const PS::ParticleSystem<FPDPD>& system,
 			       const Parameter& param,
@@ -85,14 +80,12 @@ namespace {
 #ifdef CHEM_MODE
     observer.NumAmp(param.amp_num);
 #endif
-    //observer.ConfigTempera();
   }
-  
   inline void do_observe_micro(Observer<PS::ParticleSystem<FPDPD> >& observer,
 			       const PS::ParticleSystem<FPDPD>& system) {
     observer.Trajectory(system);
   }
-} //end of anonymous namespace
+} // end of anonymous namespace
 
 int main(int argc, char *argv[]) {
   timer_start();
@@ -109,31 +102,43 @@ int main(int argc, char *argv[]) {
     PS::Abort();
   }
 #endif
-  
+
+  // Initialize run input parameter
   const std::string cdir = argv[1];
   Parameter param(cdir);
   param.Initialize();
-  param.LoadParam();
-  param.CheckLoaded();
-
+  if (PS::Comm::getRank() == 0) param.LoadParam();
+  
+  // Read restart configuration
   PS::ParticleSystem<FPDPD> system;
   system.initialize();
-  system.setNumberOfParticleLocal(param.init_amp_num * Parameter::all_unit);
-  Parameter::time = param.LoadParticleConfig(system);
+  if (PS::Comm::getRank() == 0) {
+    system.setNumberOfParticleLocal(param.init_amp_num * Parameter::all_unit);
+    Parameter::time = param.LoadParticleConfig(system);
+  } else {
+    system.setNumberOfParticleLocal(0);
+  }
+  
+  // Share parameter data with other processes.
+  param.ShareDataWithOtherProc();
+  param.CheckLoaded();
   param.CheckParticleConfigIsValid(system);
 
-  //Initial step & construct classes.
-  drift_and_predict(system, param.dt, param.box_leng, param.ibox_leng);
-  
+  // Distribute particle data with other processes.
   PS::DomainInfo dinfo;
   const PS::F64 coef_ema = 0.3;
   dinfo.initialize(coef_ema);
   dinfo.setBoundaryCondition(PS::BOUNDARY_CONDITION_PERIODIC_XYZ);
   dinfo.setPosRootDomain(PS::F64vec(0.0, 0.0, 0.0), Parameter::box_leng);
-  dinfo.collectSampleParticle(system);
-  dinfo.decomposeDomain();
+  dinfo.decomposeDomainAll(system);
   system.exchangeParticle(dinfo);
 
+  // Initial step
+  drift_and_predict(system, param.dt, param.box_leng, param.ibox_leng);
+
+  dinfo.decomposeDomain();
+  system.exchangeParticle(dinfo);
+  
   PS::TreeForForceShort<RESULT::Density, EPI::Density, EPJ::Density>::Gather dens_tree;
   PS::TreeForForceShort<RESULT::ForceDPD, EPI::DPD, EPJ::DPD>::Gather force_tree;
   dens_tree.initialize(3 * system.getNumberOfParticleGlobal() );
@@ -159,10 +164,16 @@ int main(int argc, char *argv[]) {
   force_tree.calcForceAllAndWriteBack(CalcForceEpEpDPD(), system, dinfo);
 #endif
 
-  ForceBonded<PS::ParticleSystem<FPDPD> > fbonded(system, Parameter::all_unit * param.init_amp_num);
   PS::F64vec bonded_vir(0.0, 0.0, 0.0);
+#ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
+  const PS::U32 est_loc_amp = param.init_amp_num / PS::Comm::getNumberOfProc() + 100;
+  ForceBondedMPI<PS::ParticleSystem<FPDPD>, EPJ::DPD> fbonded(est_loc_amp);
+  fbonded.CalcListedForce(system, force_tree.epj_org(), bonded_vir);
+#else
+  ForceBonded<PS::ParticleSystem<FPDPD> > fbonded(system, Parameter::all_unit * param.init_amp_num);
   fbonded.CalcListedForce(system, bonded_vir);
-
+#endif
+  
   Observer<PS::ParticleSystem<FPDPD> > observer(cdir);
   observer.Initialize();
 
@@ -176,20 +187,29 @@ int main(int argc, char *argv[]) {
   do_observe_macro(observer, system, param, bonded_vir);
   do_observe_micro(observer, system);
 
+#ifdef CHEM_MODE
+  const PS::U32 seed = 123;
+  ChemManager<FPDPD> chemmanag(seed);
+  system.ExpandParticleBuffer(param.max_amp_num * Parameter::all_unit);
+  
+#ifndef PARTICLE_SIMULATOR_MPI_PARALLEL
+  fbonded.ExpandTopolBuffer(param.max_amp_num * Parameter::all_unit);
+#endif
+  
+#endif
+
   kick(system, param.dt);
   
   Parameter::time++;
-  //End of initial step.
+  // End of initial step.
   
-  //main loop
+  // main loop
   const PS::U32 atime = Parameter::time + Parameter::all_time - 1;
   for(; Parameter::time < atime; Parameter::time++) {
-#ifdef DEBUG    
-    std::cout << Parameter::time << std::endl;
-#endif
     drift_and_predict(system, param.dt, param.box_leng, param.ibox_leng);
     
-    dinfo.decomposeDomain();
+    if (Parameter::time % Parameter::decom_freq == 0) dinfo.decomposeDomainAll(system);
+
     system.exchangeParticle(dinfo);
 
 #ifdef ENABLE_GPU_CUDA
@@ -211,12 +231,23 @@ int main(int argc, char *argv[]) {
     force_tree.calcForceAllAndWriteBack(CalcForceEpEpDPD(), system, dinfo);
 #endif
 
+#ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
+    fbonded.CalcListedForce(system, force_tree.epj_org(), bonded_vir);
+#else
     fbonded.CalcListedForce(system, bonded_vir);
+#endif
     
     kick(system, param.dt);
 
 #ifdef CHEM_MODE
-    if(!chemmanag.RandomChemEvent(system, fbonded.glob_topol, param) ) break;
+#ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
+    if (!chemmanag.RandomChemEvent(system, force_tree.epj_org(),
+				   fbonded.loc_topol_cmpl(), fbonded.loc_topol_imcmpl(),
+				   fbonded.cmplt_amp(), fbonded.imcmplt_amp(),
+				   param)) break;
+#else
+    if (!chemmanag.RandomChemEvent(system, fbonded.glob_topol, param)) break;
+#endif
 #endif
 
     if(Parameter::time % Parameter::step_mac == 0)
@@ -224,17 +255,13 @@ int main(int argc, char *argv[]) {
 
     if(Parameter::time % Parameter::step_mic == 0)
       do_observe_micro(observer, system);
-
-#ifdef DEBUG
-    if(Parameter::time % Observer<PS::ParticleSystem<FPDPD> >::flush_freq == 0)
-      observer.FlushAll();
-#endif
-    
   }
-  //end of main loop
+  // end of main loop
   
   timer_stop();
-  show_duration();
+
+  if(PS::Comm::getRank() == 0)
+    show_duration();
 
   //print configuration for restart
   observer.FinConfig(system);
