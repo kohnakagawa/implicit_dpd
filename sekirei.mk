@@ -1,13 +1,13 @@
-CXX = g++
+# CXX = g++
 # CXX = icpc
-# CXX = mpicxx
+CXX = mpicxx
 
 ifeq ($(CXX),mpicxx)
 use_mpi = yes
 endif
 
-# use_omp = yes
-# use_gpu_cuda = yes
+use_omp = yes
+use_gpu_cuda = yes
 # gpu_profile = yes
 
 MPI = -DPARTICLE_SIMULATOR_MPI_PARALLEL
@@ -44,7 +44,7 @@ ifeq ($(CXX),g++)
 OPT_FLAGS = -ffast-math -funroll-loops
 endif
 ifeq ($(CXX),mpicxx)
-OPT_FLAGS = -ffast-math -funroll-loops
+OPT_FLAGS = -ipo -no-prec-div -xHOST
 endif
 
 OBJECTS_DPD = main.o
@@ -52,9 +52,9 @@ OBJECTS_CMAKE = config_maker.o
 
 ifeq ($(use_gpu_cuda),yes)
 COMMON_FLAGS += -DENABLE_GPU_CUDA
-CUDA_HOME = /usr/local/cuda
+CUDA_HOME = /home/app/cuda/cuda-7.0
 NVCC = $(CUDA_HOME)/bin/nvcc
-NVCCFLAGS = $(COMMON_FLAGS) -arch=sm_35 -Xcompiler "$(COMMON_FLAGS) $(WARNINGS) $(OPT_FLAGS)" $(CUDA_DEBUG)
+NVCCFLAGS = $(COMMON_FLAGS) -ccbin=g++ -arch=sm_35 -Xcompiler "$(COMMON_FLAGS) $(WARNINGS) -ffast-math -funroll-loops" $(CUDA_DEBUG)
 
 ifeq ($(gpu_profile),yes)
 NVCCFLAGS += -lineinfo -Xptxas -v

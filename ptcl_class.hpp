@@ -113,13 +113,15 @@ namespace EPI {
 
 namespace EPJ {
   struct DPD {
-    PS::U32 id, prop;
+    PS::U32 id, prop, amp_id, unit;
     PS::F64vec pos, vel;
     std::array<PS::F64, Parameter::prop_num> dens;
     
     void copyFromFP(const FPDPD& fp) {
       this->id			= fp.id;
       this->prop		= fp.prop;
+      this->amp_id		= fp.amp_id;
+      this->unit		= fp.unit;
       this->pos			= fp.pos;
       this->vel			= fp.vel;
       this->dens = fp.density;

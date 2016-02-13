@@ -125,12 +125,17 @@ public:
   static constexpr PS::U32 all_unit	= head_unit + tail_unit;
   static constexpr PS::F64 bond_leng	= 0.5;
   static constexpr PS::F64 ibond	= (bond_leng != 0.0) ? 1.0 / bond_leng : 0.0;
+#ifndef PARTICLE_SIMULATOR_MPI_PARALLEL
   static constexpr PS::F64 search_rad   = 1.2;
+#else
+  static constexpr PS::F64 search_rad   = 1.7;
+#endif
   static constexpr PS::F64 arc		= 0.9;
   static constexpr PS::F64 Reo		= 2.0;
   static constexpr PS::F64 rc           = 1.0;
   static constexpr PS::F64 rc2          = rc * rc;
   static constexpr PS::F64 irc          = 1.0 / rc;
+  static constexpr PS::U32 decom_freq   = 16;
 
   static constexpr char atom_type[21] = {
     'O', 'N', 'C', 'S', 'P', 'Z', 'X', 'O', 'N', 'C', 'S', 'P', 'Z', 'X', 'O', 'N', 'C', 'S', 'P', 'Z', 'X'
@@ -154,19 +159,19 @@ public:
   //region info
   static PS::F64vec box_leng, ibox_leng;
   
-  PS::S32 init_amp_num = -1, amp_num = -1;
-  PS::F64 dt = std::numeric_limits<PS::F64>::quiet_NaN();
+  PS::U32 init_amp_num = 0xffffffff, amp_num = 0xffffffff;
+  PS::F64 dt = std::numeric_limits<PS::F64>::signaling_NaN();
 
   //macroscopic val
-  PS::F64 chi = std::numeric_limits<PS::F64>::quiet_NaN();
-  PS::F64 kappa = std::numeric_limits<PS::F64>::quiet_NaN();
-  PS::F64 rho_co = std::numeric_limits<PS::F64>::quiet_NaN();
+  PS::F64 chi = std::numeric_limits<PS::F64>::signaling_NaN();
+  PS::F64 kappa = std::numeric_limits<PS::F64>::signaling_NaN();
+  PS::F64 rho_co = std::numeric_limits<PS::F64>::signaling_NaN();
 
 #ifdef CHEM_MODE
   //for chemical reaction
-  PS::F64 p_thresld = std::numeric_limits<PS::F64>::quiet_NaN();
-  PS::F64 eps = std::numeric_limits<PS::F64>::quiet_NaN();
-  PS::S32 max_amp_num = -1; //When amp_num >= max_amp_num, we stop the simulation.
+  PS::F64 p_thresld   = std::numeric_limits<PS::F64>::signaling_NaN();
+  PS::F64 eps         = std::numeric_limits<PS::F64>::signaling_NaN();
+  PS::U32 max_amp_num = 0xffffffff; //When amp_num >= max_amp_num, we stop the simulation.
 #endif
   
   //for prng
@@ -182,27 +187,27 @@ public:
   template<bool ibond_is_finite>
   static inline PS::F64 cf_spring(const PS::F64 inv_dr) {
     static_assert((ibond_is_finite == true) or (ibond_is_finite == false), "bond_is_finte should be true or false");
-    return;
+    return 0.0;
   }
 
   void Initialize() {
     for(PS::S32 i = 0; i < prop_num; i++) {
       for(PS::S32 j = 0; j < prop_num; j++) {
-	cf_c[i][j] = std::numeric_limits<PS::F64>::quiet_NaN();
-	cf_g[i][j] = std::numeric_limits<PS::F64>::quiet_NaN();
-	cf_r[i][j] = std::numeric_limits<PS::F64>::quiet_NaN();
+	cf_c[i][j] = std::numeric_limits<PS::F64>::signaling_NaN();
+	cf_g[i][j] = std::numeric_limits<PS::F64>::signaling_NaN();
+	cf_r[i][j] = std::numeric_limits<PS::F64>::signaling_NaN();
       }
     }
 
     for(PS::S32 i = 0; i < prop_num; i++)
       for(PS::S32 j = 0; j < prop_num; j++)
 	for(PS::S32 k = 0; k < prop_num; k++)
-	  cf_m[i][j][k] = std::numeric_limits<PS::F64>::quiet_NaN();
+	  cf_m[i][j][k] = std::numeric_limits<PS::F64>::signaling_NaN();
 
-    cf_s = cf_b = std::numeric_limits<PS::F64>::quiet_NaN();
+    cf_s = cf_b = std::numeric_limits<PS::F64>::signaling_NaN();
 
-    box_leng.x	= box_leng.y = box_leng.z = std::numeric_limits<PS::F64>::quiet_NaN();
-    ibox_leng.x = ibox_leng.y = ibox_leng.z = std::numeric_limits<PS::F64>::quiet_NaN();
+    box_leng.x	= box_leng.y = box_leng.z = std::numeric_limits<PS::F64>::signaling_NaN();
+    ibox_leng.x = ibox_leng.y = ibox_leng.z = std::numeric_limits<PS::F64>::signaling_NaN();
     
     time = 0xffffffff;
     all_time = step_mic = step_mac = 0xffffffff;
@@ -331,9 +336,9 @@ public:
 
   template<class Tpsys>
   void CheckParticleConfigIsValid(const Tpsys& sys) const {
-    const PS::S32 num = sys.getNumberOfParticleLocal();
+    const PS::U32 num = sys.getNumberOfParticleLocal();
     PS::F64 kin_temp = 0.0;
-    for(PS::S32 i = 0; i < num; i++) {
+    for(PS::U32 i = 0; i < num; i++) {
       kin_temp += sys[i].vel * sys[i].vel;
       
       assert(sys[i].id >= 0 && sys[i].id < num);
@@ -341,7 +346,7 @@ public:
       assert(sys[i].amp_id >= 0 && sys[i].amp_id < init_amp_num);
       assert(sys[i].unit >= 0 && sys[i].unit < all_unit);
       
-      for(PS::S32 j = 0; j < 3; j++) {
+      for(PS::U32 j = 0; j < 3; j++) {
 	if(!(sys[i].pos[j] <= box_leng[j] && sys[i].pos[j] >= 0.0)) {
 	  std::cerr << "There is a particle in outside range.\n";
 	  std::cerr << __FILE__ << " " << __LINE__ << std::endl;
@@ -376,10 +381,6 @@ public:
     assert(std::isfinite(cf_s));
     assert(std::isfinite(cf_b));
 
-    assert(std::isfinite(rc));
-    assert(std::isfinite(rc2));
-    assert(std::isfinite(irc));
-
     assert(std::isfinite(box_leng.x) );
     assert(std::isfinite(box_leng.y) );
     assert(std::isfinite(box_leng.z) );
@@ -389,28 +390,34 @@ public:
     assert(std::isfinite(ibox_leng.z) );
 
     assert(init_amp_num > 0);
+    assert(amp_num > 0);
 
     assert(std::isfinite(dt) );
     
     assert(std::isfinite(chi) );
     assert(std::isfinite(kappa));
     assert(std::isfinite(rho_co));
-
+    
 #ifdef CHEM_MODE
     assert(std::isfinite(p_thresld));
     assert(p_thresld <= 1.0 && p_thresld >= 0.0);
-
     assert(std::isfinite(eps));
     assert(max_amp_num >= init_amp_num);
+    assert(max_amp_num * Parameter::all_unit < std::numeric_limits<PS::U32>::max() );
+    assert(max_amp_num != 0xffffffff);
 #endif
+
+    assert(time != 0xffffffff);
+    assert(all_time != 0xffffffff);
+    assert(step_mic != 0xffffffff);
+    assert(step_mac != 0xffffffff);
   }
 
-  void DumpAllParam() const {
-    const std::string fname = cdir + "/all_param.txt";
-    std::ofstream fout(fname.c_str());
-    
-#define DUMPTAGANDVAL(val) fout << #val << " = " << val << std::endl
+  void DumpAllParam(std::ostream& ost) const {
+#define DUMPTAGANDVAL(val) ost << #val << " = " << val << std::endl
 
+    DUMPTAGANDVAL(cdir);
+    
     DUMPTAGANDVAL(Tempera);
     DUMPTAGANDVAL(head_unit);
     DUMPTAGANDVAL(tail_unit);
@@ -435,32 +442,33 @@ public:
     DUMPTAGANDVAL(ibox_leng.z);
 
     DUMPTAGANDVAL(init_amp_num);
+    DUMPTAGANDVAL(amp_num);
     DUMPTAGANDVAL(dt);
 
     DUMPTAGANDVAL(chi);
     DUMPTAGANDVAL(kappa);
     DUMPTAGANDVAL(rho_co);
 
-    fout << "NOTE:\n";
-    fout << "cf_r are multiplied by 1 / sqrt(dt).\n";
+    ost << "NOTE:\n";
+    ost << "cf_r are multiplied by 1 / sqrt(dt).\n";
       
-#define DUMPINTRPARAM(val) fout << #val << ":\n";		\
+#define DUMPINTRPARAM(val) ost << #val << ":\n";		\
     for(PS::S32 i = 0; i < prop_num; i++) {			\
       for(PS::S32 j = 0; j < prop_num; j++)			\
-	fout << val[i][j] << " ";				\
-      fout << std::endl;					\
+	ost << val[i][j] << " ";				\
+      ost << std::endl;					\
     } 
 
     DUMPINTRPARAM(cf_c);
     DUMPINTRPARAM(cf_r);
     DUMPINTRPARAM(cf_g);
     
-    fout << "cf_m:\n";
+    ost << "cf_m:\n";
     for(PS::S32 i = 0; i < prop_num; i++)
       for(PS::S32 j = 0; j < prop_num; j++)
 	for(PS::S32 k = 0; k < prop_num; k++)
-	  fout << cf_m[i][j][k] << " ";
-    fout << std::endl;
+	  ost << cf_m[i][j][k] << " ";
+    ost << std::endl;
 
     DUMPTAGANDVAL(cf_s);
     DUMPTAGANDVAL(cf_b);
@@ -469,9 +477,64 @@ public:
 #undef DUMPINTRPARAM
   }
 
-};
+  void DumpAllParam() const {
+#ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
+    if(PS::Comm::getRank() == 0) {
+#endif
+      const std::string fname = cdir + "/all_param.txt";
+      std::ofstream fout(fname.c_str());
+      DumpAllParam(fout);
+#ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
+    }
+#endif
+  }
 
-//constexpr char Parameter::atom_type[21];
+  //for share data
+  void ShareDataWithOtherProc() {
+    const PS::S32 num_two_body = Parameter::prop_num * Parameter::prop_num;
+    const PS::S32 num_thre_body = Parameter::prop_num * Parameter::prop_num * Parameter::prop_num;
+    
+    // static member
+    PS::Comm::broadcast(&(cf_c[0][0]), num_two_body, 0);
+    PS::Comm::broadcast(&(cf_g[0][0]), num_two_body, 0);
+    PS::Comm::broadcast(&(cf_r[0][0]), num_two_body, 0);
+    PS::Comm::broadcast(&(cf_m[0][0][0]), num_thre_body, 0);
+    PS::Comm::broadcast(&cf_s, Parameter::prop_num, 0);
+    PS::Comm::broadcast(&cf_b, Parameter::prop_num, 0);
+    
+    PS::Comm::broadcast(&box_leng, 1, 0);
+    PS::Comm::broadcast(&ibox_leng, 1, 0);
+    
+    PS::Comm::broadcast(&time, 1, 0);
+    PS::Comm::broadcast(&all_time, 1, 0);
+    PS::Comm::broadcast(&step_mic, 1, 0);
+    PS::Comm::broadcast(&step_mac, 1, 0);
+    
+    // non static member
+    PS::Comm::broadcast(&init_amp_num, 1, 0);
+    PS::Comm::broadcast(&amp_num, 1, 0);
+    PS::Comm::broadcast(&dt, 1, 0);
+    PS::Comm::broadcast(&chi, 1, 0);
+    PS::Comm::broadcast(&kappa, 1, 0);
+    PS::Comm::broadcast(&rho_co, 1, 0);
+
+#ifdef CHEM_MODE
+    PS::Comm::broadcast(&p_thresld, 1, 0);
+    PS::Comm::broadcast(&eps, 1, 0);
+    PS::Comm::broadcast(&max_amp_num, 1, 0);
+#endif
+  }
+  
+  //for debug
+  void DebugDumpAllParam() const {
+    std::stringstream ss;
+    const PS::S32 rank = PS::Comm::getRank();
+    ss << cdir << "/debug_dump_rank" << rank << ".txt";
+
+    std::ofstream fout(ss.str().c_str());
+    DumpAllParam(fout);
+  }
+};
 
 template<>
 inline PS::F64 Parameter::cf_spring<true>(const PS::F64 inv_dr) {

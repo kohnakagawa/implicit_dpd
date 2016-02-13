@@ -76,10 +76,7 @@ struct cuda2D_ptr {
   cudaArray *dev_ptr = nullptr;
   cudaChannelFormatDesc cdesc;
   
-  cuda2D_ptr(cudaChannelFormatDesc cdesc_) {
-    cdesc = cdesc_;
-    allocate();
-  }
+  cuda2D_ptr() {}
   ~cuda2D_ptr() {}
   
   template<typename U>
@@ -96,9 +93,9 @@ struct cuda2D_ptr {
   void deallocate() {
     checkCudaErrors(cudaFreeArray(dev_ptr) );
   }
-  
-private:
-  void allocate() {
+
+  void allocate(cudaChannelFormatDesc cdesc_) {
+    cdesc = cdesc_;
     checkCudaErrors(cudaMallocArray(&dev_ptr, &cdesc, Ny, Nx) );
   }
 };
@@ -111,10 +108,7 @@ struct cuda3D_ptr {
   cudaChannelFormatDesc cdesc;
   cudaExtent ext = {Nz, Ny, Nx};
   
-  cuda3D_ptr(cudaChannelFormatDesc cdesc_) {
-    cdesc = cdesc_;
-    allocate();
-  }
+  cuda3D_ptr() {}
   ~cuda3D_ptr() {}
 
   template<typename U>
@@ -137,9 +131,9 @@ struct cuda3D_ptr {
   void deallocate() {
     checkCudaErrors(cudaFreeArray(dev_ptr) );
   }
-  
-private:
-  void allocate() {
+
+  void allocate(cudaChannelFormatDesc cdesc_) {
+    cdesc = cdesc_;
     checkCudaErrors(cudaMalloc3DArray(&dev_ptr, &cdesc, ext) );
   }
 };
