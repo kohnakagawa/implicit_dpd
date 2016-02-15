@@ -313,14 +313,8 @@ public:
     for(PS::S32 i = 0; i < num; i++)
       cmvel += sys[i].vel;
     cmvel /= num;
-#ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
-    PS::F64vec cmvel_sum = PS::Comm::getSum(cmvel);
-    cmvel_sum /= PS::Comm::getNumberOfProc();
-#else
-    const PS::F64vec cmvel_sum = cmvel;
-#endif
     for(PS::S32 i = 0; i < num; i++)
-      sys[i].vel -= cmvel_sum;
+      sys[i].vel -= cmvel;
   }
   
   template<class Tpsys>
