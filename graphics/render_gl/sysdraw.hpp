@@ -28,10 +28,18 @@ class DrawSys {
     int prop;
     
     void readFromXYZForm(std::ifstream& fin) {
+#if 0
       std::string line;
       std::getline(fin, line);
+      fin >> line;
       std::vector<std::string> v;
       boost::algorithm::split(v, line, boost::algorithm::is_space());
+#else
+      std::vector<std::string> v(17);
+      for (int i = 0; i < 17; i++)
+	fin >> v[i];
+#endif
+      
       r[0] = std::stof(v[1]);
       r[1] = std::stof(v[2]);
       r[2] = std::stof(v[3]);
@@ -52,7 +60,7 @@ class DrawSys {
   
   std::string cur_dir;
   
-  float scL = 0.0, invL = 0.0, prad = 0.0, invhL = 0.0, box_size[3] = {0.0, 0.0, 0.0}, inv_box_size[3] = {0.0, 0.0, 0.0};
+  float prad = 0.01, box_size[3] = {0.0, 0.0, 0.0}, inv_box_size[3] = {0.0, 0.0, 0.0}, invL = 0.0;
   float *p_fovy = nullptr, *p_perscenter = nullptr, *p_center2eye = nullptr, *p_base_z = nullptr;
   
   void *font = GLUT_BITMAP_TIMES_ROMAN_24;

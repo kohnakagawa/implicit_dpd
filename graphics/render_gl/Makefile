@@ -1,6 +1,7 @@
 CXX = g++
 
 CFLAGS = -std=c++11 -O3 -ffast-math -funroll-loops
+# CFLAGS = -std=c++11 -O0 -g
 
 OBJECTS = sysdraw.o mousehandle.o jpegout.o main.o
 TARGET = cDraw

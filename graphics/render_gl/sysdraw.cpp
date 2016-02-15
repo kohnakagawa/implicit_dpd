@@ -132,6 +132,8 @@ void DrawSys::FileOpen() {
 }
 
 void DrawSys::LoadParticleDat() {
+  static bool is_first_call = true;
+  
   // xyz format
   fin >> pN;
   std::string comment;
@@ -146,16 +148,22 @@ void DrawSys::LoadParticleDat() {
     std::cerr << "XYZ format may be old.\n";
     std::exit(1);
   }
-  
+
   Particle.resize(pN);
   for (int i = 0; i < pN; i++) {
     Particle[i].readFromXYZForm(fin);
     
-    if(box_size[0] < Particle[i].r[0]) box_size[0] = Particle[i].r[0];
-    if(box_size[1] < Particle[i].r[1]) box_size[1] = Particle[i].r[1];
-    if(box_size[2] < Particle[i].r[2]) box_size[2] = Particle[i].r[2];
+    if (box_size[0] < Particle[i].r[0]) box_size[0] = Particle[i].r[0];
+    if (box_size[1] < Particle[i].r[1]) box_size[1] = Particle[i].r[1];
+    if (box_size[2] < Particle[i].r[2]) box_size[2] = Particle[i].r[2];
   }
 
+  if (is_first_call) {
+    const auto min_len = *std::min_element(box_size, box_size + 3);
+    invL = 1.0 / min_len;
+    is_first_call = false;
+  }
+  
   box_size[0] *= invL; box_size[1] *= invL; box_size[2] *= invL;
   inv_box_size[0] = 1.0 / box_size[0]; inv_box_size[1] = 1.0 / box_size[1]; inv_box_size[2] = 1.0 / box_size[2];
   
@@ -168,7 +176,6 @@ void DrawSys::LoadParticleDat() {
     Particle[i].r[1] -= box_size[1] * 0.5;
     Particle[i].r[2] -= box_size[2] * 0.5;    
   }
-  
 }
 
 void DrawSys::Drawxyz() {
@@ -426,7 +433,7 @@ void AnimeDraw::Display() {
     
   if (swt_but) LoadParticleDat();
   
-  for (int i=0; i<pN; i++)
+  for (int i = 0; i < pN; i++)
     if (IsDrawnObject(Particle[i])) RenderSphere(Particle[i]);
   
   ChangeCrossSection();
@@ -434,7 +441,7 @@ void AnimeDraw::Display() {
   //Drawxyz();
 
   const float col[3][3] = {{0.0, 1.0, 0.0}, {0.0, 0.0, 1.0}, {1.0, 0.0, 0.0}};
-  //DrawAxis(0.02, 0.3, col);
+  // DrawAxis(0.02, 0.3, col);
   RenderCurTime();
   Dump2Jpg();
   glutSwapBuffers();
