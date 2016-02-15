@@ -237,14 +237,16 @@ int main(int argc, char *argv[]) {
     kick(system, param.dt);
 
 #ifdef CHEM_MODE
+    if (Parameter::time >= beg_chem) {
 #ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
-    if (!chemmanag.RandomChemEvent(system, force_tree.epj_org(),
-				   fbonded.loc_topol_cmpl(), fbonded.loc_topol_imcmpl(),
-				   fbonded.cmplt_amp(), fbonded.imcmplt_amp(),
-				   param)) break;
+      if (!chemmanag.RandomChemEvent(system, force_tree.epj_org(),
+				     fbonded.loc_topol_cmpl(), fbonded.loc_topol_imcmpl(),
+				     fbonded.cmplt_amp(), fbonded.imcmplt_amp(),
+				     param)) break;
 #else
-    if (!chemmanag.RandomChemEvent(system, fbonded.glob_topol, param)) break;
+      if (!chemmanag.RandomChemEvent(system, fbonded.glob_topol, param)) break;
 #endif
+    }
 #endif
 
     if(Parameter::time % Parameter::step_mac == 0)

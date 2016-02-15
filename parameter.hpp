@@ -172,6 +172,7 @@ public:
   PS::F64 p_thresld   = std::numeric_limits<PS::F64>::signaling_NaN();
   PS::F64 eps         = std::numeric_limits<PS::F64>::signaling_NaN();
   PS::U32 max_amp_num = 0xffffffff; //When amp_num >= max_amp_num, we stop the simulation.
+  static constexpr PS::U32 beg_chem = 100000;
 #endif
   
   //for prng
@@ -312,8 +313,14 @@ public:
     for(PS::S32 i = 0; i < num; i++)
       cmvel += sys[i].vel;
     cmvel /= num;
+#ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
+    PS::F64vec cmvel_sum = PS::Comm::getSum(cmvel);
+    cmvel_sum /= PS::Comm::getNumberOfProc();
+#else
+    const PS::F64vec cmvel_sum = cmvel;
+#endif
     for(PS::S32 i = 0; i < num; i++)
-      sys[i].vel -= cmvel;
+      sys[i].vel -= cmvel_sum;
   }
   
   template<class Tpsys>
