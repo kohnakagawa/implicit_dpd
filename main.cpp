@@ -237,7 +237,7 @@ int main(int argc, char *argv[]) {
     kick(system, param.dt);
 
 #ifdef CHEM_MODE
-    if (Parameter::time >= beg_chem) {
+    if (Parameter::time >= Parameter::beg_chem) {
 #ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
       if (!chemmanag.RandomChemEvent(system, force_tree.epj_org(),
 				     fbonded.loc_topol_cmpl(), fbonded.loc_topol_imcmpl(),
