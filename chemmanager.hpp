@@ -5,11 +5,19 @@ class ChemManager {
   PS::ReallocatableArray<PS::U32> target_id;
 
   static inline void Normalize(PS::F64vec& vec) {
-    vec / std::sqrt(vec * vec);
+    vec /= std::sqrt(vec * vec);
+  }
+
+  static inline PS::F64vec CrossVec(const PS::F64vec& a0, const PS::F64vec a1) {
+    PS::F64vec v(a0.y * a1.z - a0.z * a1.y,
+		 a0.z * a1.x - a0.x * a1.z,
+		 a0.x * a1.y - a0.y * a1.x);
+    Normalize(v);
+    return v;
   }
 
   static inline PS::F64 GenThermalVeloc() {
-    return std::sqrt(-2.0 * Parameter::Tempera * std::log(PS::MT::genrand_real3() ) ) * std::cos(2.0 * M_PI * PS::MT::genrand_real3() );
+    return std::sqrt(-2.0 * Parameter::Tempera * std::log(PS::MT::genrand_real3())) * std::cos(2.0 * M_PI * PS::MT::genrand_real3());
   }
 
   static inline void ApplyPBC(PS::F64vec& pos) {
@@ -155,11 +163,16 @@ public:
     for (PS::U32 i = 0; i < incr_num; i++) {
       PS::F64vec h2e = epj_org[target_id[2 * i]].pos - epj_org[target_id[2 * i + 1]].pos;
       ForceBonded<PS::ParticleSystem<FP> >::MinImage(h2e);
-      PS::F64vec tang_vec(PS::MT::genrand_real1(), PS::MT::genrand_real1(), 0.0);
-      tang_vec.z = -(h2e.x * tang_vec.x + h2e.y * tang_vec.y) / h2e.z;
-      Normalize(tang_vec);
       Normalize(h2e);
-      tang_vec *= param.eps;
+      
+      PS::F64vec base_vec0(PS::MT::genrand_real1(), PS::MT::genrand_real1(), 0.0);
+      base_vec0.z = -(h2e.x * base_vec0.x + h2e.y * base_vec0.y) / h2e.z;
+      Normalize(base_vec0);
+      const PS::F64vec base_vec1 = CrossVec(base_vec0, h2e);
+      
+      const PS::F64 theta = 2.0 * M_PI * PS::MT::genrand_real1();
+      tang_vec = (base_vec0 * std::cos(theta) + base_vec1 * std::sin(theta)) * param.eps;
+      
       h2e *= Parameter::bond_leng;
 
       const PS::F64vec copied_pos = tang_vec + epj_org[target_id[2 * i]].pos;
@@ -205,11 +218,16 @@ public:
 	const PS::U32 tail_id = glob_topol[Parameter::all_unit * i + 2];
 	PS::F64vec h2e = sys[tail_id].pos - sys[head_id].pos;
 	ForceBonded<PS::ParticleSystem<FP> >::MinImage(h2e);
-	PS::F64vec tang_vec(PS::MT::genrand_real1(), PS::MT::genrand_real1(), 0.0);
-	tang_vec.z = -(h2e.x * tang_vec.x + h2e.y * tang_vec.y) / h2e.z;
-	Normalize(tang_vec);
 	Normalize(h2e);
-	tang_vec *= param.eps;
+	
+	PS::F64vec base_vec0(PS::MT::genrand_real1(), PS::MT::genrand_real1(), 0.0);
+	base_vec0.z = -(h2e.x * base_vec0.x + h2e.y * base_vec0.y) / h2e.z;
+	Normalize(base_vec0);
+	const PS::F64vec base_vec1 = CrossVec(base_vec0, h2e);
+      
+	const PS::F64 theta = 2.0 * M_PI * PS::MT::genrand_real1();
+	tang_vec = (base_vec0 * std::cos(theta) + base_vec1 * std::sin(theta)) * param.eps;
+	
 	h2e *= Parameter::bond_leng;
 	
 	const PS::F64vec copied_pos = tang_vec + sys[head_id].pos;
