@@ -171,7 +171,7 @@ public:
       const PS::F64vec base_vec1 = CrossVec(base_vec0, h2e);
       
       const PS::F64 theta = 2.0 * M_PI * PS::MT::genrand_real1();
-      tang_vec = (base_vec0 * std::cos(theta) + base_vec1 * std::sin(theta)) * param.eps;
+      const PS::F64vec tang_vec = (base_vec0 * std::cos(theta) + base_vec1 * std::sin(theta)) * param.eps;
       
       h2e *= Parameter::bond_leng;
 
@@ -226,7 +226,7 @@ public:
 	const PS::F64vec base_vec1 = CrossVec(base_vec0, h2e);
       
 	const PS::F64 theta = 2.0 * M_PI * PS::MT::genrand_real1();
-	tang_vec = (base_vec0 * std::cos(theta) + base_vec1 * std::sin(theta)) * param.eps;
+	const PS::F64vec tang_vec = (base_vec0 * std::cos(theta) + base_vec1 * std::sin(theta)) * param.eps;
 	
 	h2e *= Parameter::bond_leng;
 	
