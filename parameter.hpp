@@ -63,6 +63,8 @@ class Parameter {
     Matching(&p_thresld, std::string("p_thresld"), tag_val, 1);
     Matching(&eps, std::string("eps"), tag_val, 1);
     Matching(&max_amp_num, std::string("max_amp_num"), tag_val, 1);
+    Matching(&core_ptcl_id, std::string("core_ptcl_id"), tag_val, 1);
+    Matching(&influ_rad, std::string("influ_rad"), tag_val, 1);
 #endif
   }
 
@@ -172,6 +174,8 @@ public:
   PS::F64 p_thresld   = std::numeric_limits<PS::F64>::signaling_NaN();
   PS::F64 eps         = std::numeric_limits<PS::F64>::signaling_NaN();
   PS::U32 max_amp_num = 0xffffffff; //When amp_num >= max_amp_num, we stop the simulation.
+  PS::U32 core_ptcl_id = 0xffffffff;
+  PS::F64 influ_rad   = std::numeric_limits<PS::F64>::signaling_NaN();
   static constexpr PS::U32 beg_chem = 100000;
 #endif
   
@@ -406,6 +410,9 @@ public:
     assert(max_amp_num >= init_amp_num);
     assert(max_amp_num * Parameter::all_unit < std::numeric_limits<PS::U32>::max() );
     assert(max_amp_num != 0xffffffff);
+    assert(core_ptcl_id != 0xffffffff);
+    assert(core_ptcl_id >= 0 && core_ptcl_id < all_unit * init_amp_num);
+    assert(std::isfinite(influ_rad));
 #endif
 
     assert(time != 0xffffffff);
@@ -449,6 +456,15 @@ public:
     DUMPTAGANDVAL(chi);
     DUMPTAGANDVAL(kappa);
     DUMPTAGANDVAL(rho_co);
+
+#ifdef CHEM_MODE
+    DUMPTAGANDVAL(p_thresld);
+    DUMPTAGANDVAL(eps);
+    DUMPTAGANDVAL(max_amp_num);
+    DUMPTAGANDVAL(core_ptcl_id);
+    DUMPTAGANDVAL(beg_chem);
+    DUMPTAGANDVAL(influ_rad);
+#endif
 
     ost << "NOTE:\n";
     ost << "cf_r are multiplied by 1 / sqrt(dt).\n";
@@ -523,6 +539,7 @@ public:
     PS::Comm::broadcast(&p_thresld, 1, 0);
     PS::Comm::broadcast(&eps, 1, 0);
     PS::Comm::broadcast(&max_amp_num, 1, 0);
+    PS::Comm::broadcast(&core_ptcl_id, 1, 0);
 #endif
   }
   
