@@ -540,6 +540,7 @@ public:
     PS::Comm::broadcast(&eps, 1, 0);
     PS::Comm::broadcast(&max_amp_num, 1, 0);
     PS::Comm::broadcast(&core_ptcl_id, 1, 0);
+    PS::Comm::broadcast(&influ_rad, 1, 0);
 #endif
   }
   
