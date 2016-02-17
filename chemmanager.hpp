@@ -161,7 +161,7 @@ public:
     offset += param.amp_num; // add global offset
     
     for (PS::U32 i = 0; i < incr_num; i++) {
-      PS::F64vec h2e = epj_org[target_id[2 * i]].pos - epj_org[target_id[2 * i + 1]].pos;
+      PS::F64vec h2e = epj_org[target_id[2 * i + 1]].pos - epj_org[target_id[2 * i]].pos;
       ForceBonded<PS::ParticleSystem<FP> >::MinImage(h2e);
       Normalize(h2e);
       

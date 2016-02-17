@@ -4,7 +4,6 @@
 #define CHEM_MODE   // chem mode on or off
 // #define PAIRWISE_DPD
 
-
 #ifdef CHEM_MODE
 #define LOCAL_CHEM_EVENT
 #endif
