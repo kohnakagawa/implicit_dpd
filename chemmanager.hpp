@@ -107,7 +107,7 @@ class ChemManager {
 	PS::F64vec core2ptcl = sys[head_id].pos - core_pos;
 	ForceBonded<PS::ParticleSystem<FP> >::MinImage(core2ptcl);
 	const PS::F64 dist = core2ptcl * core2ptcl;
-	if (dist < influ_rad2) rnd = 2.0;
+	if (dist >= influ_rad2) rnd = 2.0;
 	
 	if (rnd <= param.p_thresld) {
 	  const PS::U32 tail_id = topol[Parameter::all_unit * i + 2];
@@ -198,7 +198,7 @@ public:
       PS::F64vec core2ptcl = sys[glob_topol[Parameter::all_unit * i]].pos - core_pos;
       ForceBonded<PS::ParticleSystem<FP> >::MinImage(core2ptcl);
       const PS::F64 dist = core2ptcl * core2ptcl;
-      if (dist < influ_rad2) rnd = 2.0;
+      if (dist >= influ_rad2) rnd = 2.0;
 #endif
       if (rnd <= param.p_thresld) {
 	const PS::U32 head_id = glob_topol[Parameter::all_unit * i    ];
