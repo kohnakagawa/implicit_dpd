@@ -196,8 +196,8 @@ public:
 	if(i != n_id) l_id[cnt++] = i;
       }
       
-      box_dim[0] = static_cast<PS::U32>(box_leng[l_id[0]] / (2.0 * Parameter::Reo * 1.5)); //NOTE: len_c ~ 1.5 * bilayer thickness
-      box_dim[1] = static_cast<PS::U32>(box_leng[l_id[1]] / (2.0 * Parameter::Reo * 1.5));
+      box_dim[0] = static_cast<PS::U32>(box_leng[l_id[0]] / Parameter::Reo);
+      box_dim[1] = static_cast<PS::U32>(box_leng[l_id[1]] / Parameter::Reo);
       
       num_in_bin.resize(box_dim[0] * box_dim[1], 0);
       height.resize(box_dim[0] * box_dim[1], 0.0);
