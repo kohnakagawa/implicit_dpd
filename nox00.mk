@@ -4,7 +4,7 @@ MPICXX = mpicxx
 MPI = -DPARTICLE_SIMULATOR_MPI_PARALLEL
 OPENMP = -DPARTICLE_SIMULATOR_THREAD_PARALLEL -openmp
 
-WARNINGS = -Wall -Wunused-variable #-Wnon-virtual-dtor -Woverloaded-virtual
+WARNINGS = -Wall -Wunused-variable -Wsign-compare #-Wnon-virtual-dtor -Woverloaded-virtual
 DEBUG = -O0 -g -DDEBUG
 RELEASE = -O3
 

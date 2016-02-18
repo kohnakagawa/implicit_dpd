@@ -239,9 +239,9 @@ public:
     }
     
     //write height
-    PS::S32 cnt = 0;
-    for(PS::S32 iy = 0; iy < box_dim[1]; iy++) {
-      for(PS::S32 ix = 0; ix < box_dim[0]; ix++) {
+    PS::U32 cnt = 0;
+    for(PS::U32 iy = 0; iy < box_dim[1]; iy++) {
+      for(PS::U32 ix = 0; ix < box_dim[0]; ix++) {
 	const PS::F64 bin_pos[] = {
 	  (ix + 0.5) * len_c[0],
 	  (iy + 0.5) * len_c[1],
