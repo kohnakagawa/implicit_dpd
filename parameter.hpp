@@ -405,7 +405,7 @@ public:
     
 #ifdef CHEM_MODE
     assert(std::isfinite(p_thresld));
-    assert(p_thresld <= 1.0 && p_thresld >= 0.0);
+    assert(p_thresld <= 1.0);
     assert(std::isfinite(eps));
     assert(max_amp_num >= init_amp_num);
     assert(max_amp_num * Parameter::all_unit < std::numeric_limits<PS::U32>::max() );
