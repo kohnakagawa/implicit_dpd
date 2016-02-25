@@ -176,7 +176,7 @@ public:
       min_cord.z = (min_cord.z > sys[i].pos.z) ? sys[i].pos.z : min_cord.z;
     }
     const PS::F64vec leng = max_cord - min_cord;
-    PS::F64* ptr_beg = &leng[0];
+    const PS::F64* ptr_beg = &leng[0];
     const PS::S32 min_id = std::distance(ptr_beg, std::min_element(ptr_beg, ptr_beg + 3));
     assert(min_id >= 0 && min_id < 3);
     
