@@ -96,12 +96,12 @@ int main(int argc, char *argv[]) {
 #ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
   // Multi GPU case
   const PS::S32 dev_id = PS::Comm::getRank() % NUM_GPU_IN_ONE_NODE;
-  cudaSetDevice(dev_id);
+  checkCudaErrors(cudaSetDevice(dev_id));
 #else
   // Single GPU case
   if (argc == 3) {
     const PS::S32 dev_id = std::atoi(argv[2]);
-    cudaSetDevice(dev_id);
+    checkCudaErrors(cudaSetDevice(dev_id));
     print_device_inform(dev_id);
   } else {
     std::cerr << "gpu device id is not specified.\n";
@@ -166,6 +166,7 @@ int main(int argc, char *argv[]) {
 					       dinfo,
 					       n_walk_limit);
 #else
+  CalcForceEpEpDPD::m_seed = static_cast<PS::U32>(time(nullptr));
   dens_tree.calcForceAllAndWriteBack(CalcDensity(), system, dinfo);
   force_tree.calcForceAllAndWriteBack(CalcForceEpEpDPD(), system, dinfo);
 #endif
