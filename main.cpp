@@ -188,7 +188,7 @@ int main(int argc, char *argv[]) {
 
 #ifdef CHEM_MODE
   // const PS::U32 seed = 123;
-  const PS::U32 seed = (PS::U32)time(nullptr);
+  const PS::U32 seed = static_cast<PS::U32>(time(nullptr));
   ChemManager<FPDPD> chemmanag(seed);
   system.ExpandParticleBuffer(param.max_amp_num * Parameter::all_unit);
   
