@@ -165,14 +165,19 @@ public:
   //NOTE: we will not support MPI version for this routine.
   PS::S32 DetermineMembNormalVect(const Tpsys& sys) {
     const PS::S32 num = sys.getNumberOfParticleLocal();
-    PS::F64vec max_cord(0.0, 0.0, 0.0);
+    PS::F64vec max_cord(0.0, 0.0, 0.0), min_cord = std::numeric_limits<PS::F64>::max();
     for(PS::S32 i = 0; i < num; i++) {
       max_cord.x = (max_cord.x < sys[i].pos.x) ? sys[i].pos.x : max_cord.x;
       max_cord.y = (max_cord.y < sys[i].pos.y) ? sys[i].pos.y : max_cord.y;
       max_cord.z = (max_cord.z < sys[i].pos.z) ? sys[i].pos.z : max_cord.z;
+
+      min_cord.x = (min_cord.x > sys[i].pos.x) ? sys[i].pos.x : min_cord.x;
+      min_cord.y = (min_cord.y > sys[i].pos.y) ? sys[i].pos.y : min_cord.y;
+      min_cord.z = (min_cord.z > sys[i].pos.z) ? sys[i].pos.z : min_cord.z;
     }
-    PS::F64* ptr_beg = &max_cord[0];
-    const PS::S32 min_id = std::distance(ptr_beg, std::min_element(ptr_beg, ptr_beg + 3));
+    const PS::F64vec length = max_cord - min_cord;
+    const PS::S32 min_id = std::distance(std::begin(length),
+					 std::min_element(std::begin(length), std::end(length)));
     assert(min_id >= 0 && min_id < 3);
     
     return min_id;
