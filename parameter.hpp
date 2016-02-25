@@ -320,6 +320,26 @@ public:
     for(PS::S32 i = 0; i < num; i++)
       sys[i].vel -= cmvel;
   }
+
+  void ApplyPBC(PS::F64vec& pos) const {
+    for(PS::U32 i = 0; i < 3; i++)
+      pos[i] -= std::floor(pos[i] * ibox_leng[i]) * box_leng[i];
+  }
+
+  template<class Tpsys>
+  void AdjustCMToBoxCenter(Tpsys& sys) const {
+    PS::F64vec cmpos(0.0, 0.0, 0.0);
+    const PS::S32 num = sys.getNumberOfParticleLocal();
+    for (PS::S32 i = 0; i < num; i++)
+      cmpos += sys[i].pos;
+    cmpos /= num;
+    
+    const PS::F64vec cm_to_boxcent = box_leng * 0.5 - cmpos;
+    for (PS::S32 i = 0; i < num; i++) {
+      sys[i].pos += cm_to_boxcent;
+      ApplyPBC(sys[i].pos);
+    }
+  }
   
   template<class Tpsys>
   PS::U32 LoadParticleConfig(Tpsys& sys) const {
@@ -335,6 +355,7 @@ public:
     }
     fclose(fp);
     RemoveCMDrift(sys);
+    AdjustCMToBoxCenter(sys);
 
     return cur_time;
   }
