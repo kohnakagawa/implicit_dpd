@@ -336,7 +336,7 @@ void DrawSys::RenderSphere(const particle& prtcl) {
   glMaterialfv(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE, color);
   glPushMatrix();
   glTranslated(prtcl.r[0], prtcl.r[1], prtcl.r[2]);
-  glutSolidSphere(prad, 10, 10);
+  glutSolidSphere(prtcl.rad, 10, 10);
   glPopMatrix();
 }
 

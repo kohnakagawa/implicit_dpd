@@ -26,6 +26,8 @@ class DrawSys {
   struct particle{
     float r[3];
     int prop;
+    float rad;
+    int idx;
     
     void readFromXYZForm(std::ifstream& fin) {
 #if 0
@@ -43,7 +45,12 @@ class DrawSys {
       r[0] = std::stof(v[1]);
       r[1] = std::stof(v[2]);
       r[2] = std::stof(v[3]);
+      idx  = std::stoi(v[4]);
       prop = std::stoi(v[5]);
+      if (idx == 0)
+	rad = 0.1;
+      else
+	rad = 0.01;
     }
   };
   
@@ -60,7 +67,7 @@ class DrawSys {
   
   std::string cur_dir;
   
-  float prad = 0.01, box_size[3] = {0.0, 0.0, 0.0}, inv_box_size[3] = {0.0, 0.0, 0.0}, invL = 0.0;
+  float box_size[3] = {0.0, 0.0, 0.0}, inv_box_size[3] = {0.0, 0.0, 0.0}, invL = 0.0;
   float *p_fovy = nullptr, *p_perscenter = nullptr, *p_center2eye = nullptr, *p_base_z = nullptr;
   
   void *font = GLUT_BITMAP_TIMES_ROMAN_24;
