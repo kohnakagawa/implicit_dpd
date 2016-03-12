@@ -8,7 +8,7 @@ WARNINGS = -Wall -Wunused-variable -Wsign-compare #-Wnon-virtual-dtor -Woverload
 DEBUG = -O0 -g -DDEBUG
 RELEASE = -O3
 
-INCLUDE = -I./FDPS/src
+INCLUDE = -I./FDPS/src -I./src
 
 # COMMON_FLAGS = $(DEBUG)
 COMMON_FLAGS = $(RELEASE)
@@ -24,25 +24,25 @@ TARGET_CMAKE = config_maker.out
 
 all : $(TARGET_DPD) $(TARGET_CMAKE)
 
-implicit_dpd_avx2.out : main.cpp
+implicit_dpd_avx2.out : ./src/main.cpp
 	$(CXX) $(CXX_FLAGS) $(OPENMP) -xCORE-AVX2 $(INCLUDE) $< $(LIBRARY) -o $@
 
-implicit_dpd_avx.out : main.cpp
+implicit_dpd_avx.out : ./src/main.cpp
 	$(CXX) $(CXX_FLAGS) $(OPENMP) -xAVX $(INCLUDE) $< $(LIBRARY) -o $@
 
-implicit_dpd_sse4.out : main.cpp
+implicit_dpd_sse4.out : ./src/main.cpp
 	$(CXX) $(CXX_FLAGS) $(OPENMP) -xSSE4.2 $(INCLUDE) $< $(LIBRARY) -o $@
 
-implicit_dpd_avx2_mpi.out : main.cpp
+implicit_dpd_avx2_mpi.out : ./src/main.cpp
 	$(MPICXX) $(CXX_FLAGS) $(MPI) -xCORE-AVX2 $(INCLUDE) $< $(LIBRARY) -o $@
 
-implicit_dpd_avx_mpi.out : main.cpp
+implicit_dpd_avx_mpi.out : ./src/main.cpp
 	$(MPICXX) $(CXX_FLAGS) $(MPI) -xAVX $(INCLUDE) $< $(LIBRARY) -o $@
 
-implicit_dpd_sse4_mpi.out : main.cpp
+implicit_dpd_sse4_mpi.out : ./src/main.cpp
 	$(MPICXX) $(CXX_FLAGS) $(MPI) -xSSE4.2 $(INCLUDE) $< $(LIBRARY) -o $@
 
-$(TARGET_CMAKE): config_maker.cpp
+$(TARGET_CMAKE): ./src/config_maker.cpp
 	$(CXX) $(CXX_FLAGS) $(INCLUDE) $< $(LIBRARY) -o $@
 
 clean:
