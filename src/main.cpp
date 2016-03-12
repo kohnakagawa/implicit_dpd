@@ -126,6 +126,9 @@ int main(int argc, char *argv[]) {
     system.setNumberOfParticleLocal(0);
   }
   
+  // Calc core id if needed.
+  if (PS::Comm::getRank() == 0) param.CalcCorePtclId(system);
+  
   // Share parameter data with other processes.
   param.ShareDataWithOtherProc();
   param.CheckLoaded();

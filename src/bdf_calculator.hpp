@@ -393,7 +393,7 @@ struct ForceBondedMPI {
     ampid_buf.resizeNoInitialize(all_n);
     loc_topol_cmpl_.resizeNoInitialize(all_n);
     loc_topol_imcmpl_.resizeNoInitialize(all_n * Parameter::all_unit);
-    is_real_surf.resizeNoInitialize(all_n * Parameter::all_unit);
+    is_real_surf.resizeNoInitialize(10 * all_n * Parameter::all_unit);
     
     for(PS::U32 i = 0; i < all_n; i++) {
       ampid[i].amp_id	= epj_org[i].amp_id;

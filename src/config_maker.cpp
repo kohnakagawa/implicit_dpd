@@ -312,22 +312,22 @@ class ConfigMaker {
 
     const PS::U32 all_n = Parameter::all_unit * amp_num;
     for(size_t i = 0; i < prtcls.size(); i++) {
-      if (!(prtcls[i].id >= 0 && prtcls[i].id < all_n)) {
+      if (!prtcls[i].id < all_n) {
 	std::cerr << "particle id is invalid.\n";
 	std::cerr << "id is " << prtcls[i].id << std::endl;
 	std::exit(1);
       }
-      if (!(prtcls[i].prop >= 0 && prtcls[i].prop < Parameter::prop_num)) {
+      if (!prtcls[i].prop < Parameter::prop_num) {
 	std::cerr << "particle prop is invalid.\n";
 	std::cerr << "prop is " << prtcls[i].prop << std::endl;
 	std::exit(1);
       }
-      if (!(prtcls[i].amp_id >= 0 && prtcls[i].amp_id < amp_num)) {
+      if (!prtcls[i].amp_id < amp_num) {
 	std::cerr << "amp_id is invalid.\n";
 	std::cerr << "amp_id is " << prtcls[i].amp_id << std::endl;
 	std::exit(1);
       }
-      if (!(prtcls[i].unit >= 0 && prtcls[i].unit < Parameter::all_unit)) {
+      if (!prtcls[i].unit < Parameter::all_unit) {
 	std::cerr << "amphiphile unit is invalid\n";
 	std::cerr << "unit is " << prtcls[i].unit << std::endl;
 	std::exit(1);

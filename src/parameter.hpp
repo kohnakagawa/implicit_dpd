@@ -63,8 +63,9 @@ class Parameter {
     Matching(&p_thresld, std::string("p_thresld"), tag_val, 1);
     Matching(&eps, std::string("eps"), tag_val, 1);
     Matching(&max_amp_num, std::string("max_amp_num"), tag_val, 1);
-    Matching(&core_ptcl_id, std::string("core_ptcl_id"), tag_val, 1);
+    Matching(&core_amp_id, std::string("core_amp_id"), tag_val, 1);
     Matching(&influ_rad, std::string("influ_rad"), tag_val, 1);
+    Matching(&influ_hei, std::string("influ_hei"), tag_val, 1);
 #endif
   }
 
@@ -99,7 +100,6 @@ class Parameter {
       for(PS::S32 j = 0; j < prop_num; j++)
 	cf_g[i][j] = 0.5 * cf_r[i][j] * cf_r[i][j] / Tempera; // 2.0 * gamma * k_B T = sigma * sigma
     
-    //NOTE: if cf_r[i][j] < 0.0, cf_g[i][j] and cf_r[i][j] are calculated from the harmonic mean rule.
     for(PS::S32 i = 0; i < prop_num; i++)
       for(PS::S32 j = i + 1; j < prop_num; j++)
 	CalcGammaWithHarmonicMean(i, j);
@@ -174,8 +174,10 @@ public:
   PS::F64 p_thresld   = std::numeric_limits<PS::F64>::signaling_NaN();
   PS::F64 eps         = std::numeric_limits<PS::F64>::signaling_NaN();
   PS::U32 max_amp_num = 0xffffffff; //When amp_num >= max_amp_num, we stop the simulation.
-  PS::U32 core_ptcl_id = 0xffffffff;
+  PS::U32 core_amp_id = 0xffffffff;
+  PS::U32 core_ptcl_id[2] = {0xffffffff, 0xffffffff};
   PS::F64 influ_rad   = std::numeric_limits<PS::F64>::signaling_NaN();
+  PS::F64 influ_hei   = std::numeric_limits<PS::F64>::signaling_NaN();
   static constexpr PS::U32 beg_chem = 100000;
 #endif
   
@@ -191,7 +193,7 @@ public:
 
   template<bool ibond_is_finite>
   static inline PS::F64 cf_spring(const PS::F64 inv_dr) {
-    static_assert((ibond_is_finite == true) or (ibond_is_finite == false), "bond_is_finte should be true or false");
+    static_assert((ibond_is_finite == true) or (ibond_is_finite == false), "bond_is_finite should be true or false");
     return 0.0;
   }
 
@@ -348,7 +350,7 @@ public:
     PS::U32 line_num = 0;
     PS::U32 cur_time = 0;
     io_util::ReadXYZForm(sys, line_num, cur_time, fp);
-    if(line_num / all_unit != static_cast<PS::U32>(init_amp_num) ) {
+    if (line_num / all_unit != static_cast<PS::U32>(init_amp_num)) {
       std::cerr << line_num / all_unit << " " << init_amp_num << std::endl;
       std::cerr << "# of lines is not equal to the run input parameter information.\n";
       PS::Abort();
@@ -390,12 +392,25 @@ public:
     }
   }
 
+#ifdef CHEM_MODE
+  template<class Tpsys>
+  void CalcCorePtclId(const Tpsys& sys) {
+    const PS::U32 num_ptcl = amp_num * all_unit;
+    for (PS::U32 i = 0; i < num_ptcl; i++) {
+      if (sys[i].amp_id == core_amp_id) {
+	if (sys[i].unit == 0) core_ptcl_id[0] = sys[i].id;
+	if (sys[i].unit == 2) core_ptcl_id[1] = sys[i].id;
+      }
+    }
+  }
+#endif
+
   void CheckLoaded() const {
     for(PS::S32 i = 0; i < prop_num; i++) {
       for(PS::S32 j = 0; j < prop_num; j++) {
-	assert(std::isfinite(cf_c[i][j]) );
-	assert(std::isfinite(cf_r[i][j]) );
-	assert(std::isfinite(cf_g[i][j]) );
+	assert(std::isfinite(cf_c[i][j]));
+	assert(std::isfinite(cf_r[i][j]));
+	assert(std::isfinite(cf_g[i][j]));
       }
     }
 
@@ -407,33 +422,38 @@ public:
     assert(std::isfinite(cf_s));
     assert(std::isfinite(cf_b));
 
-    assert(std::isfinite(box_leng.x) );
-    assert(std::isfinite(box_leng.y) );
-    assert(std::isfinite(box_leng.z) );
+    assert(std::isfinite(box_leng.x));
+    assert(std::isfinite(box_leng.y));
+    assert(std::isfinite(box_leng.z));
 
-    assert(std::isfinite(ibox_leng.x) );
-    assert(std::isfinite(ibox_leng.y) );
-    assert(std::isfinite(ibox_leng.z) );
+    assert(std::isfinite(ibox_leng.x));
+    assert(std::isfinite(ibox_leng.y));
+    assert(std::isfinite(ibox_leng.z));
 
     assert(init_amp_num > 0);
     assert(amp_num > 0);
 
-    assert(std::isfinite(dt) );
+    assert(std::isfinite(dt));
     
-    assert(std::isfinite(chi) );
+    assert(std::isfinite(chi));
     assert(std::isfinite(kappa));
     assert(std::isfinite(rho_co));
     
 #ifdef CHEM_MODE
     assert(std::isfinite(p_thresld));
-    assert(p_thresld <= 1.0);
+    assert(p_thresld <= 1.0); // p_thresld < 0.0 is OK.
     assert(std::isfinite(eps));
     assert(max_amp_num >= init_amp_num);
     assert(max_amp_num * Parameter::all_unit < std::numeric_limits<PS::U32>::max() );
     assert(max_amp_num != 0xffffffff);
-    assert(core_ptcl_id != 0xffffffff);
-    assert(core_ptcl_id >= 0 && core_ptcl_id < all_unit * init_amp_num);
+    assert(core_ptcl_id[0] != 0xffffffff);
+    assert(core_ptcl_id[1] != 0xffffffff);
+    assert(core_ptcl_id[0] < all_unit * init_amp_num);
+    assert(core_ptcl_id[1] < all_unit * init_amp_num);
+    assert(core_amp_id != 0xffffffff);
+    assert(core_amp_id < init_amp_num);
     assert(std::isfinite(influ_rad));
+    assert(std::isfinite(influ_hei));
 #endif
 
     assert(time != 0xffffffff);
@@ -482,9 +502,12 @@ public:
     DUMPTAGANDVAL(p_thresld);
     DUMPTAGANDVAL(eps);
     DUMPTAGANDVAL(max_amp_num);
-    DUMPTAGANDVAL(core_ptcl_id);
+    DUMPTAGANDVAL(core_amp_id);
+    DUMPTAGANDVAL(core_ptcl_id[0]);
+    DUMPTAGANDVAL(core_ptcl_id[1]);
     DUMPTAGANDVAL(beg_chem);
     DUMPTAGANDVAL(influ_rad);
+    DUMPTAGANDVAL(influ_hei);
 #endif
 
     ost << "NOTE:\n";
@@ -560,8 +583,11 @@ public:
     PS::Comm::broadcast(&p_thresld, 1, 0);
     PS::Comm::broadcast(&eps, 1, 0);
     PS::Comm::broadcast(&max_amp_num, 1, 0);
-    PS::Comm::broadcast(&core_ptcl_id, 1, 0);
+    PS::Comm::broadcast(&core_amp_id, 1, 0);
+    PS::Comm::broadcast(&core_ptcl_id[0], 1, 0);
+    PS::Comm::broadcast(&core_ptcl_id[1], 1, 0);
     PS::Comm::broadcast(&influ_rad, 1, 0);
+    PS::Comm::broadcast(&influ_hei, 1, 0);
 #endif
   }
   

@@ -82,15 +82,14 @@ class ChemManager {
     }
   }
 
-  void DetermineTargetIdWithCorePos(PS::ParticleSystem<FP>& sys,
-				    const PS::U32 amp_num,
-				    const PS::ReallocatableArray<PS::U32>& topol,
-				    const PS::U32 loc_num,
-				    Parameter& param) {
-    // broadcast core position
-    PS::F64vec core_pos = std::numeric_limits<PS::F64>::quiet_NaN();
+  void GetCorePos(PS::ParticleSystem<FP>& sys,
+		  const PS::U32 loc_num,
+		  bool is_tail,
+		  PS::F64vec& core_pos,
+		  const Parameter& param) {
+    core_pos = std::numeric_limits<PS::F64>::quiet_NaN();
     for (PS::U32 i = 0; i < loc_num; i++) {
-      if (sys[i].id == param.core_ptcl_id) {
+      if (sys[i].id == param.core_ptcl_id[is_tail]) {
 	core_pos = sys[i].pos;
 	break;
       }
@@ -105,6 +104,20 @@ class ChemManager {
     
     const PS::S32 root_rank = PS::Comm::getMaxValue(rank);
     PS::Comm::broadcast(&core_pos, 1, root_rank);
+  }
+
+  void DetermineTargetIdWithCorePos(PS::ParticleSystem<FP>& sys,
+				    const PS::U32 amp_num,
+				    const PS::ReallocatableArray<PS::U32>& topol,
+				    const PS::U32 loc_num,
+				    Parameter& param) {
+    PS::F64vec core_pos_h, core_pos_t;
+    GetCorePos(sys, loc_num, false, core_pos_h, param);
+    GetCorePos(sys, loc_num, true, core_pos_t, param);
+
+    PS::F64vec h2t = core_pos_t - core_pos_h;
+    PS::F64 norm = h2t * h2t;
+    h2t /= std::sqrt(norm);
     
     // calc target id
     const PS::F64 influ_rad2 = param.influ_rad * param.influ_rad;
@@ -112,10 +125,11 @@ class ChemManager {
       const PS::U32 head_id = topol[Parameter::all_unit * i];
       if (head_id < loc_num) {
 	PS::F64 rnd = PS::MT::genrand_real1();
-	PS::F64vec core2ptcl = sys[head_id].pos - core_pos;
+	PS::F64vec core2ptcl = sys[head_id].pos - core_pos_h;
 	ForceBonded<PS::ParticleSystem<FP> >::MinImage(core2ptcl);
-	const PS::F64 dist = core2ptcl * core2ptcl;
-	if (dist >= influ_rad2) rnd = 2.0;
+	if ((core2ptcl * core2ptcl >= influ_rad2) ||
+	    (core2ptcl * h2t <= -param.influ_hei))
+	  rnd = 2.0;
 	
 	if (rnd <= param.p_thresld) {
 	  const PS::U32 tail_id = topol[Parameter::all_unit * i + 2];
@@ -202,16 +216,21 @@ public:
     PS::U32 new_amp_id = param.amp_num;
     const PS::U32 old_amp_num = param.amp_num;
 #ifdef LOCAL_CHEM_EVENT
-    const PS::F64vec core_pos = sys[param.core_ptcl_id].pos;
+    const PS::F64vec core_pos_h = sys[param.core_ptcl_id[0]].pos;
+    const PS::F64vec core_pos_t = sys[param.core_ptcl_id[1]].pos;
     const PS::F64 influ_rad2  = param.influ_rad * param.influ_rad;
+    PS::F64vec h2t = core_pos_t - core_pos_h;
+    PS::F64 norm = h2t * h2t;
+    h2t /= std::sqrt(norm);
 #endif
     for (PS::U32 i = 0; i < old_amp_num; i++) {
       PS::F64 rnd = PS::MT::genrand_real1();
 #ifdef LOCAL_CHEM_EVENT
-      PS::F64vec core2ptcl = sys[glob_topol[Parameter::all_unit * i]].pos - core_pos;
+      PS::F64vec core2ptcl = sys[glob_topol[Parameter::all_unit * i]].pos - core_pos_h;
       ForceBonded<PS::ParticleSystem<FP> >::MinImage(core2ptcl);
-      const PS::F64 dist = core2ptcl * core2ptcl;
-      if (dist >= influ_rad2) rnd = 2.0;
+      if ((core2ptcl * core2ptcl >= influ_rad2) ||
+	  (core2ptcl * h2t <= -param.influ_hei))
+	rnd = 2.0;
 #endif
       if (rnd <= param.p_thresld) {
 	const PS::U32 head_id = glob_topol[Parameter::all_unit * i    ];
