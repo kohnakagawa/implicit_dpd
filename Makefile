@@ -26,7 +26,7 @@ WARNINGS = -Wextra -Wunused-variable -Wsign-compare #-Wnon-virtual-dtor -Woverlo
 DEBUG = -O0 -g -DDEBUG
 RELEASE = -O3
 
-INCLUDE = -I./FDPS/src
+INCLUDE = -I./FDPS/src -I./src
 
 # COMMON_FLAGS = $(DEBUG)
 COMMON_FLAGS = $(RELEASE)
@@ -47,8 +47,8 @@ ifeq ($(CXX),mpicxx)
 OPT_FLAGS = -ffast-math -funroll-loops
 endif
 
-OBJECTS_DPD = main.o
-OBJECTS_CMAKE = config_maker.o
+OBJECTS_DPD = ./src/main.o
+OBJECTS_CMAKE = ./src/config_maker.o
 
 ifeq ($(use_gpu_cuda),yes)
 COMMON_FLAGS += -DENABLE_GPU_CUDA
@@ -66,7 +66,7 @@ LIBRARY += -lmpi
 endif
 
 INCLUDE += -I$(CUDA_HOME)/include/ -I$(CUDA_HOME)/samples/common/inc/
-OBJECTS_DPD += f_calculator_gpu.o
+OBJECTS_DPD += ./src/f_calculator_gpu.o
 endif
 
 CXX_FLAGS = $(COMMON_FLAGS) $(WARNINGS) $(OPT_FLAGS)

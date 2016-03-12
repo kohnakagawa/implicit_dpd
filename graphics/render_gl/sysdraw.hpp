@@ -47,10 +47,10 @@ class DrawSys {
       r[2] = std::stof(v[3]);
       idx  = std::stoi(v[4]);
       prop = std::stoi(v[5]);
-      if (idx == 0)
-	rad = 0.1;
-      else
+      if (idx == 10)
 	rad = 0.01;
+      else
+	rad = 0.001;
     }
   };
   
