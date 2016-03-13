@@ -6,6 +6,7 @@
 #include <limits>
 #include <map>
 #include <cassert>
+#include <array>
 #include "io_util.hpp"
 
 class Parameter {
@@ -63,9 +64,17 @@ class Parameter {
     Matching(&p_thresld, std::string("p_thresld"), tag_val, 1);
     Matching(&eps, std::string("eps"), tag_val, 1);
     Matching(&max_amp_num, std::string("max_amp_num"), tag_val, 1);
-    Matching(&core_amp_id, std::string("core_amp_id"), tag_val, 1);
     Matching(&influ_rad, std::string("influ_rad"), tag_val, 1);
     Matching(&influ_hei, std::string("influ_hei"), tag_val, 1);
+    
+    if (tag_val.find("core_amp_id") == tag_val.end()) {
+      std::cerr << "core_amp_id is not specified in run input paramter.\n";
+      PS::Abort();
+    }
+    const PS::U32 num_core_amp = tag_val["core_amp_id"].size();
+    core_amp_id.resize(num_core_amp, 0xffffffff);
+    core_ptcl_id.resize(num_core_amp, {0xffffffff, 0xffffffff});
+    Matching(&(core_amp_id[0]), std::string("core_amp_id"), tag_val, num_core_amp);
 #endif
   }
 
@@ -174,8 +183,8 @@ public:
   PS::F64 p_thresld   = std::numeric_limits<PS::F64>::signaling_NaN();
   PS::F64 eps         = std::numeric_limits<PS::F64>::signaling_NaN();
   PS::U32 max_amp_num = 0xffffffff; //When amp_num >= max_amp_num, we stop the simulation.
-  PS::U32 core_amp_id = 0xffffffff;
-  PS::U32 core_ptcl_id[2] = {0xffffffff, 0xffffffff};
+  std::vector<PS::U32> core_amp_id;
+  std::vector<std::array<PS::U32, 2>> core_ptcl_id;
   PS::F64 influ_rad   = std::numeric_limits<PS::F64>::signaling_NaN();
   PS::F64 influ_hei   = std::numeric_limits<PS::F64>::signaling_NaN();
   static constexpr PS::U32 beg_chem = 100000;
@@ -276,11 +285,11 @@ public:
   {
     std::string line, tag;
     std::string::size_type comment_start = 0;
-    while(std::getline(fin, line) ) {
-      if( (comment_start = line.find(';')) != std::string::size_type(-1) )
+    while (std::getline(fin, line) ) {
+      if ((comment_start = line.find(';')) != std::string::size_type(-1) )
 	line = line.substr(0, comment_start);
 
-      if(line.empty() ) continue;
+      if (line.empty() ) continue;
 
       DeleteHeadSpace(line);
       DeleteTailSpace(line);
@@ -288,7 +297,7 @@ public:
       std::stringstream ss(line);
       ss >> tag;
       std::vector<std::string> values;
-      while(!ss.eof() ) {
+      while (!ss.eof()) {
 	std::string buf;
 	ss >> buf;
 	values.push_back(buf);
@@ -397,9 +406,11 @@ public:
   void CalcCorePtclId(const Tpsys& sys) {
     const PS::U32 num_ptcl = amp_num * all_unit;
     for (PS::U32 i = 0; i < num_ptcl; i++) {
-      if (sys[i].amp_id == core_amp_id) {
-	if (sys[i].unit == 0) core_ptcl_id[0] = sys[i].id;
-	if (sys[i].unit == 2) core_ptcl_id[1] = sys[i].id;
+      for (PS::U32 j = 0; j < core_amp_id.size(); j++) {
+	if (sys[i].amp_id == core_amp_id[j]) {
+	  if (sys[i].unit == 0) core_ptcl_id[j][0] = sys[i].id;
+	  if (sys[i].unit == 2) core_ptcl_id[j][1] = sys[i].id;
+	}
       }
     }
   }
@@ -446,12 +457,16 @@ public:
     assert(max_amp_num >= init_amp_num);
     assert(max_amp_num * Parameter::all_unit < std::numeric_limits<PS::U32>::max() );
     assert(max_amp_num != 0xffffffff);
-    assert(core_ptcl_id[0] != 0xffffffff);
-    assert(core_ptcl_id[1] != 0xffffffff);
-    assert(core_ptcl_id[0] < all_unit * init_amp_num);
-    assert(core_ptcl_id[1] < all_unit * init_amp_num);
-    assert(core_amp_id != 0xffffffff);
-    assert(core_amp_id < init_amp_num);
+    
+    for (PS::U32 i = 0; i < core_amp_id.size(); i++) {
+      assert(core_amp_id[i] != 0xffffffff);
+      assert(core_amp_id[i] < init_amp_num);
+      assert(core_ptcl_id[i][0] != 0xffffffff);
+      assert(core_ptcl_id[i][1] != 0xffffffff);
+      assert(core_ptcl_id[i][0] < all_unit * init_amp_num);
+      assert(core_ptcl_id[i][1] < all_unit * init_amp_num);
+    }
+    
     assert(std::isfinite(influ_rad));
     assert(std::isfinite(influ_hei));
 #endif
@@ -502,12 +517,15 @@ public:
     DUMPTAGANDVAL(p_thresld);
     DUMPTAGANDVAL(eps);
     DUMPTAGANDVAL(max_amp_num);
-    DUMPTAGANDVAL(core_amp_id);
-    DUMPTAGANDVAL(core_ptcl_id[0]);
-    DUMPTAGANDVAL(core_ptcl_id[1]);
     DUMPTAGANDVAL(beg_chem);
     DUMPTAGANDVAL(influ_rad);
     DUMPTAGANDVAL(influ_hei);
+
+    ost << "core_amp_id core_ptcl_id:\n";
+    for (PS::U32 i = 0; i < core_amp_id.size(); i++) {
+      ost << core_amp_id[i] << " " << core_ptcl_id[i][0] << " " << core_ptcl_id[i][1] << std::endl;
+    }
+    ost << std::endl;
 #endif
 
     ost << "NOTE:\n";
