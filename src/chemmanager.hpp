@@ -121,7 +121,7 @@ class ChemManager {
 
       PS::F64vec h2t = core_pos_t - core_pos_h;
       ForceBonded<PS::ParticleSystem<FP> >::MinImage(h2t);
-      PS::F64 norm = h2t * h2t;
+      const PS::F64 norm = h2t * h2t;
       h2t /= std::sqrt(norm);
     
       // calc target id
@@ -231,7 +231,7 @@ public:
       const PS::F64vec core_pos_t = sys[param.core_ptcl_id[i][1]].pos;
       PS::F64vec h2t = core_pos_t - core_poss_h[i];
       ForceBonded<PS::ParticleSystem<FP> >::MinImage(h2t);
-      PS::F64 norm = h2t * h2t;
+      const PS::F64 norm = h2t * h2t;
       h2t /= std::sqrt(norm);
       h2t_vecs[i] = h2t;
     }
