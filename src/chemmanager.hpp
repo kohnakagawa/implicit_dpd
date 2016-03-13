@@ -115,17 +115,17 @@ class ChemManager {
 				    Parameter& param) {
     PS::F64vec core_pos_h, core_pos_t;
     const PS::U32 num_core_amp_id = param.core_amp_id.size();
+    const PS::F64 influ_rad2 = param.influ_rad * param.influ_rad;
+    
     for (PS::U32 i = 0; i < num_core_amp_id; i++) {
       GetCorePos(sys, loc_num, i, false, core_pos_h, param);
-      GetCorePos(sys, loc_num, i, true,  core_pos_t, param);
+      GetCorePos(sys, loc_num, i, true , core_pos_t, param);
 
       PS::F64vec h2t = core_pos_t - core_pos_h;
       ForceBonded<PS::ParticleSystem<FP> >::MinImage(h2t);
-      const PS::F64 norm = h2t * h2t;
-      h2t /= std::sqrt(norm);
+      Normalize(h2t);
     
       // calc target id
-      const PS::F64 influ_rad2 = param.influ_rad * param.influ_rad;
       for (PS::U32 j = 0; j < amp_num; j++) {
 	const PS::U32 head_id = topol[Parameter::all_unit * j];
 	if (head_id < loc_num) {
@@ -231,8 +231,7 @@ public:
       const PS::F64vec core_pos_t = sys[param.core_ptcl_id[i][1]].pos;
       PS::F64vec h2t = core_pos_t - core_poss_h[i];
       ForceBonded<PS::ParticleSystem<FP> >::MinImage(h2t);
-      const PS::F64 norm = h2t * h2t;
-      h2t /= std::sqrt(norm);
+      Normalize(h2t);
       h2t_vecs[i] = h2t;
     }
 #endif
