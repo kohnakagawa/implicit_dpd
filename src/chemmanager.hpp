@@ -236,14 +236,14 @@ public:
     }
 #endif
     for (PS::U32 i = 0; i < old_amp_num; i++) {
-      PS::F64 rnd = PS::MT::genrand_real1();
+      PS::F64 rnd = 2.0;
 #ifdef LOCAL_CHEM_EVENT
       for (PS::U32 j = 0; j < num_core_amp_id; j++) {
 	PS::F64vec core2ptcl = sys[glob_topol[Parameter::all_unit * i]].pos - core_poss_h[j];
 	ForceBonded<PS::ParticleSystem<FP> >::MinImage(core2ptcl);
-	if ((core2ptcl * core2ptcl >= influ_rad2) ||
-	    (core2ptcl * h2t_vecs[j] <= -param.influ_hei))
-	  rnd = 2.0;
+	if ((core2ptcl * core2ptcl < influ_rad2) &&
+	    (core2ptcl * h2t_vecs[j] > -param.influ_hei))
+	  rnd = PS::MT::genrand_real1();
       }
 #endif
       if (rnd <= param.p_thresld) {
