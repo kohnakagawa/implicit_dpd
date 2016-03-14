@@ -246,8 +246,8 @@ public:
 	PS::F64vec core2ptcl = sys[glob_topol[Parameter::all_unit * i]].pos - core_poss_h[j];
 	ForceBonded<PS::ParticleSystem<FP> >::MinImage(core2ptcl);
 
-	const PS::F64 depth = h2t_vecs[i] * core2ptcl;
-	const PS::F64vec tang_vec = core2ptcl - depth * h2t_vecs[i];
+	const PS::F64 depth = h2t_vecs[j] * core2ptcl;
+	const PS::F64vec tang_vec = core2ptcl - depth * h2t_vecs[j];
 	const PS::F64 rad = std::sqrt(tang_vec * tang_vec);
 	
 	const PS::F64 rad_thresld = param.influ_grd * depth + param.influ_rad;
