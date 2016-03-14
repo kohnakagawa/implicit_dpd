@@ -115,7 +115,6 @@ class ChemManager {
 				    Parameter& param) {
     PS::F64vec core_pos_h, core_pos_t;
     const PS::U32 num_core_amp_id = param.core_amp_id.size();
-    const PS::F64 influ_rad2 = param.influ_rad * param.influ_rad;
     
     for (PS::U32 i = 0; i < num_core_amp_id; i++) {
       GetCorePos(sys, loc_num, i, false, core_pos_h, param);
@@ -129,12 +128,18 @@ class ChemManager {
       for (PS::U32 j = 0; j < amp_num; j++) {
 	const PS::U32 head_id = topol[Parameter::all_unit * j];
 	if (head_id < loc_num) {
-	  PS::F64 rnd = PS::MT::genrand_real1();
+	  PS::F64 rnd = 2.0;
 	  PS::F64vec core2ptcl = sys[head_id].pos - core_pos_h;
 	  ForceBonded<PS::ParticleSystem<FP> >::MinImage(core2ptcl);
-	  if ((core2ptcl * core2ptcl >= influ_rad2) ||
-	      (core2ptcl * h2t <= -param.influ_hei))
-	    rnd = 2.0;
+
+	  const PS::F64 depth = h2t * core2ptcl;
+	  const PS::F64vec tang_vec = core2ptcl - depth * h2t;
+	  const PS::F64 rad = std::sqrt(tang_vec * tang_vec);
+
+	  const PS::F64 rad_thresld = param.influ_grd * depth + param.influ_rad;
+	  
+	  if ((rad <= rad_thresld) && (depth >= -param.influ_hei) && (depth <= param.influ_dep))
+	    rnd = PS::MT::genrand_real1();
 	
 	  if (rnd <= param.p_thresld) {
 	    const PS::U32 tail_id = topol[Parameter::all_unit * j + 2];
@@ -222,7 +227,6 @@ public:
     PS::U32 new_amp_id = param.amp_num;
     const PS::U32 old_amp_num = param.amp_num;
 #ifdef LOCAL_CHEM_EVENT
-    const PS::F64 influ_rad2  = param.influ_rad * param.influ_rad;
     const PS::U32 num_core_amp_id = param.core_amp_id.size();
     core_poss_h.resizeNoInitialize(num_core_amp_id);
     h2t_vecs.resizeNoInitialize(num_core_amp_id);
@@ -241,8 +245,14 @@ public:
       for (PS::U32 j = 0; j < num_core_amp_id; j++) {
 	PS::F64vec core2ptcl = sys[glob_topol[Parameter::all_unit * i]].pos - core_poss_h[j];
 	ForceBonded<PS::ParticleSystem<FP> >::MinImage(core2ptcl);
-	if ((core2ptcl * core2ptcl < influ_rad2) &&
-	    (core2ptcl * h2t_vecs[j] > -param.influ_hei))
+
+	const PS::F64 depth = h2t_vecs[i] * core2ptcl;
+	const PS::F64vec tang_vec = core2ptcl - depth * h2t_vecs[i];
+	const PS::F64 rad = std::sqrt(tang_vec * tang_vec);
+	
+	const PS::F64 rad_thresld = param.influ_grd * depth + param.influ_rad;
+	
+	if ((rad <= rad_thresld) && (depth >= -param.influ_hei) && (depth <= param.influ_dep))
 	  rnd = PS::MT::genrand_real1();
       }
 #endif

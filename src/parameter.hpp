@@ -66,6 +66,8 @@ class Parameter {
     Matching(&max_amp_num, std::string("max_amp_num"), tag_val, 1);
     Matching(&influ_rad, std::string("influ_rad"), tag_val, 1);
     Matching(&influ_hei, std::string("influ_hei"), tag_val, 1);
+    Matching(&influ_dep, std::string("influ_dep"), tag_val, 1);
+    Matching(&influ_grd, std::string("influ_grd"), tag_val, 1);
     
     if (tag_val.find("core_amp_id") == tag_val.end()) {
       std::cerr << "core_amp_id is not specified in run input paramter.\n";
@@ -187,6 +189,8 @@ public:
   std::vector<std::array<PS::U32, 2>> core_ptcl_id;
   PS::F64 influ_rad   = std::numeric_limits<PS::F64>::signaling_NaN();
   PS::F64 influ_hei   = std::numeric_limits<PS::F64>::signaling_NaN();
+  PS::F64 influ_dep   = std::numeric_limits<PS::F64>::signaling_NaN();
+  PS::F64 influ_grd   = std::numeric_limits<PS::F64>::signaling_NaN();
   static constexpr PS::U32 beg_chem = 100000;
 #endif
   
@@ -469,6 +473,8 @@ public:
     
     assert(std::isfinite(influ_rad));
     assert(std::isfinite(influ_hei));
+    assert(std::isfinite(influ_dep));
+    assert(std::isfinite(influ_grd));
 #endif
 
     assert(time != 0xffffffff);
@@ -520,6 +526,8 @@ public:
     DUMPTAGANDVAL(beg_chem);
     DUMPTAGANDVAL(influ_rad);
     DUMPTAGANDVAL(influ_hei);
+    DUMPTAGANDVAL(influ_dep);
+    DUMPTAGANDVAL(influ_grd);
 
     ost << "core_amp_id core_ptcl_id:\n";
     for (PS::U32 i = 0; i < core_amp_id.size(); i++) {
@@ -601,11 +609,12 @@ public:
     PS::Comm::broadcast(&p_thresld, 1, 0);
     PS::Comm::broadcast(&eps, 1, 0);
     PS::Comm::broadcast(&max_amp_num, 1, 0);
-    PS::Comm::broadcast(&core_amp_id, 1, 0);
-    PS::Comm::broadcast(&core_ptcl_id[0], 1, 0);
-    PS::Comm::broadcast(&core_ptcl_id[1], 1, 0);
+    PS::Comm::broadcast(&(core_amp_id[0]), core_amp_id.size(), 0);
+    PS::Comm::broadcast(&(core_ptcl_id[0][0]), 2 * core_ptcl_id.size(), 0);
     PS::Comm::broadcast(&influ_rad, 1, 0);
     PS::Comm::broadcast(&influ_hei, 1, 0);
+    PS::Comm::broadcast(&influ_dep, 1, 0);
+    PS::Comm::broadcast(&influ_grd, 1, 0);
 #endif
   }
   
