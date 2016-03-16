@@ -157,6 +157,7 @@ public:
   enum {
     Hyphil = 0,
     Hyphob,
+    Solvent,
     
     prop_num,
   };
