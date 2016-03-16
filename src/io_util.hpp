@@ -1,11 +1,11 @@
 #pragma once
 
 #include <cstring>
+#include <cstdarg>
 
 namespace io_util {
-  inline FILE* xfopen (const char* __restrict filename,
-		       const char* __restrict  mode)
-  {
+  inline FILE* xfopen(const char* __restrict filename,
+		      const char* __restrict  mode) {
     FILE* f = fopen(filename, mode);
     if (f == nullptr) {
       std::cerr << filename << ": Cannot open file\n.";
@@ -89,6 +89,8 @@ namespace io_util {
       WriteXYZForm(ptcl_buf.getPointer(0), n_ptcl_disp[num_proc], time, fp);
   }
   
+#define CHECK_READED(func) assert(0 != func)
+  
   template<class FP>
   inline void ReadXYZForm(FP* ptcl,
 			  PS::U32& num,
@@ -96,8 +98,8 @@ namespace io_util {
 			  FILE* fp) {
     char comment[4] = {'\0'}, buf = '0';
     char cmp_comm[] = {"time"};
-    fscanf(fp, "%u\n", &num);
-    fscanf(fp, "%s %u\n", comment, &cur_time);
+    CHECK_READED(fscanf(fp, "%u\n", &num));
+    CHECK_READED(fscanf(fp, "%s %u\n", comment, &cur_time));
     if(strcmp(comment, cmp_comm) == 0) {
       std::cout << "Restart configuration is successfully loaded.\n";
     } else {
@@ -111,7 +113,7 @@ namespace io_util {
     
     for(PS::U32 i = 0; i < num; i++)
       ptcl[i].readAscii(fp);
-    fscanf(fp, "%c\n", &buf);
+    CHECK_READED(fscanf(fp, "%c\n", &buf));
     if(!feof(fp)) {
       std::cerr << "# of lines is not equal to the information specified in file header.\n";
       std::exit(1);
@@ -123,3 +125,5 @@ namespace io_util {
     ReadXYZForm(&sys[0], num, cur_time, fp);
   }
 };
+
+#undef CHECK_READED
