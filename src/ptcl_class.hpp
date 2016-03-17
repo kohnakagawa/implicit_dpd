@@ -57,7 +57,8 @@ struct FPDPD {
 		       &id, &prop, &amp_id, &unit,
 		       &(vel.x), &(vel.y), &(vel.z), &(vel_buf.x), &(vel_buf.y), &(vel_buf.z),
 		       &(acc.x), &(acc.y), &(acc.z)) );
-    delta_sumr = 0.0;
+    delta_sumr = press = 0.0;
+    density.fill(0.0);
   }
   void writeAscii(FILE *fp) const {
     fprintf(fp, "%c %.15g %.15g %.15g %u %u %u %u %.15g %.15g %.15g %.15g %.15g %.15g %.15g %.15g %.15g\n",

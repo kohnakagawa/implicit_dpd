@@ -93,6 +93,7 @@ class Parameter {
     cf_c[Hyphil][Hyphil] = cf_c[Solvent][Solvent] = 0.1;
     cf_c[Hyphil][Hyphob] = cf_c[Hyphob][Hyphil] = chi / (rho_co) + 0.5 * (cf_c[Hyphil][Hyphil] + cf_c[Hyphob][Hyphob]);
     cf_c[Solvent][Hyphob] = cf_c[Hyphob][Solvent] = cf_c[Hyphil][Hyphob];
+    cf_c[Solvent][Hyphil] = cf_c[Hyphil][Solvent] = cf_c[Hyphil][Hyphil];
     
     for (PS::S32 i = 0; i < prop_num; i++)
       for (PS::S32 j = i + 1; j < prop_num; j++)

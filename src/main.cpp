@@ -171,7 +171,8 @@ int main(int argc, char *argv[]) {
 					       dinfo,
 					       n_walk_limit);
 #else
-  CalcForceEpEpDPD::m_seed = static_cast<PS::U32>(time(nullptr));
+  // CalcForceEpEpDPD::m_seed = static_cast<PS::U32>(time(nullptr));
+  CalcForceEpEpDPD::m_seed = 100;
   dens_tree.calcForceAllAndWriteBack(CalcDensity(), system, dinfo);
   force_tree.calcForceAllAndWriteBack(CalcForceEpEpDPD(), system, dinfo);
 #endif
@@ -264,7 +265,7 @@ int main(int argc, char *argv[]) {
   }
   // end of Main MD loop
   timer_stop();
-  if(PS::Comm::getRank() == 0)
+  if (PS::Comm::getRank() == 0)
     show_duration();
 
   // print configuration for restart
