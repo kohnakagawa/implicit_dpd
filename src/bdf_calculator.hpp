@@ -19,22 +19,21 @@ struct ForceBonded {
     //NOTE: Bonded list construction is needed once when using OpenMP version.
     glob_topol.resizeNoInitialize(buf_size);
 #ifdef DEBUG
-    for(PS::U32 i = 0; i < buf_size; i++)
+    for (PS::U32 i = 0; i < buf_size; i++)
       glob_topol[i] = 0xffffffff;
 #endif
     MakeGlobalBondedList(sys);
 
 #ifdef DEBUG
-    PS::U32 n = sys.getNumberOfParticleLocal();
-    for(PS::U32 i = 0; i < buf_size; i++)
-      assert(glob_topol[i] >= 0 && glob_topol[i] < n);
+    for (PS::U32 i = 0; i < buf_size; i++)
+      assert(glob_topol[i] < buf_size);
 #endif
 
 #ifdef PARTICLE_SIMULATOR_THREAD_PARALLEL
     buf_vir.resize(PS::Comm::getNumberOfThread(), 0.0);
 #endif
-    
   }
+  
   ~ForceBonded() {}
 
   static inline void MinImage(PS::F64vec& drij) {
@@ -45,12 +44,21 @@ struct ForceBonded {
 
   void MakeGlobalBondedList(const Tpsys& sys) {
     PS::U32 n = sys.getNumberOfParticleLocal();
+    PS::S32 cnt = 0;
     
-    for(PS::U32 i = 0; i < n; i++) {
+    for (PS::U32 i = 0; i < n; i++) {
       const PS::U32 aid = sys[i].amp_id;
       const PS::U32 unit = sys[i].unit;
-      glob_topol[aid * Parameter::all_unit + unit] = i;
+      if ((aid != 0xffffffff) && (unit != 0xffffffff)) {
+	glob_topol[aid * Parameter::all_unit + unit] = i;
+	cnt++;
+      } else {
+	// This particle must be solvent.
+	assert(sys[i].prop == Parameter::Solvent);
+      }
     }
+    
+    assert(cnt == glob_topol.size());
   }
 
   void ExpandTopolBuffer(const PS::U32 n) {
@@ -138,7 +146,7 @@ struct ForceBonded {
     StoreBondForceWithARLaw(dr[0], inv_dr[0], d_vir, d_lap, &Fbb[0]);
 
 #pragma unroll
-    for(PS::U32 unit = 2; unit < bond_n; unit++) {
+    for (PS::U32 unit = 2; unit < bond_n; unit++) {
       pos_buf[unit] = sys[ l_dst[unit] ].pos;
       dr[unit - 1] = pos_buf[unit] - pos_buf[unit - 1];
       MinImage(dr[unit - 1]);
@@ -151,7 +159,7 @@ struct ForceBonded {
 
     //Store the sum of force.
 #pragma unroll
-    for(PS::U32 unit = 0; unit < bond_n; unit++)
+    for (PS::U32 unit = 0; unit < bond_n; unit++)
       sys[ glob_topol[beg_bond_id + unit] ].acc += Fbb[unit];
   }
 
@@ -166,7 +174,7 @@ struct ForceBonded {
       const PS::S32 tid = PS::Comm::getThreadNum();
       PS::F64vec d_vir(0.0); PS::F64 d_lap = 0.0;
 #pragma omp for nowait
-      for(PS::U32 i = 0; i < topol_num; i += Parameter::all_unit)
+      for (PS::U32 i = 0; i < topol_num; i += Parameter::all_unit)
 	CalcBondBendGlobalCell<Parameter::all_unit>(sys, i, d_vir, d_lap);
       buf_vir[tid] = d_vir;
     }
@@ -175,7 +183,7 @@ struct ForceBonded {
 #else //no omp version
 
     PS::F64vec d_vir(0.0); PS::F64 d_lap = 0.0;
-    for(PS::U32 i = 0; i < topol_num; i += Parameter::all_unit)
+    for (PS::U32 i = 0; i < topol_num; i += Parameter::all_unit)
       CalcBondBendGlobalCell<Parameter::all_unit>(sys, i, d_vir, d_lap);
     bonded_vir = d_vir;
     
@@ -191,7 +199,7 @@ struct ForceBonded {
   //check topology
   void CheckBondedTopology(const Tpsys& sys) {
     PS::U32 n = sys.getNumberOfParticleLocal();
-    for(PS::U32 i = 0; i < n; i++) {
+    for (PS::U32 i = 0; i < n; i++) {
       const PS::U32 aid = sys[i].amp_id;
       const PS::U32 unit = sys[i].unit;
       assert(glob_topol[aid * Parameter::all_unit + unit] == i);
@@ -208,9 +216,14 @@ struct ForceBonded {
 template<class Tpsys, class Pepj>
 struct ForceBondedMPI {
   struct ampid2idx {
-    PS::U32 amp_id, unit, idx;
+    PS::U32 amp_id, unit, idx, key;
     bool is_real;
-    inline PS::U32 getKey() const { return Parameter::all_unit * amp_id + unit; }
+    inline void setKey() {
+      if ((amp_id != 0xffffffff) && (unit != 0xffffffff))
+    	key = Parameter::all_unit * amp_id + unit;
+      else
+    	key = 0xffffffff;
+    }
   };
 
   PS::U32 cmplt_amp_ = 0, imcmplt_amp_ = 0;
@@ -326,7 +339,7 @@ struct ForceBondedMPI {
     
     ForceBonded<Tpsys>::StoreBondForceWithARLaw(dr[0], inv_dr[0], d_vir, d_lap, &Fbb[0]);
 #pragma unroll
-    for(PS::U32 unit = 2; unit < bond_n; unit++) {
+    for (PS::U32 unit = 2; unit < bond_n; unit++) {
       pos_buf[unit] = sys[ l_dst[unit] ].pos;
       dr[unit - 1] = pos_buf[unit] - pos_buf[unit - 1];
       ForceBonded<Tpsys>::MinImage(dr[unit - 1]);
@@ -339,7 +352,7 @@ struct ForceBondedMPI {
 
     //Store the sum of force.
 #pragma unroll
-    for(PS::U32 unit = 0; unit < bond_n; unit++)
+    for (PS::U32 unit = 0; unit < bond_n; unit++)
       sys[ l_dst[unit] ].acc += Fbb[unit];
   }
 
@@ -366,7 +379,7 @@ struct ForceBondedMPI {
     
     StoreBondForceNoARLaw(dr[0], inv_dr[0], d_vir, d_lap, &Fbb[0], &mask[0]);
 #pragma unroll
-    for(PS::U32 unit = 2; unit < bond_n; unit++) {
+    for (PS::U32 unit = 2; unit < bond_n; unit++) {
       if (l_dst[unit] != 0xffffffff) pos_buf[unit] = epj_org[ l_dst[unit] ].pos;
       dr[unit - 1] = pos_buf[unit] - pos_buf[unit - 1];
       ForceBonded<Tpsys>::MinImage(dr[unit - 1]);
@@ -379,27 +392,31 @@ struct ForceBondedMPI {
 
     //Store the sum of force.
 #pragma unroll
-    for(PS::U32 unit = 0; unit < bond_n; unit++)
+    for (PS::U32 unit = 0; unit < bond_n; unit++)
       if (mask[unit]) sys[ l_dst[unit] ].acc += Fbb[unit];
   }
 
   void MakeLocalBondedList(const Tpsys& sys, const PS::ReallocatableArray<Pepj>& epj_org) {
     const PS::U32 real_n = sys.getNumberOfParticleLocal();
-    PS::U32 all_n  = epj_org.size();
+    const PS::U32 all_n  = epj_org.size();
 
     //resize buffer if needed.
-    //TODO: remove this region.
     ampid.resizeNoInitialize(all_n);
     ampid_buf.resizeNoInitialize(all_n);
     loc_topol_cmpl_.resizeNoInitialize(all_n);
     loc_topol_imcmpl_.resizeNoInitialize(all_n * Parameter::all_unit);
     is_real_surf.resizeNoInitialize(10 * all_n * Parameter::all_unit);
     
-    for(PS::U32 i = 0; i < all_n; i++) {
-      ampid[i].amp_id	= epj_org[i].amp_id;
-      ampid[i].unit	= epj_org[i].unit;
-      ampid[i].idx	= i;
-      ampid[i].is_real  = (i < real_n);
+    PS::U32 amp_ptcl_loc = 0;
+    for (PS::U32 i = 0; i < all_n; i++) {
+      if (epj_org[i].prop != Parameter::Solvent) {
+	ampid[i].amp_id	= epj_org[i].amp_id;
+	ampid[i].unit	= epj_org[i].unit;
+	ampid[i].idx	= i;
+	ampid[i].is_real  = (i < real_n);
+	ampid[i].setKey();
+	amp_ptcl_loc++;
+      }
     }
 
 #ifdef PARTICLE_SIMULATOR_THREAD_PARALLEL
@@ -409,55 +426,55 @@ struct ForceBondedMPI {
 #endif
 
     sort(ampid.getPointer(),
-	 ampid.getPointer() + all_n,
+	 ampid.getPointer() + amp_ptcl_loc,
 	 [](const ampid2idx& i, const ampid2idx& j) {
-	   const PS::U32 ikey = i.getKey(), jkey = j.getKey();
-	   if(ikey != jkey)
+	   const PS::U32 ikey = i.key, jkey = j.key;
+	   if (ikey != jkey)
 	     return (ikey < jkey);
 	   else
 	     return (i.is_real > j.is_real);
-	 } );
-
+	 });
+    
     const auto new_end = std::unique(ampid.getPointer(),
-				     ampid.getPointer() + all_n,
+				     ampid.getPointer() + amp_ptcl_loc,
 				     [](const ampid2idx& i, const ampid2idx& j) {
-				       return i.getKey() == j.getKey();
+				       return i.key == j.key;
 				     });
-    all_n = std::distance(ampid.getPointer(), new_end);
-    ampid[all_n].amp_id = 0xffffffff; // add dummy id
+    amp_ptcl_loc = std::distance(ampid.getPointer(), new_end);
+    ampid[amp_ptcl_loc].amp_id = 0xffffffff; // add dummy id
 
     cmplt_amp_ = imcmplt_amp_ = 0;
     PS::U32 id_cmpl = 0, id_imcmpl = 0, cnt_real = ampid[0].is_real, cnt = 1, id_bef = ampid[0].amp_id, id_cur;
-    PS::U32 imcmpl_buf[Parameter::all_unit] = { 0xffffffff };
-    bool    isreal_buf[Parameter::all_unit] = { false };
-    for(PS::U32 i = 1; i < all_n + 1; i++) {
+    PS::U32 imcmpl_buf[Parameter::all_unit] = {0xffffffff};
+    bool    isreal_buf[Parameter::all_unit] = {false};
+    for (PS::U32 i = 1; i < all_n + 1; i++) {
       id_cur = ampid[i].amp_id;
 
-      if(id_cur == id_bef) {
+      if (id_cur == id_bef) {
 	cnt_real += ampid[i].is_real;
 	cnt++;
       } else {
 	if(cnt_real == Parameter::all_unit) {
 	  const PS::U32 beg = i - Parameter::all_unit;
-	  for(PS::U32 j = 0; j < Parameter::all_unit; j++) {
+	  for (PS::U32 j = 0; j < Parameter::all_unit; j++) {
 	    loc_topol_cmpl_[id_cmpl++] = ampid[beg + j].idx;
 	  }
 	  cmplt_amp_++;
 	} else {
 	  //initialize buffer
-	  for(PS::U32 j = 0; j < Parameter::all_unit; j++) {
+	  for (PS::U32 j = 0; j < Parameter::all_unit; j++) {
 	    imcmpl_buf[j] = 0xffffffff;
 	    isreal_buf[j] = false;
 	  }
 	  
 	  const PS::U32 beg = i - cnt;
-	  for(PS::U32 j = 0; j < cnt; j++) {
+	  for (PS::U32 j = 0; j < cnt; j++) {
 	    const PS::U32 dst	= ampid[beg + j].unit;
 	    imcmpl_buf[dst]	= ampid[beg + j].idx;
 	    isreal_buf[dst]	= ampid[beg + j].is_real;
 	  }
 
-	  for(PS::U32 j = 0; j < Parameter::all_unit; j++) {
+	  for (PS::U32 j = 0; j < Parameter::all_unit; j++) {
 	    loc_topol_imcmpl_[id_imcmpl] = imcmpl_buf[j];
 	    is_real_surf[id_imcmpl]	= isreal_buf[j];
 	    id_imcmpl++;
@@ -505,22 +522,22 @@ struct ForceBondedMPI {
     CheckSurfaceTopol();
     
     PS::F64vec d_vir(0.0); PS::F64 d_lap = 0.0;
-    for(PS::U32 i = 0; i < cmplt_amp_; i++)
+    for (PS::U32 i = 0; i < cmplt_amp_; i++)
       CalcBondBendLocalCell<Parameter::all_unit>(sys, i * Parameter::all_unit, d_vir, d_lap);
 
     //for inter cell
-    for(PS::U32 i = 0; i < imcmplt_amp_; i++)
+    for (PS::U32 i = 0; i < imcmplt_amp_; i++)
       CalcBondBendSurface<Parameter::all_unit>(sys, epj_org, i * Parameter::all_unit, d_vir, d_lap);
 
     bonded_vir = d_vir;
   }
 
   void CheckCompleteTopol(const Tpsys& sys) const {
-    for(PS::U32 i = 0; i < cmplt_amp_; i++) {
-      const PS::U32 amp_id = sys[ loc_topol_cmpl_[Parameter::all_unit * i] ].amp_id;
-      for(PS::U32 j = 1; j < Parameter::all_unit; j++) {
+    for (PS::U32 i = 0; i < cmplt_amp_; i++) {
+      const PS::U32 amp_id = sys[loc_topol_cmpl_[Parameter::all_unit * i]].amp_id;
+      for (PS::U32 j = 1; j < Parameter::all_unit; j++) {
 	assert(loc_topol_cmpl_[Parameter::all_unit * i + j] < static_cast<PS::U32>(sys.getNumberOfParticleLocal()));
-	if(amp_id != sys[ loc_topol_cmpl_[Parameter::all_unit * i + j] ].amp_id) {
+	if (amp_id != sys[ loc_topol_cmpl_[Parameter::all_unit * i + j] ].amp_id) {
 	  std::cerr << "Fail topology build\n";
 	  std::cerr << amp_id << " " << sys[ loc_topol_cmpl_[Parameter::all_unit * i + j] ].amp_id << std::endl;
 	  std::cerr << loc_topol_cmpl_[Parameter::all_unit * i + j] << " " << sys.getNumberOfParticleLocal() << std::endl;

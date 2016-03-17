@@ -71,7 +71,7 @@ namespace {
 			       const PS::F64vec& bonded_vir) {
     observer.KineticTempera(system);
     observer.Pressure(system, bonded_vir, param.ibox_leng);
-    observer.Diffusion(system, param.amp_num);
+    observer.Diffusion(system, param.amp_num, param.sol_num);
     
 #ifdef CALC_HEIGHT
     observer.MembHeight(system, param.box_leng);
@@ -120,15 +120,17 @@ int main(int argc, char *argv[]) {
   PS::ParticleSystem<FPDPD> system;
   system.initialize();
   if (PS::Comm::getRank() == 0) {
-    system.setNumberOfParticleLocal(param.init_amp_num * Parameter::all_unit);
+    system.setNumberOfParticleLocal(param.init_amp_num * Parameter::all_unit + param.sol_num);
     Parameter::time = param.LoadParticleConfig(system);
   } else {
     system.setNumberOfParticleLocal(0);
   }
   
+#if defined (CHEM_MODE) && defined (LOCAL_CHEM_EVENT)
   // Calc core id if needed.
   if (PS::Comm::getRank() == 0) param.CalcCorePtclId(system);
-  
+#endif
+
   // Share parameter data with other processes.
   param.ShareDataWithOtherProc();
   param.CheckLoaded();

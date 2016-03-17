@@ -13,7 +13,7 @@ class Parameter {
   std::string cdir;
 
   static void DeleteHeadSpace(std::string &buf) {
-    while(buf.find_first_of(" 　\t") == 0) {
+    while (buf.find_first_of(" 　\t") == 0) {
       buf.erase(buf.begin());
       if(buf.empty()) break;
     }
@@ -21,7 +21,7 @@ class Parameter {
 
   static void DeleteTailSpace(std::string &buf) {
     size_t tail = buf.size() - 1;
-    while(buf.find_last_of(" 　\t") == tail) {
+    while (buf.find_last_of(" 　\t") == tail) {
       buf.erase(buf.end() - 1);
       if(buf.empty()) break;
       tail = buf.size() - 1;
@@ -30,8 +30,8 @@ class Parameter {
 
   void FillUpperTri(std::vector<PS::F64>& buf, PS::F64 array[], const PS::S32 dim) {
     PS::S32 cnt = 0;
-    for(PS::S32 i = 0; i < dim; i++) {
-      for(PS::S32 j = i; j < dim; j++) {
+    for (PS::S32 i = 0; i < dim; i++) {
+      for (PS::S32 j = i; j < dim; j++) {
 	array[i * dim + j] = buf[cnt];
 	cnt++;
       }
@@ -43,6 +43,7 @@ class Parameter {
     Matching(&(box_leng[0]) , std::string("box_leng"), tag_val, 3);
     ibox_leng.x = 1.0 / box_leng.x; ibox_leng.y = 1.0 / box_leng.y; ibox_leng.z = 1.0 / box_leng.z;
     Matching(&init_amp_num, std::string("init_amp_num"), tag_val, 1);
+    Matching(&sol_num, std::string("sol_num"), tag_val, 1);
     Matching(&dt, std::string("dt"), tag_val, 1);
     
     std::vector<PS::F64> cf_buf(prop_num * (prop_num + 1) / 2, 0.0);
@@ -81,7 +82,7 @@ class Parameter {
   }
 
   void CalcGammaWithHarmonicMean(const PS::S32 i, const PS::S32 j) {
-    if(cf_r[i][j] < 0.0){
+    if (cf_r[i][j] < 0.0) {
       cf_g[i][j] = cf_g[j][i] = 2.0 / ( (1.0 / cf_g[i][i]) + (1.0 / cf_g[j][j]) );
       cf_r[i][j] = cf_r[j][i] = std::sqrt(2.0 * cf_g[i][j] * Tempera);
     }
@@ -89,45 +90,47 @@ class Parameter {
   
   void CalcInterCoef() {
     cf_c[Hyphob][Hyphob] = -2.0 * (kappa + 3.0) / rho_co;
-    cf_c[Hyphil][Hyphil] = 0.1;
+    cf_c[Hyphil][Hyphil] = cf_c[Solvent][Solvent] = 0.1;
     cf_c[Hyphil][Hyphob] = cf_c[Hyphob][Hyphil] = chi / (rho_co) + 0.5 * (cf_c[Hyphil][Hyphil] + cf_c[Hyphob][Hyphob]);
+    cf_c[Solvent][Hyphob] = cf_c[Hyphob][Solvent] = cf_c[Hyphil][Hyphob];
     
-    for(PS::S32 i = 0; i < prop_num; i++)
-      for(PS::S32 j = i + 1; j < prop_num; j++)
+    for (PS::S32 i = 0; i < prop_num; i++)
+      for (PS::S32 j = i + 1; j < prop_num; j++)
 	cf_c[j][i] = cf_c[i][j];
 
     cf_m[Hyphob][Hyphob][Hyphob] = 1.5 * (kappa + 2.0) / (rho_co * rho_co);
-    for(PS::S32 i = 0; i < prop_num; i++)
-      for(PS::S32 j= 0; j < prop_num; j++)
-	for(PS::S32 k = 0; k < prop_num; k++)
+    for (PS::S32 i = 0; i < prop_num; i++)
+      for (PS::S32 j= 0; j < prop_num; j++)
+	for (PS::S32 k = 0; k < prop_num; k++)
 	  cf_m[i][j][k] = cf_m[Hyphob][Hyphob][Hyphob];
     cf_m[Hyphil][Hyphil][Hyphil] = 0.0;
+    cf_m[Solvent][Solvent][Solvent] = 0.0;
     
-    for(PS::S32 i = 0; i < prop_num; i++)
-      for(PS::S32 j = i + 1; j < prop_num; j++)
+    for (PS::S32 i = 0; i < prop_num; i++)
+      for (PS::S32 j = i + 1; j < prop_num; j++)
 	cf_r[j][i] = cf_r[i][j];
     
-    for(PS::S32 i = 0; i < prop_num; i++)
-      for(PS::S32 j = 0; j < prop_num; j++)
+    for (PS::S32 i = 0; i < prop_num; i++)
+      for (PS::S32 j = 0; j < prop_num; j++)
 	cf_g[i][j] = 0.5 * cf_r[i][j] * cf_r[i][j] / Tempera; // 2.0 * gamma * k_B T = sigma * sigma
     
-    for(PS::S32 i = 0; i < prop_num; i++)
-      for(PS::S32 j = i + 1; j < prop_num; j++)
+    for (PS::S32 i = 0; i < prop_num; i++)
+      for (PS::S32 j = i + 1; j < prop_num; j++)
 	CalcGammaWithHarmonicMean(i, j);
     
     //NOTE: multiplied by normalize coef.
-    for(PS::S32 i = 0; i < prop_num; i++) 
-      for(PS::S32 j = 0; j < prop_num; j++)
+    for (PS::S32 i = 0; i < prop_num; i++)
+      for (PS::S32 j = 0; j < prop_num; j++)
 	cf_r[i][j] /= std::sqrt(dt);
 
     const PS::F64 arc5 = arc * arc * arc * arc * arc;
-    for(PS::S32 i = 0; i < prop_num; i++)
-      for(PS::S32 j = 0; j < prop_num; j++)
+    for (PS::S32 i = 0; i < prop_num; i++)
+      for (PS::S32 j = 0; j < prop_num; j++)
 	cf_c[i][j] *= (Reo * Reo * Reo) / (all_unit * all_unit) * (15.0 / (2.0 * M_PI * (2.0 * arc5 * arc - 3.0 * arc5 * rc + 3.0 * arc * rc2 * rc2 * rc - 2.0 * rc2 * rc2 * rc2))) * 6.0;
 											 
-    for(PS::S32 i = 0; i < prop_num; i++)
-      for(PS::S32 j = 0; j < prop_num; j++)
-	for(PS::S32 k = 0; k < prop_num; k++)
+    for (PS::S32 i = 0; i < prop_num; i++)
+      for (PS::S32 j = 0; j < prop_num; j++)
+	for (PS::S32 k = 0; k < prop_num; k++)
 	  cf_m[i][j][k] *= ((Reo * Reo * Reo) / (all_unit * all_unit)) * (2.0 / 3.0) * (15.0 / (M_PI * rc2 * rc2)) * (15.0 / (2.0 * M_PI * rc2 * rc2 * rc)) * (Reo * Reo * Reo / all_unit);
   }
 
@@ -173,7 +176,7 @@ public:
   //region info
   static PS::F64vec box_leng, ibox_leng;
   
-  PS::U32 init_amp_num = 0xffffffff, amp_num = 0xffffffff;
+  PS::U32 init_amp_num = 0xffffffff, amp_num = 0xffffffff, sol_num = 0xffffffff;
   PS::F64 dt = std::numeric_limits<PS::F64>::signaling_NaN();
 
   //macroscopic val
@@ -212,17 +215,17 @@ public:
   }
 
   void Initialize() {
-    for(PS::S32 i = 0; i < prop_num; i++) {
-      for(PS::S32 j = 0; j < prop_num; j++) {
+    for (PS::S32 i = 0; i < prop_num; i++) {
+      for (PS::S32 j = 0; j < prop_num; j++) {
 	cf_c[i][j] = std::numeric_limits<PS::F64>::signaling_NaN();
 	cf_g[i][j] = std::numeric_limits<PS::F64>::signaling_NaN();
 	cf_r[i][j] = std::numeric_limits<PS::F64>::signaling_NaN();
       }
     }
 
-    for(PS::S32 i = 0; i < prop_num; i++)
-      for(PS::S32 j = 0; j < prop_num; j++)
-	for(PS::S32 k = 0; k < prop_num; k++)
+    for (PS::S32 i = 0; i < prop_num; i++)
+      for (PS::S32 j = 0; j < prop_num; j++)
+	for (PS::S32 k = 0; k < prop_num; k++)
 	  cf_m[i][j][k] = std::numeric_limits<PS::F64>::signaling_NaN();
 
     cf_s = cf_b = std::numeric_limits<PS::F64>::signaling_NaN();
@@ -237,7 +240,7 @@ public:
   static void MatchingError(std::string tag, 
 			    std::map<std::string, std::vector<std::string> >& tag_val,
 			    const size_t num) {
-    if(tag_val.find(tag) == tag_val.end()){				
+    if (tag_val.find(tag) == tag_val.end()) {
       std::cerr << "Unmatching occurs." << std::endl;			
       std::cerr << "File:" << __FILE__ << " Line:" << __LINE__ << std::endl;
       PS::Abort();							
@@ -251,7 +254,7 @@ public:
 		       const PS::S32 num)
   {
     MatchingError(tag, tag_val, num);
-    for(PS::S32 i = 0; i < num; i++)
+    for (PS::S32 i = 0; i < num; i++)
       val[i] = std::stoi(tag_val[tag].at(i));
   }
 
@@ -261,7 +264,7 @@ public:
 		       const PS::U32 num)
   {
     MatchingError(tag, tag_val, num);
-    for(PS::U32 i = 0; i < num; i++)
+    for (PS::U32 i = 0; i < num; i++)
       val[i] = std::stoi(tag_val[tag].at(i));
   }
 
@@ -271,7 +274,7 @@ public:
 		       const PS::S32 num)
   {
     MatchingError(tag, tag_val, num);    
-    for(PS::S32 i = 0; i < num; i++)
+    for (PS::S32 i = 0; i < num; i++)
       val[i] = std::stof(tag_val[tag].at(i));
   }
 
@@ -281,7 +284,7 @@ public:
 		       const PS::S32 num)
   {
     MatchingError(tag, tag_val, num);
-    for(PS::S32 i = 0; i < num; i++)
+    for (PS::S32 i = 0; i < num; i++)
       val[i] = tag_val[tag].at(i);
   }
 
@@ -291,10 +294,10 @@ public:
     std::string line, tag;
     std::string::size_type comment_start = 0;
     while (std::getline(fin, line) ) {
-      if ((comment_start = line.find(';')) != std::string::size_type(-1) )
+      if ((comment_start = line.find(';')) != std::string::size_type(-1))
 	line = line.substr(0, comment_start);
 
-      if (line.empty() ) continue;
+      if (line.empty()) continue;
 
       DeleteHeadSpace(line);
       DeleteTailSpace(line);
@@ -314,7 +317,7 @@ public:
   void LoadParam() {
     const std::string fname = cdir + "/run_param.txt";
     std::ifstream fin(fname.c_str());
-    if(!fin) {
+    if (!fin) {
       std::cerr << fname.c_str() << " dose not exist.\n";
       std::cerr << __FILE__ << " " << __LINE__ << std::endl;
       PS::Abort();
@@ -330,15 +333,15 @@ public:
   void RemoveCMDrift(Tpsys& sys) const {
     PS::F64vec cmvel(0.0, 0.0, 0.0);
     const PS::S32 num = sys.getNumberOfParticleLocal();
-    for(PS::S32 i = 0; i < num; i++)
+    for (PS::S32 i = 0; i < num; i++)
       cmvel += sys[i].vel;
     cmvel /= num;
-    for(PS::S32 i = 0; i < num; i++)
+    for (PS::S32 i = 0; i < num; i++)
       sys[i].vel -= cmvel;
   }
 
   void ApplyPBC(PS::F64vec& pos) const {
-    for(PS::U32 i = 0; i < 3; i++)
+    for (PS::U32 i = 0; i < 3; i++)
       pos[i] -= std::floor(pos[i] * ibox_leng[i]) * box_leng[i];
   }
 
@@ -361,18 +364,15 @@ public:
   PS::U32 LoadParticleConfig(Tpsys& sys) const {
     const std::string fname = cdir + "/init_config.xyz";
     FILE* fp = io_util::xfopen(fname.c_str(), "r");
-    PS::U32 line_num = 0;
-    PS::U32 cur_time = 0;
+    PS::U32 line_num = 0, cur_time = 0;
     io_util::ReadXYZForm(sys, line_num, cur_time, fp);
-    if (line_num / all_unit != static_cast<PS::U32>(init_amp_num)) {
-      std::cerr << line_num / all_unit << " " << init_amp_num << std::endl;
+    if (line_num != init_amp_num * all_unit + sol_num) {
       std::cerr << "# of lines is not equal to the run input parameter information.\n";
       PS::Abort();
     }
     fclose(fp);
     RemoveCMDrift(sys);
     AdjustCMToBoxCenter(sys);
-
     return cur_time;
   }
 
@@ -380,16 +380,22 @@ public:
   void CheckParticleConfigIsValid(const Tpsys& sys) const {
     const PS::U32 num = sys.getNumberOfParticleLocal();
     PS::F64 kin_temp = 0.0;
-    for(PS::U32 i = 0; i < num; i++) {
+    for (PS::U32 i = 0; i < num; i++) {
       kin_temp += sys[i].vel * sys[i].vel;
       
       assert(sys[i].id >= 0 && sys[i].id < num);
       assert(sys[i].prop >= 0 && sys[i].prop < prop_num);
-      assert(sys[i].amp_id >= 0 && sys[i].amp_id < init_amp_num);
-      assert(sys[i].unit >= 0 && sys[i].unit < all_unit);
       
-      for(PS::U32 j = 0; j < 3; j++) {
-	if(!(sys[i].pos[j] <= box_leng[j] && sys[i].pos[j] >= 0.0)) {
+      if (sys[i].prop != Solvent) {
+	assert(sys[i].amp_id >= 0 && sys[i].amp_id < init_amp_num);
+	assert(sys[i].unit >= 0 && sys[i].unit < all_unit);
+      } else {
+	assert(sys[i].amp_id == 0xffffffff);
+	assert(sys[i].unit   == 0xffffffff);
+      }
+      
+      for (PS::U32 j = 0; j < 3; j++) {
+	if (!(sys[i].pos[j] <= box_leng[j] && sys[i].pos[j] >= 0.0)) {
 	  std::cerr << "There is a particle in outside range.\n";
 	  std::cerr << __FILE__ << " " << __LINE__ << std::endl;
 	  PS::Abort();
@@ -398,7 +404,7 @@ public:
     }
 
     kin_temp /= 3.0 * num;
-    if(fabs(kin_temp - Tempera) >= 1.0e-1) {
+    if (fabs(kin_temp - Tempera) >= 1.0e-1) {
       std::cerr << "Please check kinetic temperature.\n";
       std::cerr << "Kinetic temperature is " << kin_temp << "K_BT.\n";
       std::cerr << __FILE__ << " " << __LINE__ << std::endl;
@@ -409,7 +415,7 @@ public:
 #ifdef CHEM_MODE
   template<class Tpsys>
   void CalcCorePtclId(const Tpsys& sys) {
-    const PS::U32 num_ptcl = amp_num * all_unit;
+    const PS::U32 num_ptcl = sys.getNumberOfParticleLocal();
     for (PS::U32 i = 0; i < num_ptcl; i++) {
       for (PS::U32 j = 0; j < core_amp_id.size(); j++) {
 	if (sys[i].amp_id == core_amp_id[j]) {
@@ -422,17 +428,17 @@ public:
 #endif
 
   void CheckLoaded() const {
-    for(PS::S32 i = 0; i < prop_num; i++) {
-      for(PS::S32 j = 0; j < prop_num; j++) {
+    for (PS::S32 i = 0; i < prop_num; i++) {
+      for (PS::S32 j = 0; j < prop_num; j++) {
 	assert(std::isfinite(cf_c[i][j]));
 	assert(std::isfinite(cf_r[i][j]));
 	assert(std::isfinite(cf_g[i][j]));
       }
     }
 
-    for(PS::S32 i = 0; i < prop_num; i++)
-      for(PS::S32 j = 0; j < prop_num; j++)
-	for(PS::S32 k = 0; k < prop_num; k++)
+    for (PS::S32 i = 0; i < prop_num; i++)
+      for (PS::S32 j = 0; j < prop_num; j++)
+	for (PS::S32 k = 0; k < prop_num; k++)
 	  assert(std::isfinite(cf_m[i][j][k]));
 
     assert(std::isfinite(cf_s));
@@ -446,8 +452,9 @@ public:
     assert(std::isfinite(ibox_leng.y));
     assert(std::isfinite(ibox_leng.z));
 
-    assert(init_amp_num > 0);
-    assert(amp_num > 0);
+    assert(init_amp_num != 0xffffffff);
+    assert(amp_num != 0xffffffff);
+    assert(sol_num != 0xffffffff);
 
     assert(std::isfinite(dt));
     
@@ -541,8 +548,8 @@ public:
     ost << "cf_r are multiplied by 1 / sqrt(dt).\n";
       
 #define DUMPINTRPARAM(val) ost << #val << ":\n";		\
-    for(PS::S32 i = 0; i < prop_num; i++) {			\
-      for(PS::S32 j = 0; j < prop_num; j++)			\
+    for (PS::S32 i = 0; i < prop_num; i++) {			\
+      for (PS::S32 j = 0; j < prop_num; j++)			\
 	ost << val[i][j] << " ";				\
       ost << std::endl;					\
     } 
@@ -552,9 +559,9 @@ public:
     DUMPINTRPARAM(cf_g);
     
     ost << "cf_m:\n";
-    for(PS::S32 i = 0; i < prop_num; i++)
-      for(PS::S32 j = 0; j < prop_num; j++)
-	for(PS::S32 k = 0; k < prop_num; k++)
+    for (PS::S32 i = 0; i < prop_num; i++)
+      for (PS::S32 j = 0; j < prop_num; j++)
+	for (PS::S32 k = 0; k < prop_num; k++)
 	  ost << cf_m[i][j][k] << " ";
     ost << std::endl;
 
@@ -567,7 +574,7 @@ public:
 
   void DumpAllParam() const {
 #ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
-    if(PS::Comm::getRank() == 0) {
+    if (PS::Comm::getRank() == 0) {
 #endif
       const std::string fname = cdir + "/all_param.txt";
       std::ofstream fout(fname.c_str());
@@ -601,6 +608,7 @@ public:
     // non static member
     PS::Comm::broadcast(&init_amp_num, 1, 0);
     PS::Comm::broadcast(&amp_num, 1, 0);
+    PS::Comm::broadcast(&sol_num, 1, 0);
     PS::Comm::broadcast(&dt, 1, 0);
     PS::Comm::broadcast(&chi, 1, 0);
     PS::Comm::broadcast(&kappa, 1, 0);
