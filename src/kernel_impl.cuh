@@ -216,8 +216,8 @@ __global__ void ForceKernel(const int2* __restrict__ ij_disp,
   const int j_head = ij_disp[epi[tid].id_walk    ].y;
   const int j_tail = ij_disp[epi[tid].id_walk + 1].y;
 
-  VecForce fsum = {(T)0.0};
-  VecForce psum = {(T)0.0};
+  VecForce fsum = {(T)0.0, (T)0.0, (T)0.0, (T)0.0};
+  VecForce psum = {(T)0.0, (T)0.0, (T)0.0, (T)0.0};
   
   for(int j = j_head; j < j_tail; j++) {
     const VecPos rj = epj[j].pos;
@@ -331,8 +331,8 @@ __global__ void ForceKernel(const int2* __restrict__ ij_disp,
   const int j_head = ij_disp[epi[tid].id_walk    ].y;
   const int j_tail = ij_disp[epi[tid].id_walk + 1].y;
 
-  VecForce fsum = {(T)0.0};
-  VecForce psum = {(T)0.0};
+  VecForce fsum = {(T)0.0, (T)0.0, (T)0.0, (T)0.0};
+  VecForce psum = {(T)0.0, (T)0.0, (T)0.0, (T)0.0};
 
   int j = j_head;
   const int ini_loop = ((j_tail - j_head) & 3) + j_head;
