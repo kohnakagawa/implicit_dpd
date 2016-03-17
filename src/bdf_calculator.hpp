@@ -407,15 +407,16 @@ struct ForceBondedMPI {
     loc_topol_imcmpl_.resizeNoInitialize(all_n * Parameter::all_unit);
     is_real_surf.resizeNoInitialize(10 * all_n * Parameter::all_unit);
     
-    PS::U32 amp_ptcl_loc = 0;
+    ampid.clearSize();
+    ampid2idx buf;
     for (PS::U32 i = 0; i < all_n; i++) {
       if (epj_org[i].prop != Parameter::Solvent) {
-	ampid[i].amp_id	= epj_org[i].amp_id;
-	ampid[i].unit	= epj_org[i].unit;
-	ampid[i].idx	= i;
-	ampid[i].is_real  = (i < real_n);
-	ampid[i].setKey();
-	amp_ptcl_loc++;
+	buf.amp_id	= epj_org[i].amp_id;
+	buf.unit	= epj_org[i].unit;
+	buf.idx		= i;
+	buf.is_real	= (i < real_n);
+	buf.setKey();
+	ampid.pushBackNoCheck(buf);
       }
     }
 
@@ -425,6 +426,7 @@ struct ForceBondedMPI {
     using std::sort;
 #endif
 
+    PS::U32 amp_ptcl_loc = ampid.size();
     sort(ampid.getPointer(),
 	 ampid.getPointer() + amp_ptcl_loc,
 	 [](const ampid2idx& i, const ampid2idx& j) {
@@ -447,7 +449,7 @@ struct ForceBondedMPI {
     PS::U32 id_cmpl = 0, id_imcmpl = 0, cnt_real = ampid[0].is_real, cnt = 1, id_bef = ampid[0].amp_id, id_cur;
     PS::U32 imcmpl_buf[Parameter::all_unit] = {0xffffffff};
     bool    isreal_buf[Parameter::all_unit] = {false};
-    for (PS::U32 i = 1; i < all_n + 1; i++) {
+    for (PS::U32 i = 1; i < amp_ptcl_loc + 1; i++) {
       id_cur = ampid[i].amp_id;
 
       if (id_cur == id_bef) {

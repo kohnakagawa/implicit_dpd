@@ -135,7 +135,8 @@ public:
 
     if (is_first_call) {
 #ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
-      fprintf(ptr_f[DIFFUSION], "#D_ptcl\n");
+      if (PS::Comm::getRank() == 0)
+	fprintf(ptr_f[DIFFUSION], "#D_ptcl\n");
 #else
       fprintf(ptr_f[DIFFUSION], "#D_ptcl D_lipid D_sol\n");
 #endif
