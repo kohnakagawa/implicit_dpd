@@ -171,10 +171,6 @@ void DrawSys::LoadParticleDat() {
     Particle[i].r[0] *= invL;
     Particle[i].r[1] *= invL;
     Particle[i].r[2] *= invL;
-
-    Particle[i].r[0] -= box_size[0] * 0.5;
-    Particle[i].r[1] -= box_size[1] * 0.5;
-    Particle[i].r[2] -= box_size[2] * 0.5;    
   }
 }
 
