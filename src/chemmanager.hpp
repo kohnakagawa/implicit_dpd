@@ -75,7 +75,7 @@ class ChemManager {
     for (PS::U32 i = 0; i < amp_num; i++) {
       const PS::F64 rnd = PS::MT::genrand_real1();
       const PS::U32 head_id = topol[Parameter::all_unit * i];
-      if ((rnd <= param.p_thresld) && (head_id != 0xffffffff)) {
+      if ((rnd <= param.p_thresld) && (head_id < loc_num)) { // only consider real particle
 	const PS::U32 tail_id = topol[Parameter::all_unit * i + 2];
 	target_id.push_back(head_id);
 	target_id.push_back(tail_id);
@@ -127,7 +127,7 @@ class ChemManager {
       // calc target id
       for (PS::U32 j = 0; j < amp_num; j++) {
 	const PS::U32 head_id = topol[Parameter::all_unit * j];
-	if (head_id != 0xffffffff) {
+	if (head_id < loc_num) { // only consider real particle
 	  PS::F64 rnd = 2.0;
 	  PS::F64vec core2ptcl = sys[head_id].pos - core_pos_h;
 	  ForceBonded<PS::ParticleSystem<FP> >::MinImage(core2ptcl);
