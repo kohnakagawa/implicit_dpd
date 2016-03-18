@@ -103,4 +103,4 @@ $(TARGET_ECONF): ./src/edit_config.cpp
 	$(CXX) $(CXX_FLAGS) $(INCLUDE) $< $(LIBRARY) -o $@
 
 clean:
-	rm -f $(OBJECTS_DPD) $(OBJECTS_CMAKE) $(TARGET_DPD) $(TARGET_CMAKE) core.* *~
+	rm -f $(OBJECTS_DPD) $(OBJECTS_CMAKE) $(TARGET_DPD) $(TARGET_CMAKE) $(TARGET_ECONF) core.* *~

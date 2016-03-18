@@ -81,8 +81,9 @@ endif
 
 TARGET_DPD = implicit_dpd.out
 TARGET_CMAKE = config_maker.out
+TARGET_ECONF = edit_config.out
 
-all:$(TARGET_DPD) $(TARGET_CMAKE)
+all:$(TARGET_DPD) $(TARGET_CMAKE) $(TARGET_ECONF)
 
 .SUFFIXES:
 .SUFFIXES: .cpp .o
@@ -97,6 +98,9 @@ $(TARGET_DPD): $(OBJECTS_DPD)
 
 $(TARGET_CMAKE): $(OBJECTS_CMAKE)
 	$(CXX) $(CXX_FLAGS) $(OBJECTS_CMAKE) $(LIBRARY) -o $@
+
+$(TARGET_ECONF): ./src/edit_config.cpp
+	$(CXX) $(CXX_FLAGS) $(INCLUDE) $< $(LIBRARY) -o $@
 
 clean:
 	rm -f $(OBJECTS_DPD) $(OBJECTS_CMAKE) $(TARGET_DPD) $(TARGET_CMAKE) core.* *~
