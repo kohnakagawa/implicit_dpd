@@ -243,10 +243,6 @@ public:
     }
 #endif
     
-    std::cout << h2t_vecs[0] << std::endl;
-    std::cout << core_poss_h[0] << std::endl;
-    std::cout << sys[param.core_ptcl_id[0]].pos << std::endl;
-    
     for (PS::U32 i = 0; i < old_amp_num; i++) {
       PS::F64 rnd = 2.0;
 #ifdef LOCAL_CHEM_EVENT
