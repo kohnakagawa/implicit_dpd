@@ -28,7 +28,7 @@ CFLAGS += $(WARNINGS)
 CFLAGS += $(STDCPP11)
 CFLAGS += -DPAIRWISE_DPD
 
-INCLUDE = -I../../FDPS/src -I../../
+INCLUDE = -I../../FDPS/src -I../../src
 
 TARGET = near_list.out near_list_omp.out
 

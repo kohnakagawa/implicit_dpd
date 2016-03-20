@@ -13,7 +13,7 @@
 
 constexpr PS::F64 rc = 1.0;
 constexpr PS::F64 rc2 = rc * rc;
-constexpr PS::S32 num_tot = 1536;
+constexpr PS::S32 num_tot = 3072;
 const PS::F64vec box = { 8.0, 8.0, 8.0 };
 
 template<class Tpsys>
