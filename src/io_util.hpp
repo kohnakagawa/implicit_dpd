@@ -97,10 +97,10 @@ namespace io_util {
 			  PS::U32& cur_time,
 			  FILE* fp) {
     char comment[4] = {'\0'}, buf = '0';
-    char cmp_comm[] = {"time"};
     CHECK_READED(fscanf(fp, "%u\n", &num));
     CHECK_READED(fscanf(fp, "%s %u\n", comment, &cur_time));
-    if(strcmp(comment, cmp_comm) == 0) {
+    
+    if (strcmp(comment, "time") == 0) {
       std::cout << "Restart configuration is successfully loaded.\n";
     } else {
       std::cerr << "The file format of init_config.xyz may be old.\n";
@@ -111,10 +111,10 @@ namespace io_util {
       PS::Abort();
     }
     
-    for(PS::U32 i = 0; i < num; i++)
+    for (PS::U32 i = 0; i < num; i++)
       ptcl[i].readAscii(fp);
     CHECK_READED(fscanf(fp, "%c\n", &buf));
-    if(!feof(fp)) {
+    if (!feof(fp)) {
       std::cerr << "# of lines is not equal to the information specified in file header.\n";
       std::exit(1);
     }

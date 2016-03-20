@@ -18,19 +18,42 @@ struct CalcDensity {
   {
     for (PS::S32 i = 0; i < ni; i++) {
       const PS::F64vec ri = epi[i].pos;
-      PS::F64 d_sum[Parameter::prop_num] = { 0.0 };
+      PS::F64 d_sum[Parameter::prop_num] = {0.0};
+      PS::F64vec hypb_pos_sum(0.0, 0.0, 0.0), hypl_pos_sum(0.0, 0.0, 0.0);
+      PS::U32 hypb_cnt = 0, hypl_cnt = 0;
       for (PS::S32 j = 0; j < nj; j++) {
 	const PS::U32 propj = epj[j].prop;
 	const PS::F64vec drij = ri - epj[j].pos;
 	const PS::F64 dr2 = drij * drij;
-	if (dr2 < Parameter::rc2 && dr2 != 0.0) {
-	  const PS::F64 dr = std::sqrt(dr2);
-	  d_sum[propj] += (Parameter::rc - dr) * (Parameter::rc - dr);
+	
+	if (dr2 < Parameter::rn_c2 && dr2 != 0.0) {
+	  // calc cmpos of hyphob
+	  if (propj == Parameter::Hyphob) {
+	    hypb_pos_sum += epj[j].pos;
+	    hypb_cnt++;
+	  }
+	  
+	  // density calc
+	  if (dr2 < Parameter::rc2) {
+	    const PS::F64 dr = std::sqrt(dr2);
+	    d_sum[propj] += (Parameter::rc - dr) * (Parameter::rc - dr);
+
+	    // calc cmpos of hyphil
+	    if (propj == Parameter::Hyphil) {
+	      hypl_pos_sum += epj[j].pos;
+	      hypl_cnt++;
+	    }
+	  }
 	}
       }
       
-      for (PS::S32 k = 0; k < Parameter::prop_num; k++)
+      for (PS::S32 k = 0; k < Parameter::prop_num; k++) {
 	result[i].dens[k] += d_sum[k];
+      }
+      result[i].nei_pos_sum[Parameter::Hyphil] += hypl_pos_sum;
+      result[i].nei_cnt[Parameter::Hyphil] += hypl_cnt;
+      result[i].nei_pos_sum[Parameter::Hyphob] += hypb_pos_sum;
+      result[i].nei_cnt[Parameter::Hyphob] += hypb_cnt;
     }
   }
 };

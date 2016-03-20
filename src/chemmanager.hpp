@@ -86,26 +86,29 @@ class ChemManager {
   void GetCorePos(PS::ParticleSystem<FP>& sys,
 		  const PS::U32 loc_num,
 		  const PS::U32 core_id,
-		  const bool is_tail,
-		  PS::F64vec& core_pos,
+		  PS::F64vec& core_pos_h,
+		  PS::F64vec& core_pos_t,
 		  const Parameter& param) {
-    core_pos = std::numeric_limits<PS::F64>::quiet_NaN();
+    core_pos_h = std::numeric_limits<PS::F64>::quiet_NaN();
+    core_pos_t = std::numeric_limits<PS::F64>::quiet_NaN();
     for (PS::U32 i = 0; i < loc_num; i++) {
-      if (sys[i].id == param.core_ptcl_id[core_id][is_tail]) {
-	core_pos = sys[i].pos;
+      if (sys[i].id == param.core_ptcl_id[core_id]) {
+	core_pos_h = sys[i].nei_cm_pos[Parameter::Hyphil];
+	core_pos_t = sys[i].nei_cm_pos[Parameter::Hyphob];
 	break;
       }
     }
     
     PS::S32 rank = -1;
-    if (std::isfinite(core_pos.x) &&
-	std::isfinite(core_pos.y) &&
-	std::isfinite(core_pos.z)) {
+    if (std::isfinite(core_pos_h.x) &&
+	std::isfinite(core_pos_h.y) &&
+	std::isfinite(core_pos_h.z)) {
       rank = PS::Comm::getRank();
     }
     
     const PS::S32 root_rank = PS::Comm::getMaxValue(rank);
-    PS::Comm::broadcast(&core_pos, 1, root_rank);
+    PS::Comm::broadcast(&core_pos_h, 1, root_rank);
+    PS::Comm::broadcast(&core_pos_t, 1, root_rank);
   }
 
   void DetermineTargetIdWithCorePos(PS::ParticleSystem<FP>& sys,
@@ -117,8 +120,7 @@ class ChemManager {
     const PS::U32 num_core_amp_id = param.core_amp_id.size();
     
     for (PS::U32 i = 0; i < num_core_amp_id; i++) {
-      GetCorePos(sys, loc_num, i, false, core_pos_h, param);
-      GetCorePos(sys, loc_num, i, true , core_pos_t, param);
+      GetCorePos(sys, loc_num, i, core_pos_h, core_pos_t, param);
 
       PS::F64vec h2t = core_pos_t - core_pos_h;
       ForceBonded<PS::ParticleSystem<FP> >::MinImage(h2t);
@@ -231,21 +233,26 @@ public:
     core_poss_h.resizeNoInitialize(num_core_amp_id);
     h2t_vecs.resizeNoInitialize(num_core_amp_id);
     for (PS::U32 i = 0; i < num_core_amp_id; i++) {
-      core_poss_h[i] = sys[param.core_ptcl_id[i][0]].pos;
-      const PS::F64vec core_pos_t = sys[param.core_ptcl_id[i][1]].pos;
+      const PS::S32 core_id = param.core_ptcl_id[i];
+      core_poss_h[i] = sys[core_id].nei_cm_pos[Parameter::Hyphil];
+      const PS::F64vec core_pos_t = sys[core_id].nei_cm_pos[Parameter::Hyphob];
       PS::F64vec h2t = core_pos_t - core_poss_h[i];
       ForceBonded<PS::ParticleSystem<FP> >::MinImage(h2t);
       Normalize(h2t);
       h2t_vecs[i] = h2t;
     }
 #endif
+    
+    std::cout << h2t_vecs[0] << std::endl;
+    std::cout << core_poss_h[0] << std::endl;
+    std::cout << sys[param.core_ptcl_id[0]].pos << std::endl;
+    
     for (PS::U32 i = 0; i < old_amp_num; i++) {
       PS::F64 rnd = 2.0;
 #ifdef LOCAL_CHEM_EVENT
       for (PS::U32 j = 0; j < num_core_amp_id; j++) {
 	PS::F64vec core2ptcl = sys[glob_topol[Parameter::all_unit * i]].pos - core_poss_h[j];
 	ForceBonded<PS::ParticleSystem<FP> >::MinImage(core2ptcl);
-
 	const PS::F64 depth = h2t_vecs[j] * core2ptcl;
 	const PS::F64vec tang_vec = core2ptcl - depth * h2t_vecs[j];
 	const PS::F64 rad = std::sqrt(tang_vec * tang_vec);

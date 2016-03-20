@@ -15,9 +15,13 @@ namespace RESULT {
 
   struct Density {
     std::array<PS::F64, Parameter::prop_num> dens;
+    PS::F64vec nei_pos_sum[2];
+    PS::U32 nei_cnt[2];
     
     void clear() {
       dens.fill(0.0);
+      nei_pos_sum[0] = nei_pos_sum[1] = 0.0;
+      nei_cnt[0] = nei_cnt[1] = 0;
     }
   };
 };
@@ -28,6 +32,7 @@ struct FPDPD {
   PS::F64vec vel, vel_buf;
   PS::F64vec acc;
   PS::F64vec press;
+  PS::F64vec nei_cm_pos[2];
   std::array<PS::F64, Parameter::prop_num> density;
 
   //essential member functions
@@ -47,6 +52,8 @@ struct FPDPD {
 
   void copyFromForce(const RESULT::Density& dens) {
     density = dens.dens;
+    nei_cm_pos[Parameter::Hyphil] = dens.nei_pos_sum[Parameter::Hyphil] / dens.nei_cnt[Parameter::Hyphil];
+    nei_cm_pos[Parameter::Hyphob] = dens.nei_pos_sum[Parameter::Hyphob] / dens.nei_cnt[Parameter::Hyphob];
   }
   
   //for I/O
@@ -57,7 +64,7 @@ struct FPDPD {
 		       &id, &prop, &amp_id, &unit,
 		       &(vel.x), &(vel.y), &(vel.z), &(vel_buf.x), &(vel_buf.y), &(vel_buf.z),
 		       &(acc.x), &(acc.y), &(acc.z)) );
-    delta_sumr = press = 0.0;
+    delta_sumr = press = nei_cm_pos[0] = nei_cm_pos[1] = 0.0;
     density.fill(0.0);
   }
   void writeAscii(FILE *fp) const {

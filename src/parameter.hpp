@@ -76,7 +76,7 @@ class Parameter {
     }
     const PS::U32 num_core_amp = tag_val["core_amp_id"].size();
     core_amp_id.resize(num_core_amp, 0xffffffff);
-    core_ptcl_id.resize(num_core_amp, {0xffffffff, 0xffffffff});
+    core_ptcl_id.resize(num_core_amp, 0xffffffff);
     Matching(&(core_amp_id[0]), std::string("core_amp_id"), tag_val, num_core_amp);
 #endif
   }
@@ -153,6 +153,8 @@ public:
   static constexpr PS::F64 rc2          = rc * rc;
   static constexpr PS::F64 irc          = 1.0 / rc;
   static constexpr PS::U32 decom_freq   = 16;
+  static constexpr PS::F64 rn_c         = 1.2; // used for calculate bilayer normal vector
+  static constexpr PS::F64 rn_c2        = rn_c * rn_c;
 
   static constexpr char atom_type[21] = {
     'O', 'N', 'C', 'S', 'P', 'Z', 'X', 'O', 'N', 'C', 'S', 'P', 'Z', 'X', 'O', 'N', 'C', 'S', 'P', 'Z', 'X'
@@ -191,7 +193,7 @@ public:
   PS::F64 eps         = std::numeric_limits<PS::F64>::signaling_NaN();
   PS::U32 max_amp_num = 0xffffffff; //When amp_num >= max_amp_num, we stop the simulation.
   std::vector<PS::U32> core_amp_id;
-  std::vector<std::array<PS::U32, 2>> core_ptcl_id;
+  std::vector<PS::U32> core_ptcl_id;
   PS::F64 influ_rad   = std::numeric_limits<PS::F64>::signaling_NaN();
   PS::F64 influ_hei   = std::numeric_limits<PS::F64>::signaling_NaN();
   PS::F64 influ_dep   = std::numeric_limits<PS::F64>::signaling_NaN();
@@ -206,6 +208,7 @@ public:
   explicit Parameter(const std::string cdir_) {
     cdir = cdir_;
     static_assert(all_unit >= 3, "all_unit >= 3."); 
+    static_assert(rn_c <= search_rad, "rn_c <= search_rad.");
   }
   ~Parameter() {}
 
@@ -420,8 +423,7 @@ public:
     for (PS::U32 i = 0; i < num_ptcl; i++) {
       for (PS::U32 j = 0; j < core_amp_id.size(); j++) {
 	if (sys[i].amp_id == core_amp_id[j]) {
-	  if (sys[i].unit == 0) core_ptcl_id[j][0] = sys[i].id;
-	  if (sys[i].unit == 2) core_ptcl_id[j][1] = sys[i].id;
+	  if (sys[i].unit == 0) core_ptcl_id[j] = sys[i].id;
 	}
       }
     }
@@ -474,10 +476,8 @@ public:
     for (PS::U32 i = 0; i < core_amp_id.size(); i++) {
       assert(core_amp_id[i] != 0xffffffff);
       assert(core_amp_id[i] < init_amp_num);
-      assert(core_ptcl_id[i][0] != 0xffffffff);
-      assert(core_ptcl_id[i][1] != 0xffffffff);
-      assert(core_ptcl_id[i][0] < all_unit * init_amp_num);
-      assert(core_ptcl_id[i][1] < all_unit * init_amp_num);
+      assert(core_ptcl_id[i] != 0xffffffff);
+      assert(core_ptcl_id[i] < all_unit * init_amp_num);
     }
     
     assert(std::isfinite(influ_rad));
@@ -540,7 +540,7 @@ public:
 
     ost << "core_amp_id core_ptcl_id:\n";
     for (PS::U32 i = 0; i < core_amp_id.size(); i++) {
-      ost << core_amp_id[i] << " " << core_ptcl_id[i][0] << " " << core_ptcl_id[i][1] << std::endl;
+      ost << core_amp_id[i] << " " << core_ptcl_id[i] << std::endl;
     }
     ost << std::endl;
 #endif
@@ -620,7 +620,7 @@ public:
     PS::Comm::broadcast(&eps, 1, 0);
     PS::Comm::broadcast(&max_amp_num, 1, 0);
     PS::Comm::broadcast(&(core_amp_id[0]), core_amp_id.size(), 0);
-    PS::Comm::broadcast(&(core_ptcl_id[0][0]), 2 * core_ptcl_id.size(), 0);
+    PS::Comm::broadcast(&(core_ptcl_id[0]), core_ptcl_id.size(), 0);
     PS::Comm::broadcast(&influ_rad, 1, 0);
     PS::Comm::broadcast(&influ_hei, 1, 0);
     PS::Comm::broadcast(&influ_dep, 1, 0);
