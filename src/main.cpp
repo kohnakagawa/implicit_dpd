@@ -126,7 +126,7 @@ int main(int argc, char *argv[]) {
     system.setNumberOfParticleLocal(0);
   }
   
-#if defined (CHEM_MODE) && defined (LOCAL_CHEM_EVENT)
+#ifdef CHEM_MODE
   // Calc core id if needed.
   if (PS::Comm::getRank() == 0) param.CalcCorePtclId(system);
 #endif
