@@ -258,6 +258,8 @@ public:
 	if ((rad <= rad_thresld) && (depth >= -param.influ_hei) && (depth <= param.influ_dep))
 	  rnd = PS::MT::genrand_real1();
       }
+#else
+      rnd = PS::MT::genrand_real1();
 #endif
       if (rnd <= param.p_thresld) {
 	const PS::U32 head_id = glob_topol[Parameter::all_unit * i    ];
