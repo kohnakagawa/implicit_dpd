@@ -29,7 +29,7 @@ class DrawSys {
     float rad;
     int idx;
     
-    void readFromXYZForm(std::ifstream& fin) {
+    void readFromXYZForm(std::ifstream& fin, std::vector<int>& core_ids) {
 #if 0
       std::string line;
       std::getline(fin, line);
@@ -47,10 +47,13 @@ class DrawSys {
       r[2] = std::stof(v[3]);
       idx  = std::stoi(v[4]);
       prop = std::stoi(v[5]);
-      if (idx == 0)
-	rad = 0.01;
-      else
-	rad = 0.001;
+      rad  = 0.001;
+      if (core_ids.size() != 0) {
+	const int amp_id = std::stoi(v[6]);
+	if (std::find(core_ids.begin(), core_ids.end(), amp_id) != core_ids.end()) {
+	  rad = 0.01;
+	}
+      }
     }
   };
   
@@ -79,6 +82,7 @@ protected:
   int pN = 0;
   std::vector<particle> Particle;
   std::ifstream fin;
+  std::vector<int> core_amp_id;
   
   std::unique_ptr<Jpegout> jpgout;
   

@@ -120,16 +120,41 @@ void DrawSys::InitColor() const {
   glEnable(GL_LIGHT0); //光源0を設定
 }
 
+#define CHECK_FILE_OPEN(fin, fname)					\
+  do {									\
+    if (!fin) {								\
+      std::cerr << "File I/O error!" << std::endl;			\
+      std::cerr << fname << " No such file" << std::endl;		\
+      std::cerr << __FILE__ << " " << __LINE__ << std::endl;		\
+      std::exit(1);							\
+    }									\
+  } while(false)							\
+
 void DrawSys::FileOpen() {
-  const std::string str = cur_dir + "/traject.xyz";
+  std::string str = cur_dir + "/traject.xyz";
   fin.open(str.c_str());
-  if (!fin) {
-    std::cerr << "File I/O error!" << std::endl;
-    std::cerr << str.c_str() << " No such file" << std::endl;
-    std::cerr << __FILE__ << " " << __LINE__ << std::endl;
-    std::exit(1);
+  CHECK_FILE_OPEN(fin, str);
+  
+  str = cur_dir + "/run_param.txt";
+  std::ifstream fin_run(str.c_str());
+  if (fin_run) {
+    while (true) {
+      std::string line;
+      std::getline(fin_run, line);
+      if (line.empty()) break;
+      std::vector<std::string> v;
+      boost::algorithm::split(v, line, boost::algorithm::is_space());
+      if (v[0] == "core_amp_id") {
+	core_amp_id.resize(v.size() - 1, 0);
+	for (size_t i = 0; i < core_amp_id.size(); i++) {
+	  core_amp_id[i] = std::stoi(v[i + 1]);
+	}
+      }
+    }
   }
 }
+
+#undef CHECK_FILE_OPEN
 
 void DrawSys::LoadParticleDat() {
   static bool is_first_call = true;
@@ -151,7 +176,7 @@ void DrawSys::LoadParticleDat() {
 
   Particle.resize(pN);
   for (int i = 0; i < pN; i++) {
-    Particle[i].readFromXYZForm(fin);
+    Particle[i].readFromXYZForm(fin, core_amp_id);
     
     if (box_size[0] < Particle[i].r[0]) box_size[0] = Particle[i].r[0];
     if (box_size[1] < Particle[i].r[1]) box_size[1] = Particle[i].r[1];
@@ -168,9 +193,9 @@ void DrawSys::LoadParticleDat() {
   inv_box_size[0] = 1.0 / box_size[0]; inv_box_size[1] = 1.0 / box_size[1]; inv_box_size[2] = 1.0 / box_size[2];
   
   for (int i = 0; i < pN; i++) {
-    Particle[i].r[0] *= invL;
-    Particle[i].r[1] *= invL;
-    Particle[i].r[2] *= invL;
+    Particle[i].r[0] = Particle[i].r[0] * invL - box_size[0] * 0.5;
+    Particle[i].r[1] = Particle[i].r[1] * invL - box_size[1] * 0.5;
+    Particle[i].r[2] = Particle[i].r[2] * invL - box_size[2] * 0.5;
   }
 }
 
@@ -371,12 +396,19 @@ void DrawSys::ChangeNormalVector(const int i) {
 }
 
 void DrawSys::ChangeCrossSection() {
+#if 0
   static float sign = 1.0f;
   if (cut_plane >= 0.2f) {
     sign = -1.0f;
   } else if(cut_plane <= -0.2f) {
     sign = 1.0f;
   }
+#else
+  const float sign = 1.0f;
+  if (cut_plane >= 0.5 * box_size[0]) {
+    cut_plane = 0.0;
+  }
+#endif
   if (cut_adv) cut_plane += sign * 0.03f;
 }
 
