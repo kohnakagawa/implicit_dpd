@@ -16,6 +16,7 @@ class Observer {
     PART_CONFIG,
     FIN_CONFIG,
     MEMB_HEIGHT,
+    MEMB_NORMAL_VEC,
     
     NUM_FILES,
   };
@@ -48,6 +49,9 @@ class Observer {
       break;
     case MEMB_HEIGHT:
       fname = "memb_height.txt";
+      break;
+    case MEMB_NORMAL_VEC:
+      fname = "memb_normal_vec.txt";
       break;
     default:
       std::cerr << "Unknown type\n";
@@ -265,6 +269,16 @@ public:
 		bin_pos[0], bin_pos[1], height[cnt++]);
       }
     }
+  }
+  
+  void MembNormalVect(const PS::ReallocatableArray<PS::F64vec>& h2t_vecs,
+		      const PS::ReallocatableArray<PS::F64vec>& core_poss_h) {
+    for (int i = 0; i < h2t_vecs.size(); i++) {
+      fprintf(ptr_f[MEMB_NORMAL_VEC], "%.15g %.15g %.15g %.15g %.15g %.15g ",
+	      h2t_vecs[i].x, h2t_vecs[i].y, h2t_vecs[i].z,
+	      core_poss_h[i].x, core_poss_h[i].y, core_poss_h[i].z);
+    }
+    fprintf(ptr_f[MEMB_NORMAL_VEC], "\n");
   }
 
   void NumAmp(const PS::U32 amp_num) {

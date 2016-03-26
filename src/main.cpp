@@ -210,7 +210,7 @@ int main(int argc, char *argv[]) {
   
   // Main MD loop
   const PS::U32 atime = Parameter::time + Parameter::all_time - 1;
-  for(; Parameter::time < atime; Parameter::time++) {
+  for (; Parameter::time < atime; Parameter::time++) {
     drift_and_predict(system, param.dt, param.box_leng, param.ibox_leng);
     
     if (Parameter::time % Parameter::decom_freq == 0) dinfo.decomposeDomainAll(system);
@@ -257,10 +257,16 @@ int main(int argc, char *argv[]) {
     }
 #endif
 
-    if(Parameter::time % Parameter::step_mac == 0)
+    if (Parameter::time % Parameter::step_mac == 0) {
       do_observe_macro(observer, system, param, bonded_vir);
+#ifdef CHEM_MODE
+#ifndef PARTICLE_SIMULATOR_MPI_PARALLEL
+      observer.MembNormalVect(chemmanag.h2t_vecs(), chemmanag.core_poss_h());
+#endif
+#endif
+    }
 
-    if(Parameter::time % Parameter::step_mic == 0)
+    if (Parameter::time % Parameter::step_mic == 0)
       do_observe_micro(observer, system);
   }
   // end of Main MD loop

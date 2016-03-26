@@ -3,7 +3,7 @@
 template<class FP>
 class ChemManager {
   PS::ReallocatableArray<PS::U32> target_id;
-  PS::ReallocatableArray<PS::F64vec> core_poss_h, h2t_vecs;
+  PS::ReallocatableArray<PS::F64vec> core_poss_h_, h2t_vecs_;
 
   static inline void Normalize(PS::F64vec& vec) {
     vec /= std::sqrt(vec * vec);
@@ -160,6 +160,14 @@ public:
     target_id.resizeNoInitialize(10000);
   }
   ~ChemManager() {}
+
+  const PS::ReallocatableArray<PS::F64vec>& h2t_vecs() const {
+    return h2t_vecs_;
+  }
+
+  const PS::ReallocatableArray<PS::F64vec>& core_poss_h() const {
+    return core_poss_h_;
+  }
   
   // MPI version
   template<class Pepj>
@@ -230,16 +238,16 @@ public:
     const PS::U32 old_amp_num = param.amp_num;
 #ifdef LOCAL_CHEM_EVENT
     const PS::U32 num_core_amp_id = param.core_amp_id.size();
-    core_poss_h.resizeNoInitialize(num_core_amp_id);
-    h2t_vecs.resizeNoInitialize(num_core_amp_id);
+    core_poss_h_.resizeNoInitialize(num_core_amp_id);
+    h2t_vecs_.resizeNoInitialize(num_core_amp_id);
     for (PS::U32 i = 0; i < num_core_amp_id; i++) {
       const PS::S32 core_id = param.core_ptcl_id[i];
-      core_poss_h[i] = sys[core_id].nei_cm_pos[Parameter::Hyphil];
+      core_poss_h_[i] = sys[core_id].nei_cm_pos[Parameter::Hyphil];
       const PS::F64vec core_pos_t = sys[core_id].nei_cm_pos[Parameter::Hyphob];
-      PS::F64vec h2t = core_pos_t - core_poss_h[i];
+      PS::F64vec h2t = core_pos_t - core_poss_h_[i];
       ForceBonded<PS::ParticleSystem<FP> >::MinImage(h2t);
       Normalize(h2t);
-      h2t_vecs[i] = h2t;
+      h2t_vecs_[i] = h2t;
     }
 #endif
     
@@ -247,10 +255,10 @@ public:
       PS::F64 rnd = 2.0;
 #ifdef LOCAL_CHEM_EVENT
       for (PS::U32 j = 0; j < num_core_amp_id; j++) {
-	PS::F64vec core2ptcl = sys[glob_topol[Parameter::all_unit * i]].pos - core_poss_h[j];
+	PS::F64vec core2ptcl = sys[glob_topol[Parameter::all_unit * i]].pos - core_poss_h_[j];
 	ForceBonded<PS::ParticleSystem<FP> >::MinImage(core2ptcl);
-	const PS::F64 depth = h2t_vecs[j] * core2ptcl;
-	const PS::F64vec tang_vec = core2ptcl - depth * h2t_vecs[j];
+	const PS::F64 depth = h2t_vecs_[j] * core2ptcl;
+	const PS::F64vec tang_vec = core2ptcl - depth * h2t_vecs_[j];
 	const PS::F64 rad = std::sqrt(tang_vec * tang_vec);
 	
 	const PS::F64 rad_thresld = param.influ_grd * depth + param.influ_rad;
