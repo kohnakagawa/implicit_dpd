@@ -32,17 +32,16 @@ struct CalcDensity {
 	    hypb_pos_sum += epj[j].pos;
 	    hypb_cnt++;
 	  }
+	  // calc cmpos of hyphil
+	  if (propj == Parameter::Hyphil) {
+	    hypl_pos_sum += epj[j].pos;
+	    hypl_cnt++;
+	  }
 	  
 	  // density calc
 	  if (dr2 < Parameter::rc2) {
 	    const PS::F64 dr = std::sqrt(dr2);
 	    d_sum[propj] += (Parameter::rc - dr) * (Parameter::rc - dr);
-
-	    // calc cmpos of hyphil
-	    if (propj == Parameter::Hyphil) {
-	      hypl_pos_sum += epj[j].pos;
-	      hypl_cnt++;
-	    }
 	  }
 	}
       }
