@@ -19,8 +19,8 @@ struct CalcDensity {
     for (PS::S32 i = 0; i < ni; i++) {
       const PS::F64vec ri = epi[i].pos;
       PS::F64 d_sum[Parameter::prop_num] = {0.0};
-      PS::F64vec hypb_pos_sum(0.0, 0.0, 0.0), hypl_pos_sum(0.0, 0.0, 0.0);
-      PS::U32 hypb_cnt = 0, hypl_cnt = 0;
+      PS::F64vec hypb_pos_sum(0.0, 0.0, 0.0), hypl_pos_sum = ri; // NOTE: cm_pos is only used when i particle's property is hydrophlic.
+      PS::U32 hypb_cnt = 0, hypl_cnt = 1;
       for (PS::S32 j = 0; j < nj; j++) {
 	const PS::U32 propj = epj[j].prop;
 	const PS::F64vec drij = ri - epj[j].pos;
@@ -32,16 +32,17 @@ struct CalcDensity {
 	    hypb_pos_sum += epj[j].pos;
 	    hypb_cnt++;
 	  }
-	  // calc cmpos of hyphil
-	  if (propj == Parameter::Hyphil) {
-	    hypl_pos_sum += epj[j].pos;
-	    hypl_cnt++;
-	  }
-	  
+
 	  // density calc
 	  if (dr2 < Parameter::rc2) {
 	    const PS::F64 dr = std::sqrt(dr2);
 	    d_sum[propj] += (Parameter::rc - dr) * (Parameter::rc - dr);
+
+	    // calc cmpos of hyphil
+	    if (propj == Parameter::Hyphil) {
+	      hypl_pos_sum += epj[j].pos;
+	      hypl_cnt++;
+	    }
 	  }
 	}
       }
