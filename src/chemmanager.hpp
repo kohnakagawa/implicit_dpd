@@ -242,12 +242,20 @@ public:
     h2t_vecs_.resizeNoInitialize(num_core_amp_id);
     for (PS::U32 i = 0; i < num_core_amp_id; i++) {
       const PS::S32 core_id = param.core_ptcl_id[i];
-      core_poss_h_[i] = sys[core_id].nei_cm_pos[Parameter::Hyphil];
-      const PS::F64vec core_pos_t = sys[core_id].nei_cm_pos[Parameter::Hyphob];
-      PS::F64vec h2t = core_pos_t - core_poss_h_[i];
+      
+      // calc bilayer normal vector
+      const PS::F64vec core_pos = sys[core_id].pos;
+      PS::F64vec h2t = sys[core_id].nei_cm_pos[Parameter::Hyphob] - core_pos;
       ForceBonded<PS::ParticleSystem<FP> >::MinImage(h2t);
       Normalize(h2t);
       h2t_vecs_[i] = h2t;
+      
+      // calc core position
+      PS::F64vec core2cmpos = sys[core_id].nei_cm_pos[Parameter::Hyphil] - core_pos;
+      ForceBonded<PS::ParticleSystem<FP> >::MinImage(core2cmpos);
+      const PS::F64 prj_cf = core2cmpos * h2t;
+      core_poss_h_[i] = core_pos + prj_cf * h2t;
+      ApplyPBC(core_poss_h_[i]);
     }
 #endif
     
