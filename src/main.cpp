@@ -261,7 +261,7 @@ int main(int argc, char *argv[]) {
       do_observe_macro(observer, system, param, bonded_vir);
 #ifdef CHEM_MODE
 #ifndef PARTICLE_SIMULATOR_MPI_PARALLEL
-      observer.MembNormalVect(chemmanag.h2t_vecs(), chemmanag.core_poss_h());
+      observer.MembNormalVect(system, chemmanag.h2t_vecs(), chemmanag.core_poss_h(), param.core_ptcl_id);
 #endif
 #endif
     }

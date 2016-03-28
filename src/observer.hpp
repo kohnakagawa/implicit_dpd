@@ -271,12 +271,16 @@ public:
     }
   }
   
-  void MembNormalVect(const PS::ReallocatableArray<PS::F64vec>& h2t_vecs,
-		      const PS::ReallocatableArray<PS::F64vec>& core_poss_h) {
+  void MembNormalVect(const Tpsys& sys,
+		      const PS::ReallocatableArray<PS::F64vec>& h2t_vecs,
+		      const PS::ReallocatableArray<PS::F64vec>& core_poss_h,
+		      const std::vector<PS::U32>& core_ptcl_id) {
     for (int i = 0; i < h2t_vecs.size(); i++) {
-      fprintf(ptr_f[MEMB_NORMAL_VEC], "%.15g %.15g %.15g %.15g %.15g %.15g ",
+      const PS::U32 core_id = core_ptcl_id[i];
+      fprintf(ptr_f[MEMB_NORMAL_VEC], "%.15g %.15g %.15g %.15g %.15g %.15g %.15g %.15g %.15g ",
 	      h2t_vecs[i].x, h2t_vecs[i].y, h2t_vecs[i].z,
-	      core_poss_h[i].x, core_poss_h[i].y, core_poss_h[i].z);
+	      core_poss_h[i].x, core_poss_h[i].y, core_poss_h[i].z,
+	      sys[core_id].pos.x, sys[core_id].pos.y, sys[core_id].pos.z);
     }
     fprintf(ptr_f[MEMB_NORMAL_VEC], "\n");
   }
