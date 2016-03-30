@@ -150,6 +150,9 @@ void DrawSys::FileOpen() {
 	  core_amp_id[i] = std::stoi(v[i + 1]);
 	}
       }
+      if (v[0] == "influ_rad") {
+	influ_rad = std::stof(v[1]);
+      }
     }
   }
 }
@@ -176,7 +179,7 @@ void DrawSys::LoadParticleDat() {
 
   Particle.resize(pN);
   for (int i = 0; i < pN; i++) {
-    Particle[i].readFromXYZForm(fin, core_amp_id);
+    Particle[i].readFromXYZForm(fin, core_amp_id, influ_rad);
     
     if (box_size[0] < Particle[i].r[0]) box_size[0] = Particle[i].r[0];
     if (box_size[1] < Particle[i].r[1]) box_size[1] = Particle[i].r[1];
@@ -196,6 +199,8 @@ void DrawSys::LoadParticleDat() {
     Particle[i].r[0] = Particle[i].r[0] * invL - box_size[0] * 0.5;
     Particle[i].r[1] = Particle[i].r[1] * invL - box_size[1] * 0.5;
     Particle[i].r[2] = Particle[i].r[2] * invL - box_size[2] * 0.5;
+
+    Particle[i].rad *= invL;
   }
 }
 
