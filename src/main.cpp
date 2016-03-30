@@ -192,12 +192,6 @@ int main(int argc, char *argv[]) {
   do_observe_macro(observer, system, param, bonded_vir);
   do_observe_micro(observer, system);
 #ifdef CHEM_MODE
-#ifndef PARTICLE_SIMULATOR_MPI_PARALLEL
-      observer.MembNormalVect(system, chemmanag.h2t_vecs(), chemmanag.core_poss_h(), param.core_ptcl_id);
-#endif
-#endif
-
-#ifdef CHEM_MODE
   // const PS::U32 seed = 123;
   const PS::U32 seed = static_cast<PS::U32>(time(nullptr));
   ChemManager<FPDPD> chemmanag(seed);
@@ -205,8 +199,8 @@ int main(int argc, char *argv[]) {
   
 #ifndef PARTICLE_SIMULATOR_MPI_PARALLEL
   fbonded.ExpandTopolBuffer(param.max_amp_num * Parameter::all_unit);
+  observer.MembNormalVect(system, chemmanag.h2t_vecs(), chemmanag.core_poss_h(), param.core_ptcl_id);
 #endif
-  
 #endif
 
   kick(system, param.dt);
