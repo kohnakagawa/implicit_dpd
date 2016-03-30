@@ -23,13 +23,13 @@ __global__ void ForceKernel(const int2* __restrict__ ij_disp,
   __shared__ T d_sum_sh[N_THREAD_GPU * Parameter::prop_num];
   T* d_sum = &(d_sum_sh[threadIdx.x * Parameter::prop_num]);
 #pragma unroll
-  for(int k = 0; k < Parameter::prop_num; k++)
+  for (int k = 0; k < Parameter::prop_num; k++)
     d_sum[k] = 0.0;
   
   const int j_head = ij_disp[epi[tid].id_walk    ].y;
   const int j_tail = ij_disp[epi[tid].id_walk + 1].y;
   
-  for(int j = j_head; j < j_tail; j++) {
+  for (int j = j_head; j < j_tail; j++) {
 #ifdef USE_FLOAT_VEC
     const VecPos rj = __ldg(&epj[j].pos);
     const uint prpj = __float_as_uint(rj.w);
@@ -44,7 +44,7 @@ __global__ void ForceKernel(const int2* __restrict__ ij_disp,
   }
 
 #pragma unroll
-  for(int k = 0; k < Parameter::prop_num; k++)
+  for (int k = 0; k < Parameter::prop_num; k++)
     result[tid].dens[k] = d_sum[k];
 }
 
@@ -63,7 +63,7 @@ __global__ void ForceKernel(const int2* __restrict__ ij_disp,
   __shared__ T d_sum_sh[N_THREAD_GPU * Parameter::prop_num];
   T* d_sum = &(d_sum_sh[threadIdx.x * Parameter::prop_num]);
 #pragma unroll
-  for(int k = 0; k < Parameter::prop_num; k++)
+  for (int k = 0; k < Parameter::prop_num; k++)
     d_sum[k] = 0.0;
   
   const int j_head = ij_disp[epi[tid].id_walk    ].y;
@@ -74,7 +74,7 @@ __global__ void ForceKernel(const int2* __restrict__ ij_disp,
   const int ini_loop = (res_loop_cnt & 3) + j_head;
   const int nxt_loop = res_loop_cnt + j_head;
   
-  for(; j < ini_loop; j++) {
+  for (; j < ini_loop; j++) {
 #ifdef USE_FLOAT_VEC
     const VecPos rj = __ldg(&epj[j].pos);
     const uint prpj = __float_as_uint(rj.w);
@@ -89,7 +89,7 @@ __global__ void ForceKernel(const int2* __restrict__ ij_disp,
   } //end of for j
 
   //unroll 4
-  for(; j < nxt_loop; j += 4) {
+  for (; j < nxt_loop; j += 4) {
 #ifdef USE_FLOAT_VEC
     const VecPos rj0 = __ldg(&epj[j    ].pos); const uint prpj0 = __float_as_uint(rj0.w);
     const VecPos rj1 = __ldg(&epj[j + 1].pos); const uint prpj1 = __float_as_uint(rj1.w);
@@ -123,7 +123,7 @@ __global__ void ForceKernel(const int2* __restrict__ ij_disp,
   }
   
   //unroll 8
-  for(; j < j_tail; j += 8) {
+  for (; j < j_tail; j += 8) {
 #ifdef USE_FLOAT_VEC
     const VecPos rj0 = __ldg(&epj[j    ].pos); const uint prpj0 = __float_as_uint(rj0.w);
     const VecPos rj1 = __ldg(&epj[j + 1].pos); const uint prpj1 = __float_as_uint(rj1.w);
@@ -181,7 +181,7 @@ __global__ void ForceKernel(const int2* __restrict__ ij_disp,
   } //end of for j
 
 #pragma unroll
-  for(int k = 0; k < Parameter::prop_num; k++)
+  for (int k = 0; k < Parameter::prop_num; k++)
     result[tid].dens[k] = d_sum[k];
 }
 
@@ -210,7 +210,7 @@ __global__ void ForceKernel(const int2* __restrict__ ij_disp,
 
   T densi[Parameter::prop_num];
   
-  for(int k = 0; k < Parameter::prop_num; k++)
+  for (int k = 0; k < Parameter::prop_num; k++)
     densi[k] = epi[tid].dens[k];
   
   const int j_head = ij_disp[epi[tid].id_walk    ].y;
@@ -219,7 +219,7 @@ __global__ void ForceKernel(const int2* __restrict__ ij_disp,
   VecForce fsum = {(T)0.0, (T)0.0, (T)0.0, (T)0.0};
   VecForce psum = {(T)0.0, (T)0.0, (T)0.0, (T)0.0};
   
-  for(int j = j_head; j < j_tail; j++) {
+  for (int j = j_head; j < j_tail; j++) {
     const VecPos rj = epj[j].pos;
     const VecPos vj = epj[j].vel;
 
@@ -235,7 +235,7 @@ __global__ void ForceKernel(const int2* __restrict__ ij_disp,
     const VecForce dvij = {vi.x - vj.x, vi.y - vj.y, vi.z - vj.z};
 
     T densij[Parameter::prop_num];
-    for(int k = 0; k < Parameter::prop_num; k++)
+    for (int k = 0; k < Parameter::prop_num; k++)
       densij[k] = densi[k] + epj[j].dens[k];
     
     uint m_i, m_j;
@@ -256,44 +256,26 @@ __global__ void ForceKernel(const int2* __restrict__ ij_disp,
 #ifdef PAIRWISE_DPD
     const T cf_co = 25.0 * one_m_dr;
     const T cf_mbd = 0.0;
-
 #else
-
-#ifdef USE_TEXTURE_MEM
     const T cf_co = tex2D(cf_c, prpj, prpi) * (dr - (T)Parameter::arc) * (dr - (T)Parameter::rc) * (dr >= (T)Parameter::arc);
 
     T cf_mbd = 0.0;
-    for(int k = 0; k < Parameter::prop_num; k++)
+    for (int k = 0; k < Parameter::prop_num; k++)
       cf_mbd += densij[k] * tex3D(cf_m, k, prpj, prpi);
     cf_mbd *= one_m_dr;
-    
-#else
-    const T cf_co = cf_c[prpi][prpj] * (dr - (T)Parameter::arc) * (dr - (T)Parameter::rc) * (dr >= (T)Parameter::arc);
-
-    T cf_mbd = 0.0;
-    for(int k = 0; k < Parameter::prop_num; k++)
-      cf_mbd += densij[k] * cf_m[prpi][prpj][k];
-    cf_mbd *= one_m_dr;
-#endif //USE_TEXTURE_MEM
-
 #endif //PAIRWISE_DPD
+    
     const T wrij = one_m_dr;
     //const T wrij = sqrtf(one_m_dr);
     const T sq_wrij = sqrtf(wrij);
     
     const T drij_dvij = drij.x * dvij.x + drij.y * dvij.y + drij.z * dvij.z;
 
-#ifdef USE_TEXTURE_MEM
     T all_cf = (cf_co + cf_mbd +
       		tex2D(cf_r, prpj, prpi) * sq_wrij * rnd -
 		tex2D(cf_g, prpj, prpi) * wrij * drij_dvij * inv_dr) * inv_dr;
-#else
-    T all_cf = (cf_co + cf_mbd +
-      		cf_r[prpi][prpj] * sq_wrij * rnd - 
-		cf_g[prpi][prpj] * wrij * drij_dvij * inv_dr) * inv_dr;
-#endif
 
-    if(dr2 >= (T)Parameter::rc2 || dr2 == 0.0) all_cf = 0.0;
+    if (dr2 >= (T)Parameter::rc2 || dr2 == 0.0) all_cf = 0.0;
     
     const VecForce dF = {all_cf * drij.x, all_cf * drij.y, all_cf * drij.z};
     const VecForce dP = {dF.x * drij.x, dF.y * drij.y, dF.z * drij.z};
@@ -325,7 +307,7 @@ __global__ void ForceKernel(const int2* __restrict__ ij_disp,
 
   T densi[Parameter::prop_num]; //NOTE: this is not located at local memory.
   
-  for(int k = 0; k < Parameter::prop_num; k++)
+  for (int k = 0; k < Parameter::prop_num; k++)
     densi[k] = epi[tid].dens[k];
   
   const int j_head = ij_disp[epi[tid].id_walk    ].y;
@@ -336,7 +318,7 @@ __global__ void ForceKernel(const int2* __restrict__ ij_disp,
 
   int j = j_head;
   const int ini_loop = ((j_tail - j_head) & 3) + j_head;
-  for(; j < ini_loop; j++) {
+  for (; j < ini_loop; j++) {
     const VecPos rj = epj[j].pos;
     const VecPos vj = epj[j].vel;
 
@@ -347,7 +329,7 @@ __global__ void ForceKernel(const int2* __restrict__ ij_disp,
     const VecForce dvij = {vi.x - vj.x, vi.y - vj.y, vi.z - vj.z};
 
     T densij[Parameter::prop_num];
-    for(int k = 0; k < Parameter::prop_num; k++)
+    for (int k = 0; k < Parameter::prop_num; k++)
       densij[k] = densi[k] + epj[j].dens[k];
     
     uint m_i, m_j;
@@ -368,7 +350,7 @@ __global__ void ForceKernel(const int2* __restrict__ ij_disp,
     const T cf_co = tex2D(cf_c, prpj, prpi) * (dr - (T)Parameter::arc) * (dr - (T)Parameter::rc) * (dr >= (T)Parameter::arc);
 
     T cf_mbd = 0.0;
-    for(int k = 0; k < Parameter::prop_num; k++)
+    for (int k = 0; k < Parameter::prop_num; k++)
       cf_mbd += densij[k] * tex3D(cf_m, k, prpj, prpi);
     cf_mbd *= one_m_dr;
     
@@ -391,7 +373,7 @@ __global__ void ForceKernel(const int2* __restrict__ ij_disp,
     psum.x += dP.x; psum.y += dP.y; psum.z += dP.z;
   } //end of for j
   
-  for(; j < j_tail; j += 4) {
+  for (; j < j_tail; j += 4) {
     const VecPos rj0 = epj[j    ].pos; const VecPos vj0 = epj[j    ].vel;
     const VecPos rj1 = epj[j + 1].pos; const VecPos vj1 = epj[j + 1].vel;
     const VecPos rj2 = epj[j + 2].pos; const VecPos vj2 = epj[j + 2].vel;
@@ -404,7 +386,7 @@ __global__ void ForceKernel(const int2* __restrict__ ij_disp,
     
     T densij0[Parameter::prop_num], densij1[Parameter::prop_num], densij2[Parameter::prop_num], densij3[Parameter::prop_num];
 #pragma unroll
-    for(int k = 0; k < Parameter::prop_num; k++) {
+    for (int k = 0; k < Parameter::prop_num; k++) {
       densij0[k] = densi[k] + epj[j    ].dens[k];
       densij1[k] = densi[k] + epj[j + 1].dens[k];
       densij2[k] = densi[k] + epj[j + 2].dens[k];
@@ -469,7 +451,7 @@ __global__ void ForceKernel(const int2* __restrict__ ij_disp,
 
     T cf_mbd0 = (T)0.0, cf_mbd1 = (T)0.0, cf_mbd2 = (T)0.0, cf_mbd3 = (T)0.0;
 #pragma unroll
-    for(int k = 0; k < Parameter::prop_num; k++) {
+    for (int k = 0; k < Parameter::prop_num; k++) {
       cf_mbd0 += densij0[k] * tex3D(cf_m, k, prpj0, prpi);
       cf_mbd1 += densij1[k] * tex3D(cf_m, k, prpj1, prpi);
       cf_mbd2 += densij2[k] * tex3D(cf_m, k, prpj2, prpi);
