@@ -6,6 +6,7 @@
 #include <GL/freeglut.h>
 #include <memory>
 #include <boost/algorithm/string.hpp>
+#include <boost/lexical_cast.hpp>
 
 class Jpegout;
 
@@ -49,9 +50,11 @@ class DrawSys {
       prop = std::stoi(v[5]);
       rad  = 0.1;
       if (core_ids.size() != 0) {
-	const int amp_id = std::stoi(v[6]);
-	if (std::find(core_ids.begin(), core_ids.end(), amp_id) != core_ids.end() && prop == 0) {
-	  rad = influ_rad;
+	if (v[6] != "4294967295") {
+	  const auto amp_id = boost::lexical_cast<int>(v[6]);
+	  if (std::find(core_ids.begin(), core_ids.end(), amp_id) != core_ids.end() && prop == 0) {
+	    rad = influ_rad;
+	  }
 	}
       }
     }
