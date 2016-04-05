@@ -441,7 +441,7 @@ inline double Saru::uni_open()
 
 inline double Saru::nrml()
 {
-  return std::sqrt(-2.0 * std::log(uni_open() ) ) * std::cos(2.0 * M_PI * uni_open() );
+  return std::sqrt(-2.0 * std::log(uni_open())) * std::cos(2.0 * M_PI * uni_open());
 }
 
 #endif /* SARUPRNGCPU_HPP */
