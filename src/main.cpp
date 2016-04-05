@@ -155,7 +155,7 @@ int main(int argc, char *argv[]) {
   force_tree.initialize(5 * system.getNumberOfParticleGlobal() );
   
 #ifdef ENABLE_GPU_CUDA
-  const PS::S32 n_walk_limit = 800;
+  const PS::S32 n_walk_limit = 200;
   const PS::S32 tag_max = 1;
   dens_tree.calcForceAllAndWriteBackMultiWalk(DispatchKernel<Policy::Density, EPI::Density, EPJ::Density>,
 					      RetrieveKernel<Policy::Density, RESULT::Density>,

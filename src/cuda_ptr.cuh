@@ -7,16 +7,16 @@
 #include <helper_cuda.h>
  
 template <typename T>
-struct cuda_ptr{
+struct cuda_ptr {
   T *dev_ptr = nullptr;
   T *host_ptr = nullptr;
   int size = -1;
   thrust::device_ptr<T> thrust_ptr;
   
-  cuda_ptr(){}
-  ~cuda_ptr(){}
+  cuda_ptr() {}
+  ~cuda_ptr() {}
  
-  void allocate(const int size_){
+  void allocate(const int size_) {
     size = size_;
     checkCudaErrors(cudaMalloc((void**)&dev_ptr, size * sizeof(T)));
     checkCudaErrors(cudaMallocHost((void**)&host_ptr, size * sizeof(T)));
@@ -26,24 +26,28 @@ struct cuda_ptr{
   void host2dev(const int beg, const int count) {
     checkCudaErrors(cudaMemcpy(dev_ptr + beg, host_ptr + beg, count * sizeof(T), cudaMemcpyHostToDevice));
   }
-  void host2dev() {this->host2dev(0, size);}
-  void host2dev_async(const int beg, const int count, cudaStream_t& strm){
+  void host2dev() {
+    this->host2dev(0, size);
+  }
+  void host2dev_async(const int beg, const int count, cudaStream_t& strm) {
     checkCudaErrors(cudaMemcpyAsync(dev_ptr + beg, host_ptr + beg, count * sizeof(T), cudaMemcpyHostToDevice, strm));
   }
   
-  void dev2host(const int beg, const int count){
+  void dev2host(const int beg, const int count) {
     checkCudaErrors(cudaMemcpy(host_ptr + beg, dev_ptr + beg, count * sizeof(T), cudaMemcpyDeviceToHost));
   }
-  void dev2host() {this->dev2host(0, size);}
-  void dev2host_async(const int beg, const int count, cudaStream_t& strm){
+  void dev2host() {
+    this->dev2host(0, size);
+  }
+  void dev2host_async(const int beg, const int count, cudaStream_t& strm) {
     checkCudaErrors(cudaMemcpyAsync(host_ptr + beg, dev_ptr + beg, count * sizeof(T), cudaMemcpyDeviceToHost, strm));
   }
  
-  void set_val(const T val){
+  void set_val(const T val) {
     for(int i = 0; i < size; i++) host_ptr[i] = val;
     thrust::fill(thrust_ptr, thrust_ptr + size, val);
   }
-  void set_val(const int beg, const int count, const T val){
+  void set_val(const int beg, const int count, const T val) {
     const int end = beg + count;
     for(int i = beg; i < end; i++) host_ptr[i] = val;
     thrust::device_ptr<T> beg_ptr = thrust_ptr + beg;
@@ -58,11 +62,11 @@ struct cuda_ptr{
     return host_ptr[i];
   }
   
-  operator T* (){
+  operator T* () {
     return dev_ptr;
   }
 
-  void deallocate(){
+  void deallocate() {
     checkCudaErrors(cudaFree(dev_ptr));
     checkCudaErrors(cudaFreeHost(host_ptr));
   }
@@ -81,22 +85,24 @@ struct cuda2D_ptr {
   
   template<typename U>
   void host2host(U cpy[Nx][Ny]) {
-    for(size_t i = 0; i < Nx; i++)
-      for(size_t j = 0; j < Ny; j++)
-	host[i][j] = (T)cpy[i][j];
+    for (size_t i = 0; i < Nx; i++) {
+      for (size_t j = 0; j < Ny; j++) {
+	host[i][j] = static_cast<T>(cpy[i][j]);
+      }
+    }
   }
   
   void host2dev() {
-    checkCudaErrors(cudaMemcpyToArray(dev_ptr, 0, 0, host, Nx * Ny * sizeof(T), cudaMemcpyHostToDevice) );
+    checkCudaErrors(cudaMemcpyToArray(dev_ptr, 0, 0, host, Nx * Ny * sizeof(T), cudaMemcpyHostToDevice));
   }
 
   void deallocate() {
-    checkCudaErrors(cudaFreeArray(dev_ptr) );
+    checkCudaErrors(cudaFreeArray(dev_ptr));
   }
 
   void allocate(cudaChannelFormatDesc cdesc_) {
     cdesc = cdesc_;
-    checkCudaErrors(cudaMallocArray(&dev_ptr, &cdesc, Ny, Nx) );
+    checkCudaErrors(cudaMallocArray(&dev_ptr, &cdesc, Ny, Nx));
   }
 };
 
@@ -113,27 +119,30 @@ struct cuda3D_ptr {
 
   template<typename U>
   void host2host(U cpy[Nx][Ny][Nz]) {
-    for(size_t i = 0; i < Nx; i++)
-      for(size_t j = 0; j < Ny; j++)
-	for(size_t k = 0; k < Nz; k++)
+    for (size_t i = 0; i < Nx; i++) {
+      for (size_t j = 0; j < Ny; j++) {
+	for (size_t k = 0; k < Nz; k++) {
 	  host[i][j][k] = (T)cpy[i][j][k];
+	}
+      }
+    }
   }
 
   void host2dev() {
     cudaMemcpy3DParms copyParams = {0};
-    copyParams.srcPtr = make_cudaPitchedPtr(host, Nz * sizeof(T), Nz, Ny);
-    copyParams.dstArray = dev_ptr;
-    copyParams.extent = ext;
-    copyParams.kind   = cudaMemcpyHostToDevice;
-    checkCudaErrors(cudaMemcpy3D(&copyParams) );
+    copyParams.srcPtr	= make_cudaPitchedPtr(host, Nz * sizeof(T), Nz, Ny);
+    copyParams.dstArray	= dev_ptr;
+    copyParams.extent	= ext;
+    copyParams.kind	= cudaMemcpyHostToDevice;
+    checkCudaErrors(cudaMemcpy3D(&copyParams));
   }
 
   void deallocate() {
-    checkCudaErrors(cudaFreeArray(dev_ptr) );
+    checkCudaErrors(cudaFreeArray(dev_ptr));
   }
 
   void allocate(cudaChannelFormatDesc cdesc_) {
     cdesc = cdesc_;
-    checkCudaErrors(cudaMalloc3DArray(&dev_ptr, &cdesc, ext) );
+    checkCudaErrors(cudaMalloc3DArray(&dev_ptr, &cdesc, ext));
   }
 };
