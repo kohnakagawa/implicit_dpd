@@ -32,6 +32,8 @@ namespace RESULT {
   template <class T>
   struct DensityGPU {
     T dens[Parameter::prop_num];
+    VecPos nei_pos_sum[Parameter::prop_num];
+    uint nei_cnt[Parameter::prop_num];
   };
 }
 

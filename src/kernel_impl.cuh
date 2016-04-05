@@ -9,7 +9,23 @@ __device__ __forceinline__ uint __float_as_uint( float r )
   return u;
 }
 
-#if 0
+template<class Vec, typename T>
+__device__ __forceinline__ Vec make_vec(const T v0, const T v1, const T v2, const T v3) {
+  Vec ret(v0, v1, v2, v3);
+  return ret;
+}
+
+template<>
+__device__ __forceinline__ float4 make_vec(const float v0, const float v1, const float v2, const float v3) {
+  return make_float4(v0, v1, v2, v3);
+}
+
+template<>
+__device__ __forceinline__ double4 make_vec(const double v0, const double v1, const double v2, const double v3) {
+  return make_double4(v0, v1, v2, v3);
+}
+
+#if 1
 
 template<class VecPos, class VecForce, typename T>
 __global__ void ForceKernel(const int2* __restrict__ ij_disp,
@@ -20,11 +36,19 @@ __global__ void ForceKernel(const int2* __restrict__ ij_disp,
   const int tid = blockDim.x * blockIdx.x + threadIdx.x;
   const VecPos ri = epi[tid].pos;
 
-  __shared__ T d_sum_sh[N_THREAD_GPU * Parameter::prop_num];
-  T* d_sum = &(d_sum_sh[threadIdx.x * Parameter::prop_num]);
+  __shared__ T      d_sum_sh[N_THREAD_GPU * Parameter::prop_num];
+  __shared__ uint   n_cnt_sh[N_THREAD_GPU * Parameter::prop_num];
+  __shared__ VecPos n_pos_sum_sh[N_THREAD_GPU * Parameter::prop_num];
+  const int shmem_beg	= threadIdx.x * Parameter::prop_num;
+  auto* d_sum		= &(d_sum_sh[shmem_beg]);
+  auto* n_cnt		= &(n_cnt_sh[shmem_beg]);
+  auto* n_pos_sum	= &(n_pos_sum_sh[shmem_beg]);
 #pragma unroll
-  for (int k = 0; k < Parameter::prop_num; k++)
-    d_sum[k] = 0.0;
+  for (int k = 0; k < Parameter::prop_num; k++) {
+    d_sum[k]		= (T)0.0;
+    n_cnt[k]		= 0;
+    n_pos_sum[k]	= make_vec<VecPos, T>((T)0.0, (T)0.0, (T)0.0, (T)0.0);
+  }
   
   const int j_head = ij_disp[epi[tid].id_walk    ].y;
   const int j_tail = ij_disp[epi[tid].id_walk + 1].y;
@@ -40,17 +64,27 @@ __global__ void ForceKernel(const int2* __restrict__ ij_disp,
     const VecForce drij = {ri.x - rj.x, ri.y - rj.y, ri.z - rj.z};
     const T dr2 = drij.x * drij.x + drij.y * drij.y + drij.z * drij.z;
     const T dr = sqrtf(dr2);
-    d_sum[prpj] += ((T)Parameter::rc - dr) * ((T)Parameter::rc - dr) * (dr < (T)Parameter::rc) * (dr != 0.0);
+    T cf = (dr2 < (T)Parameter::rc2);
+    d_sum[prpj] += ((T)Parameter::rc - dr) * ((T)Parameter::rc - dr) * cf * (dr != 0.0);
+
+    if (prpj == Parameter::Hyphob) cf = (dr2 < (T)Parameter::rn_c2);
+    n_pos_sum[prpj].x += rj.x * cf;
+    n_pos_sum[prpj].y += rj.y * cf;
+    n_pos_sum[prpj].z += rj.z * cf;
+    n_cnt[prpj]       += cf;
   }
 
 #pragma unroll
-  for (int k = 0; k < Parameter::prop_num; k++)
-    result[tid].dens[k] = d_sum[k];
+  for (int k = 0; k < Parameter::prop_num; k++) {
+    result[tid].dens[k]		= d_sum[k];
+    result[tid].nei_pos_sum[k]	= n_pos_sum[k];
+    result[tid].nei_cnt[k]	= n_cnt[k];
+  }
 }
 
 #else
 
-//tuned version
+// tuned version
 template<class VecPos, class VecForce, typename T>
 __global__ void ForceKernel(const int2* __restrict__ ij_disp,
      	  	            const EPI::DensityGPU<VecPos>* __restrict__ epi,
@@ -60,20 +94,25 @@ __global__ void ForceKernel(const int2* __restrict__ ij_disp,
   const int tid = blockDim.x * blockIdx.x + threadIdx.x;
   const VecPos ri = epi[tid].pos;
 
-  __shared__ T d_sum_sh[N_THREAD_GPU * Parameter::prop_num];
-  T* d_sum = &(d_sum_sh[threadIdx.x * Parameter::prop_num]);
+  __shared__ T      d_sum_sh[N_THREAD_GPU * Parameter::prop_num];
+  __shared__ uint   n_cnt_sh[N_THREAD_GPU * Parameter::prop_num];
+  __shared__ VecPos n_pos_sum_sh[N_THREAD_GPU * Parameter::prop_num];
+  const int shmem_beg	= threadIdx.x * Parameter::prop_num;
+  auto* d_sum		= &(d_sum_sh[shmem_beg]);
+  auto* n_cnt		= &(n_cnt_sh[shmem_beg]);
+  auto* n_pos_sum	= &(n_pos_sum_sh[shmem_beg]);
 #pragma unroll
-  for (int k = 0; k < Parameter::prop_num; k++)
-    d_sum[k] = 0.0;
+  for (int k = 0; k < Parameter::prop_num; k++) {
+    d_sum[k]		= (T)0.0;
+    n_cnt[k]		= 0;
+    n_pos_sum[k]	= make_vec<VecPos, T>((T)0.0, (T)0.0, (T)0.0, (T)0.0);
+  }
   
   const int j_head = ij_disp[epi[tid].id_walk    ].y;
   const int j_tail = ij_disp[epi[tid].id_walk + 1].y;
   
   int j = j_head;
-  const int res_loop_cnt = ( (j_tail - j_head) & 7);
-  const int ini_loop = (res_loop_cnt & 3) + j_head;
-  const int nxt_loop = res_loop_cnt + j_head;
-  
+  const int ini_loop = ((j_tail - j_head) & 3) + j_head;
   for (; j < ini_loop; j++) {
 #ifdef USE_FLOAT_VEC
     const VecPos rj = __ldg(&epj[j].pos);
@@ -85,11 +124,18 @@ __global__ void ForceKernel(const int2* __restrict__ ij_disp,
     const VecForce drij = {ri.x - rj.x, ri.y - rj.y, ri.z - rj.z};
     const T dr2 = drij.x * drij.x + drij.y * drij.y + drij.z * drij.z;
     const T dr = sqrtf(dr2);
-    d_sum[prpj] += ((T)Parameter::rc - dr) * ((T)Parameter::rc - dr) * (dr2 < (T)Parameter::rc2) * (dr2 != 0.0);
+    T cf = (dr2 < (T)Parameter::rc2);
+    d_sum[prpj] += ((T)Parameter::rc - dr) * ((T)Parameter::rc - dr) * cf * (dr2 != 0.0);
+
+    if (prpj == Parameter::Hyphob) cf = (dr2 < (T)Parameter::rn_c2);
+    n_pos_sum[prpj].x += rj.x * cf;
+    n_pos_sum[prpj].y += rj.y * cf;
+    n_pos_sum[prpj].z += rj.z * cf;
+    n_cnt[prpj]       += cf;
   } //end of for j
 
-  //unroll 4
-  for (; j < nxt_loop; j += 4) {
+  // unroll 4
+  for (; j < j_tail; j += 4) {
 #ifdef USE_FLOAT_VEC
     const VecPos rj0 = __ldg(&epj[j    ].pos); const uint prpj0 = __float_as_uint(rj0.w);
     const VecPos rj1 = __ldg(&epj[j + 1].pos); const uint prpj1 = __float_as_uint(rj1.w);
@@ -115,74 +161,49 @@ __global__ void ForceKernel(const int2* __restrict__ ij_disp,
     const T dr_1 = sqrtf(dr2_1);
     const T dr_2 = sqrtf(dr2_2);
     const T dr_3 = sqrtf(dr2_3);
+    
+    T cf_0 = (dr2_0 < (T)Parameter::rc2);
+    T cf_1 = (dr2_1 < (T)Parameter::rc2);
+    T cf_2 = (dr2_2 < (T)Parameter::rc2);
+    T cf_3 = (dr2_3 < (T)Parameter::rc2);
+    
+    d_sum[prpj0] += ((T)Parameter::rc - dr_0) * ((T)Parameter::rc - dr_0) * cf_0 * (dr2_0 != 0.0);
+    d_sum[prpj1] += ((T)Parameter::rc - dr_1) * ((T)Parameter::rc - dr_1) * cf_1 * (dr2_1 != 0.0);
+    d_sum[prpj2] += ((T)Parameter::rc - dr_2) * ((T)Parameter::rc - dr_2) * cf_2 * (dr2_2 != 0.0);
+    d_sum[prpj3] += ((T)Parameter::rc - dr_3) * ((T)Parameter::rc - dr_3) * cf_3 * (dr2_3 != 0.0);
 
-    d_sum[prpj0] += ((T)Parameter::rc - dr_0) * ((T)Parameter::rc - dr_0) * (dr2_0 < (T)Parameter::rc2) * (dr2_0 != 0.0);
-    d_sum[prpj1] += ((T)Parameter::rc - dr_1) * ((T)Parameter::rc - dr_1) * (dr2_1 < (T)Parameter::rc2) * (dr2_1 != 0.0);
-    d_sum[prpj2] += ((T)Parameter::rc - dr_2) * ((T)Parameter::rc - dr_2) * (dr2_2 < (T)Parameter::rc2) * (dr2_2 != 0.0);
-    d_sum[prpj3] += ((T)Parameter::rc - dr_3) * ((T)Parameter::rc - dr_3) * (dr2_3 < (T)Parameter::rc2) * (dr2_3 != 0.0);
+    if (prpj0 == Parameter::Hyphob) cf_0 = (dr2_0 < (T)Parameter::rn_c2);
+    if (prpj1 == Parameter::Hyphob) cf_1 = (dr2_1 < (T)Parameter::rn_c2);
+    if (prpj2 == Parameter::Hyphob) cf_2 = (dr2_2 < (T)Parameter::rn_c2);
+    if (prpj3 == Parameter::Hyphob) cf_3 = (dr2_3 < (T)Parameter::rn_c2);
+
+    n_pos_sum[prpj0].x += rj0.x * cf_0;
+    n_pos_sum[prpj0].y += rj0.y * cf_0;
+    n_pos_sum[prpj0].z += rj0.z * cf_0;
+    n_cnt[prpj0]       += cf_0;
+
+    n_pos_sum[prpj1].x += rj1.x * cf_1;
+    n_pos_sum[prpj1].y += rj1.y * cf_1;
+    n_pos_sum[prpj1].z += rj1.z * cf_1;
+    n_cnt[prpj1]       += cf_1;
+
+    n_pos_sum[prpj2].x += rj2.x * cf_2;
+    n_pos_sum[prpj2].y += rj2.y * cf_2;
+    n_pos_sum[prpj2].z += rj2.z * cf_2;
+    n_cnt[prpj2]       += cf_2;
+
+    n_pos_sum[prpj3].x += rj3.x * cf_3;
+    n_pos_sum[prpj3].y += rj3.y * cf_3;
+    n_pos_sum[prpj3].z += rj3.z * cf_3;
+    n_cnt[prpj3]       += cf_3;
   }
-  
-  //unroll 8
-  for (; j < j_tail; j += 8) {
-#ifdef USE_FLOAT_VEC
-    const VecPos rj0 = __ldg(&epj[j    ].pos); const uint prpj0 = __float_as_uint(rj0.w);
-    const VecPos rj1 = __ldg(&epj[j + 1].pos); const uint prpj1 = __float_as_uint(rj1.w);
-    const VecPos rj2 = __ldg(&epj[j + 2].pos); const uint prpj2 = __float_as_uint(rj2.w);
-    const VecPos rj3 = __ldg(&epj[j + 3].pos); const uint prpj3 = __float_as_uint(rj3.w);
-    const VecPos rj4 = __ldg(&epj[j + 4].pos); const uint prpj4 = __float_as_uint(rj4.w);
-    const VecPos rj5 = __ldg(&epj[j + 5].pos); const uint prpj5 = __float_as_uint(rj5.w);
-    const VecPos rj6 = __ldg(&epj[j + 6].pos); const uint prpj6 = __float_as_uint(rj6.w);
-    const VecPos rj7 = __ldg(&epj[j + 7].pos); const uint prpj7 = __float_as_uint(rj7.w);
-#else
-    const VecPos rj0 = epj[j    ].pos; const uint prpj0 = epj[j    ].prop_;
-    const VecPos rj1 = epj[j + 1].pos; const uint prpj1 = epj[j + 1].prop_;
-    const VecPos rj2 = epj[j + 2].pos; const uint prpj2 = epj[j + 2].prop_;
-    const VecPos rj3 = epj[j + 3].pos; const uint prpj3 = epj[j + 3].prop_;
-    const VecPos rj4 = epj[j + 4].pos; const uint prpj4 = epj[j + 4].prop_;
-    const VecPos rj5 = epj[j + 5].pos; const uint prpj5 = epj[j + 5].prop_;
-    const VecPos rj6 = epj[j + 6].pos; const uint prpj6 = epj[j + 6].prop_;
-    const VecPos rj7 = epj[j + 7].pos; const uint prpj7 = epj[j + 7].prop_;
-#endif
-    const VecForce drij0 = {ri.x - rj0.x, ri.y - rj0.y, ri.z - rj0.z};
-    const VecForce drij1 = {ri.x - rj1.x, ri.y - rj1.y, ri.z - rj1.z};
-    const VecForce drij2 = {ri.x - rj2.x, ri.y - rj2.y, ri.z - rj2.z};
-    const VecForce drij3 = {ri.x - rj3.x, ri.y - rj3.y, ri.z - rj3.z};
-    const VecForce drij4 = {ri.x - rj4.x, ri.y - rj4.y, ri.z - rj4.z};
-    const VecForce drij5 = {ri.x - rj5.x, ri.y - rj5.y, ri.z - rj5.z};
-    const VecForce drij6 = {ri.x - rj6.x, ri.y - rj6.y, ri.z - rj6.z};
-    const VecForce drij7 = {ri.x - rj7.x, ri.y - rj7.y, ri.z - rj7.z};
-    
-    const T dr2_0 = drij0.x * drij0.x + drij0.y * drij0.y + drij0.z * drij0.z;
-    const T dr2_1 = drij1.x * drij1.x + drij1.y * drij1.y + drij1.z * drij1.z;
-    const T dr2_2 = drij2.x * drij2.x + drij2.y * drij2.y + drij2.z * drij2.z;
-    const T dr2_3 = drij3.x * drij3.x + drij3.y * drij3.y + drij3.z * drij3.z;
-    const T dr2_4 = drij4.x * drij4.x + drij4.y * drij4.y + drij4.z * drij4.z;
-    const T dr2_5 = drij5.x * drij5.x + drij5.y * drij5.y + drij5.z * drij5.z;
-    const T dr2_6 = drij6.x * drij6.x + drij6.y * drij6.y + drij6.z * drij6.z;
-    const T dr2_7 = drij7.x * drij7.x + drij7.y * drij7.y + drij7.z * drij7.z;
-
-    const T dr_0 = sqrtf(dr2_0);
-    const T dr_1 = sqrtf(dr2_1);
-    const T dr_2 = sqrtf(dr2_2);
-    const T dr_3 = sqrtf(dr2_3);
-    const T dr_4 = sqrtf(dr2_4);
-    const T dr_5 = sqrtf(dr2_5);
-    const T dr_6 = sqrtf(dr2_6);
-    const T dr_7 = sqrtf(dr2_7);
-    
-    d_sum[prpj0] += ((T)Parameter::rc - dr_0) * ((T)Parameter::rc - dr_0) * (dr2_0 < (T)Parameter::rc2) * (dr2_0 != 0.0);
-    d_sum[prpj1] += ((T)Parameter::rc - dr_1) * ((T)Parameter::rc - dr_1) * (dr2_1 < (T)Parameter::rc2) * (dr2_1 != 0.0);
-    d_sum[prpj2] += ((T)Parameter::rc - dr_2) * ((T)Parameter::rc - dr_2) * (dr2_2 < (T)Parameter::rc2) * (dr2_2 != 0.0);
-    d_sum[prpj3] += ((T)Parameter::rc - dr_3) * ((T)Parameter::rc - dr_3) * (dr2_3 < (T)Parameter::rc2) * (dr2_3 != 0.0);
-    d_sum[prpj4] += ((T)Parameter::rc - dr_4) * ((T)Parameter::rc - dr_4) * (dr2_4 < (T)Parameter::rc2) * (dr2_4 != 0.0);
-    d_sum[prpj5] += ((T)Parameter::rc - dr_5) * ((T)Parameter::rc - dr_5) * (dr2_5 < (T)Parameter::rc2) * (dr2_5 != 0.0);
-    d_sum[prpj6] += ((T)Parameter::rc - dr_6) * ((T)Parameter::rc - dr_6) * (dr2_6 < (T)Parameter::rc2) * (dr2_6 != 0.0);
-    d_sum[prpj7] += ((T)Parameter::rc - dr_7) * ((T)Parameter::rc - dr_7) * (dr2_7 < (T)Parameter::rc2) * (dr2_7 != 0.0);
-  } //end of for j
 
 #pragma unroll
-  for (int k = 0; k < Parameter::prop_num; k++)
-    result[tid].dens[k] = d_sum[k];
+  for (int k = 0; k < Parameter::prop_num; k++) {
+    result[tid].dens[k]		= d_sum[k];
+    result[tid].nei_pos_sum[k]	= n_pos_sum[k];
+    result[tid].nei_cnt[k]	= n_cnt[k];
+  }
 }
 
 #endif
@@ -306,9 +327,10 @@ __global__ void ForceKernel(const int2* __restrict__ ij_disp,
   const uint prpi  = __float_as_uint(vi.w);
 
   T densi[Parameter::prop_num]; //NOTE: this is not located at local memory.
-  
-  for (int k = 0; k < Parameter::prop_num; k++)
+#pragma unroll
+  for (int k = 0; k < Parameter::prop_num; k++) {
     densi[k] = epi[tid].dens[k];
+  }
   
   const int j_head = ij_disp[epi[tid].id_walk    ].y;
   const int j_tail = ij_disp[epi[tid].id_walk + 1].y;

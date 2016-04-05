@@ -38,8 +38,8 @@ namespace Policy {
 			     PS::S32& ni_tot,
 			     PS::S32& nj_tot) {
       ni_tot = nj_tot = 0;
-      for(PS::S32 iw = 0; iw < n_walk; iw++) {
-	for(PS::S32 i = 0; i < n_epi[iw]; i++) {
+      for (PS::S32 iw = 0; iw < n_walk; iw++) {
+	for (PS::S32 i = 0; i < n_epi[iw]; i++) {
 	  dev_epi[ni_tot].pos.x = epi[iw][i].pos.x;
 	  dev_epi[ni_tot].pos.y = epi[iw][i].pos.y;
 	  dev_epi[ni_tot].pos.z = epi[iw][i].pos.z;
@@ -50,7 +50,7 @@ namespace Policy {
 	  ni_tot++;
 	}
     
-	for(PS::S32 j = 0; j < n_epj[iw]; j++) {
+	for (PS::S32 j = 0; j < n_epj[iw]; j++) {
 	  dev_epj[nj_tot].pos.x = epj[iw][j].pos.x;
 	  dev_epj[nj_tot].pos.y = epj[iw][j].pos.y;
 	  dev_epj[nj_tot].pos.z = epj[iw][j].pos.z;
@@ -67,12 +67,17 @@ namespace Policy {
 			     const PS::S32 ni[],
 			     RESULT* force[]) {
       int n_cnt = 0;
-      for(int iw = 0; iw < n_walk; iw++) {
-	for(int i = 0; i < ni[iw]; i++) {
-
-	  for(int k = 0; k < Parameter::prop_num; k++)
+      for (int iw = 0; iw < n_walk; iw++) {
+	for (int i = 0; i < ni[iw]; i++) {
+	  for (int k = 0; k < Parameter::prop_num; k++) {
 	    force[iw][i].dens[k] = dev_force[n_cnt].dens[k];
-
+	    if (k < 2) {
+	      force[iw][i].nei_pos_sum[k].x	= dev_force[n_cnt].nei_pos_sum[k].x;
+	      force[iw][i].nei_pos_sum[k].y	= dev_force[n_cnt].nei_pos_sum[k].y;
+	      force[iw][i].nei_pos_sum[k].z	= dev_force[n_cnt].nei_pos_sum[k].z;
+	      force[iw][i].nei_cnt[k]		= dev_force[n_cnt].nei_cnt[k];
+	    }
+	  }
 	  n_cnt++;
 	}
       }
@@ -94,8 +99,8 @@ namespace Policy {
 			     PS::S32& ni_tot,
 			     PS::S32& nj_tot) {
       ni_tot = nj_tot = 0;
-      for(PS::S32 iw = 0; iw < n_walk; iw++) {
-	for(PS::S32 i = 0; i < n_epi[iw]; i++) {
+      for (PS::S32 iw = 0; iw < n_walk; iw++) {
+	for (PS::S32 i = 0; i < n_epi[iw]; i++) {
 	  dev_epi[ni_tot].pos.x = epi[iw][i].pos.x;
 	  dev_epi[ni_tot].pos.y = epi[iw][i].pos.y;
 	  dev_epi[ni_tot].pos.z = epi[iw][i].pos.z;
@@ -107,14 +112,14 @@ namespace Policy {
 	  dev_epi[ni_tot].id()  = epi[iw][i].id;
 	  dev_epi[ni_tot].prop() = epi[iw][i].prop;
 	  
-	  for(PS::S32 k = 0; k < Parameter::prop_num; k++)
+	  for (PS::S32 k = 0; k < Parameter::prop_num; k++)
 	    dev_epi[ni_tot].dens[k] = epi[iw][i].dens[k];
 
 	  dev_epi[ni_tot].id_walk = iw;
 	  ni_tot++;
 	}
     
-	for(PS::S32 j = 0; j < n_epj[iw]; j++) {
+	for (PS::S32 j = 0; j < n_epj[iw]; j++) {
 	  dev_epj[nj_tot].pos.x = epj[iw][j].pos.x;
 	  dev_epj[nj_tot].pos.y = epj[iw][j].pos.y;
 	  dev_epj[nj_tot].pos.z = epj[iw][j].pos.z;
@@ -126,7 +131,7 @@ namespace Policy {
 	  dev_epj[nj_tot].id() = epj[iw][j].id;
 	  dev_epj[nj_tot].prop() = epj[iw][j].prop;
 
-	  for(PS::S32 k = 0; k < Parameter::prop_num; k++)
+	  for (PS::S32 k = 0; k < Parameter::prop_num; k++)
 	    dev_epj[nj_tot].dens[k] = epj[iw][j].dens[k];
       
 	  nj_tot++;
@@ -139,8 +144,8 @@ namespace Policy {
 			     const PS::S32 ni[],
 			     RESULT* force[]) {
       int n_cnt = 0;
-      for(int iw = 0; iw < n_walk; iw++) {
-	for(int i = 0; i < ni[iw]; i++) {
+      for (int iw = 0; iw < n_walk; iw++) {
+	for (int i = 0; i < ni[iw]; i++) {
 	  force[iw][i].acc.x = dev_force[n_cnt].acc.x;
 	  force[iw][i].acc.y = dev_force[n_cnt].acc.y;
 	  force[iw][i].acc.z = dev_force[n_cnt].acc.z;
