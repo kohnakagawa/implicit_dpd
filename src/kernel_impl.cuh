@@ -65,7 +65,7 @@ __global__ void ForceKernel(const int2* __restrict__ ij_disp,
     const T dr2 = drij.x * drij.x + drij.y * drij.y + drij.z * drij.z;
     const T dr = sqrtf(dr2);
     T cf = (dr2 < (T)Parameter::rc2);
-    d_sum[prpj] += ((T)Parameter::rc - dr) * ((T)Parameter::rc - dr) * cf * (dr != 0.0);
+    d_sum[prpj] += ((T)Parameter::rc - dr) * ((T)Parameter::rc - dr) * cf * (dr2 != 0.0);
 
     if (prpj == Parameter::Hyphob) cf = (dr2 < (T)Parameter::rn_c2);
     n_pos_sum[prpj].x += rj.x * cf;
