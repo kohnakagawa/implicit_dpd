@@ -8,22 +8,46 @@
 #include <algorithm>
 #include <stack>
 #include <array>
+#include <limits>
 #include "particle_simulator.hpp"
 #include "io_util.hpp"
 #include "parameter.hpp"
 #include "ptcl_class.hpp"
 
 #define CHECK_FILE_OPEN(fin, name)			\
-  if (!fin) {						\
-    cerr << "Cannot open file " << name << std::endl;	\
-    cerr << __FILE__ << " " << __LINE__ << std::endl;	\
-    exit(1);						\
-  }
+  do {							\
+    if (!fin) {						\
+      cerr << "Cannot open file " << name << std::endl;	\
+      cerr << __FILE__ << " " << __LINE__ << std::endl;	\
+      exit(1);						\
+    }							\
+  } while (false)
+
+#define CHECK_EQ(val0, val1)						\
+  do {									\
+    if (val0 != val1) {							\
+      std::cerr << "Is not equal.\n";					\
+      std::cerr << "at " __FILE__ << " " << __LINE__ << std::endl;	\
+      std::cerr << #val0 << " " << #val1 << std::endl;			\
+      std::cerr << val0 << " " << val1 << std::endl;			\
+      std::exit(1);							\
+    }									\
+  } while (false)
+
+#define CHECK_LE(val0, val1)						\
+  do {									\
+    if (val0 > val1) {							\
+      std::cerr << "val0 <= val1 is not statisfied.\n";			\
+      std::cerr << "at " __FILE__ << " " << __LINE__ << std::endl;	\
+      std::cerr << #val0 << " " << #val1 << std::endl;			\
+      std::cerr << val0 << " " << val1 << std::endl;			\
+      std::exit(1);							\
+    }									\
+  } while (false)							\
 
 using namespace std;
 
 constexpr double cutof_leng = 0.9; // this value shoule be less than membrane thickness.
-stack<int> id_stack;
 
 struct Particle {
   PS::F64vec r;
@@ -63,9 +87,9 @@ int gen_hash(int* q,
 
 void min_image(PS::F64vec& dr,
 	       const PS::F64vec& box) {
-  dr.x -= box.x * round(dr.x / box.x);
-  dr.y -= box.y * round(dr.y / box.y);
-  dr.z -= box.z * round(dr.z / box.z);  
+  // dr.x -= box.x * round(dr.x / box.x);
+  // dr.y -= box.y * round(dr.y / box.y);
+  // dr.z -= box.z * round(dr.z / box.z);  
 }
 
 void create_nearlist(vector<vector<int> >& ilist,
@@ -174,15 +198,16 @@ void generate_graph(vector<Particle>& ptcls,
 void generate_graph_naive(vector<Particle>& ptcls,
 			  vector<vector<int> >& near_ptcl_id,
 			  const PS::F64vec& box_leng) {
-  const size_t size = ptcls.size();
-  for (size_t i = 0; i < size; i++) {
+  const auto size = ptcls.size();
+  const auto cfl2 = cutof_leng * cutof_leng;
+  for (auto i = 0u; i < size; i++) {
     const auto ri = ptcls[i].r;
-    for (size_t j = 0; j < size; j++) {
+    for (auto j = 0u; j < size; j++) {
       const auto rj = ptcls[j].r;
-      PS::F64vec dr = rj - ri;
+      auto dr = rj - ri;
       min_image(dr, box_leng);
-      const PS::F64 dist = dr * dr;
-      if ((dist < cutof_leng * cutof_leng) && (i != j))  {
+      const auto dist = dr * dr;
+      if ((dist < cfl2) and (i != j)) {
 	near_ptcl_id[i].push_back(j);
       }
     }
@@ -194,20 +219,38 @@ void check(vector<vector<int> >& cell,
   std::vector<std::pair<int, int> > nlist_cell;
   std::vector<std::pair<int, int> > nlist_naive;
   
-  for (size_t i = 0; i < cell.size(); i++)
-    for (size_t j = 0; j < cell[i].size(); j++)
+  for (auto i = 0u; i < cell.size(); i++)
+    for (auto j = 0u; j < cell[i].size(); j++)
       nlist_cell.push_back({i, cell[i][j]});
 
-  for (size_t i = 0; i < naive.size(); i++)
-    for (size_t j = 0; j < naive[i].size(); j++)
+  for (auto i = 0u; i < naive.size(); i++)
+    for (auto j = 0u; j < naive[i].size(); j++)
       nlist_naive.push_back({i, naive[i][j]});
 
   std::sort(nlist_cell.begin(), nlist_cell.end());
   std::sort(nlist_naive.begin(), nlist_naive.end());
-  
-  assert(nlist_cell.size() == nlist_naive.size());
-  for (size_t i = 0; i < nlist_naive.size(); i++)
+
+  CHECK_EQ(nlist_cell.size(), nlist_naive.size());
+  for (auto i = 0u; i < nlist_naive.size(); i++)
     assert(nlist_cell[i] == nlist_naive[i]);
+}
+
+void check_nearlist_correct(const vector<Particle>& ptcls,
+			    const vector<vector<int> >& near_ptcl_id,
+			    const PS::F64vec& box_leng) {
+  const auto size = ptcls.size();
+  const auto cfl2 = cutof_leng * cutof_leng;
+  for (auto i = 0u; i < size; i++) {
+    const auto ri = ptcls[i].r;
+    for (auto jj = 0u; jj < near_ptcl_id[i].size(); jj++) {
+      const auto j = near_ptcl_id[i][jj];
+      const auto rj = ptcls[j].r;
+      auto dr = rj - ri;
+      min_image(dr, box_leng);
+      const auto dist = dr * dr;
+      CHECK_LE(dist, cfl2);
+    }
+  }
 }
 
 void dfs(int pid,
@@ -215,6 +258,7 @@ void dfs(int pid,
 	 const vector<vector<int> >& near_ptcl_id,
 	 vector<int>& patch_id,
 	 vector<Particle>& ptcls,
+	 stack<int>& id_stack,
 	 const int cur_patch) {
   reg_flag[pid] = true;
   patch_id[pid] = cur_patch;
@@ -222,9 +266,14 @@ void dfs(int pid,
   while (!id_stack.empty()) {
     pid = id_stack.top();
     id_stack.pop();
-    const int near_ptcl_size = near_ptcl_id[pid].size();
-    for (int i = 0; i < near_ptcl_size; i++) {
-      const int	pjd = near_ptcl_id[pid][i];
+    const auto ri = ptcls[pid].r;
+    const auto near_ptcl_size = near_ptcl_id[pid].size();
+    for (auto i = 0u; i < near_ptcl_size; i++) {
+      const auto pjd = near_ptcl_id[pid][i];
+      const auto rj = ptcls[pjd].r;
+      const auto drij = ri - rj;
+      const auto dr_norm = std::sqrt(drij * drij);
+      CHECK_LE(dr_norm, cutof_leng);
       if (!reg_flag[pjd]) {
 	reg_flag[pjd] = true;
 	patch_id[pjd] = cur_patch;
@@ -253,6 +302,7 @@ void search_patch(vector<bool>& reg_flag,
 		  const vector<vector<int> >& near_ptcl_id,
 		  vector<int>& patch_id,
 		  vector<Particle>& ptcls,
+		  stack<int>& id_stack,
 		  int& cur_patch) {
   const int all_n = ptcls.size();
   int    regist_n = 0;
@@ -260,9 +310,9 @@ void search_patch(vector<bool>& reg_flag,
   const int size  = reg_flag.size();
   while (regist_n != all_n) {
     pid = search_next_pid(reg_flag, size, ptcls);
-    dfs(pid, reg_flag, near_ptcl_id, patch_id, ptcls, cur_patch);
+    dfs(pid, reg_flag, near_ptcl_id, patch_id, ptcls, id_stack, cur_patch);
     regist_n = std::accumulate(reg_flag.cbegin(), reg_flag.cend(), 0);
-    cout << regist_n << " ";
+    cout << "regist_n " << regist_n << " ";
     cur_patch++;
   }
   cout << endl;
@@ -310,6 +360,7 @@ bool read_one_frame(vector<FPDPD>& ptcls_org,
   }
   
   // copy to buffer
+  ptcls.clear();
   for (size_t i = 0; i < ptcls_org.size(); i++) {
     Particle p;
     p.r			= ptcls_org[i].pos;
@@ -317,12 +368,77 @@ bool read_one_frame(vector<FPDPD>& ptcls_org,
     p.amp_id		= ptcls_org[i].amp_id;
     p.unit		= ptcls_org[i].unit;
     p.ptcl_in_cell	= -1;
-    if ((p.prop == Parameter::Hyphil) ||
-	(p.unit == 1)) {
+    if (p.unit == 0) {
       ptcls.push_back(p);
     }
   }
   return false;
+}
+
+void dump_one_frame(const vector<Particle>& ptcls,
+		    const vector<int>& patch_id) {
+  std::ofstream fout("one_frame.xyz");
+  fout << ptcls.size() << std::endl;;
+  fout << "one frame\n";
+  for (auto i = 0u; i < ptcls.size(); i++) {
+    if (patch_id[i] == 0) {
+      fout << "O " << ptcls[i].r << " " << i << std::endl;
+    } else {
+      fout << "N " << ptcls[i].r << " " << i << std::endl;
+    }
+  }
+}
+
+void dump_radial_hist(const vector<Particle>& ptcls) {
+  ofstream fout("radial_dist.txt");
+  PS::F64vec cm_pos(0.0, 0.0, 0.0);
+  for (const auto& p : ptcls) {
+    cm_pos += p.r;
+  }
+  cm_pos /= ptcls.size();
+  
+  for (const auto& p : ptcls) {
+    const auto cm2ptcl = p.r - cm_pos;
+    const auto dist = std::sqrt(cm2ptcl * cm2ptcl);
+    fout << dist << std::endl;
+  }
+}
+
+void dump_near_ptcl(const vector<Particle>& ptcls,
+		    const vector<vector<int> >& near_ptcl_id) {
+  ofstream fout("near_ptcl_config.xyz");
+  const int target_id = 33590;
+  
+  fout << 1 + near_ptcl_id[target_id].size() << std::endl;
+  fout << "near ptcls\n";
+  fout << "C " << ptcls[target_id].r << std::endl;
+  for (size_t i = 0; i < near_ptcl_id[target_id].size(); i++) {
+    fout << "O " << ptcls[near_ptcl_id[target_id][i]].r << std::endl;
+  }
+}
+
+void calc_min_hei(const vector<Particle>& ptcls,
+		  const vector<int>& patch_id) {
+  vector<Particle> inout[2];
+  for (size_t i = 0; i < ptcls.size(); i++) {
+    if (patch_id[i] == 0) inout[0].push_back(ptcls[i]);
+    if (patch_id[i] == 1) inout[1].push_back(ptcls[i]);
+  }
+  
+  ofstream fout("min_height.txt");
+  for (size_t i = 0; i < inout[0].size(); i++) {
+    const auto ri = inout[0][i].r;
+    double min_hei = numeric_limits<double>::max();
+    for (size_t j = 0; j < inout[1].size(); j++) {
+      const auto rj = inout[1][j].r;
+      const auto dr = rj - ri;
+      const double dr_norm = std::sqrt(dr * dr);
+      if (dr_norm < min_hei) {
+	min_hei = dr_norm;
+      }
+    }
+    fout << min_hei << std::endl;
+  }
 }
 
 int main(int argc, char* argv[]) {
@@ -331,7 +447,7 @@ int main(int argc, char* argv[]) {
     exit(1);
   }
 
-  srand((size_t)time(nullptr));
+  srand((unsigned int)time(nullptr));
   const string s_cur  = argv[1];
   const string fname[] = {
     s_cur + "/traject.xyz",
@@ -339,15 +455,12 @@ int main(int argc, char* argv[]) {
     s_cur + "/area_elem.txt",
   };
   
-  // read particles
+  // open traj data
   vector<FPDPD> ptcls_org;
   vector<Particle> ptcls;
   size_t time = 0;
-  std::ifstream fin_p(fname[0].c_str());
+  ifstream fin_p(fname[0].c_str());
   CHECK_FILE_OPEN(fin_p, fname[0]);
-  read_one_frame(ptcls_org, ptcls, fin_p, time);
-  std::cerr << "Read particles data.\n";
-  std::cerr << ptcls.size() << " " << ptcls_org.size() << std::endl;
 
   // read parameters & set scales
   ifstream f_m(fname[1].c_str());
@@ -372,34 +485,50 @@ int main(int argc, char* argv[]) {
   // main loop
   ofstream fout(fname[2].c_str());
   vector<int> ptcl_id, patch_id;
-  vector<vector<int> > near_ptcl_id;
+  vector<vector<int> > near_ptcl_id, near_ptcl_id_naive;
   vector<bool> reg_flag;
+  stack<int> id_stack;
   while (true) {
+    if (read_one_frame(ptcls_org, ptcls, fin_p, time)) break;
     std::cout << "time = " << time << std::endl;
+    cerr << "Read particles data.\n";
+    cerr << ptcls.size() << " " << ptcls_org.size() << endl;
     
     const size_t p_size = ptcls.size();
     ptcl_id.resize(p_size, -1);
     patch_id.resize(p_size, -1);
     near_ptcl_id.resize(p_size);
+    near_ptcl_id_naive.resize(p_size);
     
     regist_ptcl_idx(ptcl_id, elem_in_grid, adrs_grid, ptcls, grid_leng, box_leng, grid_numb);
     check_reg(adrs_grid, ptcl_id, ptcls, all_grid, grid_numb, grid_leng);
       
-    generate_graph(ptcls, ptcl_id, adrs_grid, near_ptcl_id, ilist, box_leng);
+    // generate_graph(ptcls, ptcl_id, adrs_grid, near_ptcl_id, ilist, box_leng);
+    generate_graph_naive(ptcls, near_ptcl_id, box_leng);
+    check_nearlist_correct(ptcls, near_ptcl_id, box_leng);
+
+    // for debug
+    // generate_graph_naive(ptcls, near_ptcl_id_naive, box_leng);
+    // check(near_ptcl_id, near_ptcl_id_naive);
       
     reg_flag.resize(p_size, false);
     int   cur_patch = 0;
-    search_patch(reg_flag, near_ptcl_id, patch_id, ptcls, cur_patch);
+    search_patch(reg_flag, near_ptcl_id, patch_id, ptcls, id_stack, cur_patch);
 
     print_inout_elem(patch_id, fout, cur_patch, time, ptcls);
 
-    ptcls.clear();
+    if (time == 505000) {
+      dump_one_frame(ptcls, patch_id);
+      // dump_near_ptcl(ptcls, near_ptcl_id);
+      calc_min_hei(ptcls, patch_id);
+    }
+
     ptcl_id.clear();
     reg_flag.clear();
     
     for (size_t i = 0; i < near_ptcl_id.size(); i++)
       near_ptcl_id[i].clear();
-
-    if (read_one_frame(ptcls_org, ptcls, fin_p, time)) break;
+    for (size_t i = 0; i < near_ptcl_id_naive.size(); i++)
+      near_ptcl_id_naive[i].clear();
   }
 }
