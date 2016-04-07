@@ -22,11 +22,15 @@ awk '{print $2, $3, $4, $15, $16, $17}' tmp.txt > 2.txt
 
 R --vanilla --slave <<EOF
 # check acc
+options(digits=15)
 print("acc error")
 dat_mpi <- data.matrix(read.table("1.txt"))
 dat     <- data.matrix(read.table("2.txt"))
 diff    <- abs(dat_mpi - dat) / abs(dat_mpi)
 max(diff)
+
+dat_mpi[which.max(diff)]
+dat[which.max(diff)]
 
 print("pressure error")
 dat_mpi <- data.matrix(read.table("./result_mpi/$dir/pressure.txt"))
@@ -35,4 +39,4 @@ diff    <- abs(dat_mpi - dat) / abs(dat_mpi)
 max(diff)
 EOF
 
-rm tmp_mpi.txt sort.txt tmp.txt 1.txt 2.txt
+# rm tmp_mpi.txt sort.txt tmp.txt 1.txt 2.txt

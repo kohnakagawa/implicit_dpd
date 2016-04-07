@@ -42,6 +42,8 @@ int main(int argc, char *argv[]) {
     system.setNumberOfParticleLocal(0);    
   }
 
+  if (PS::Comm::getRank() == 0) param.CalcCorePtclId(system);
+
   param.ShareDataWithOtherProc();
   param.CheckLoaded();
   param.DebugDumpAllParam();
@@ -63,14 +65,18 @@ int main(int argc, char *argv[]) {
 
   check_val(system, 0);
 
+  for (PS::S32 i = 0; i < system.getNumberOfParticleLocal(); i++) {
+    system[i].acc = 0.0;
+  }
+
   // bonded test
   PS::F64vec bonded_vir(0.0, 0.0, 0.0);
 #ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
   const PS::U32 est_loc_amp = param.init_amp_num / PS::Comm::getNumberOfProc() + 100;
   ForceBondedMPI<PS::ParticleSystem<FPDPD>, EPJ::DPD> fbonded(est_loc_amp);
-  fbonded.CalcListedForce(system, force_tree.epj_org(), bonded_vir);
+  fbonded.CalcListedForce(system, force_tree.epj_org(), bonded_vir, param.core_amp_id());
 #else
-  ForceBonded<PS::ParticleSystem<FPDPD> > fbonded(system, Parameter::all_unit * param.init_amp_num);
+  ForceBonded<PS::ParticleSystem<FPDPD> > fbonded(system, Parameter::all_unit * param.init_amp_num, param.init_amp_num, param.core_amp_id());
   fbonded.CalcListedForce(system, bonded_vir);
 #endif
 

@@ -73,11 +73,11 @@ struct ForceBonded {
       }
     }
     
-    const PS::S32 num_amp = cf_bend.size();
-    const PS::S32 num_core_amp_id = core_amp_id.size();
-    for (PS::S32 i = 0; i < num_amp; i++) {
+    const PS::U32 num_amp = cf_bend.size();
+    const PS::U32 num_core_amp_id = core_amp_id.size();
+    for (PS::U32 i = 0; i < num_amp; i++) {
       cf_bend[i] = Parameter::cf_b;
-      for (PS::S32 j = 0; j < num_core_amp_id; j++) {
+      for (PS::U32 j = 0; j < num_core_amp_id; j++) {
 	if (i == core_amp_id[j]) {
 	  cf_bend[i] = Parameter::cf_b_rigid;
 	}

@@ -1,0 +1,58 @@
+cdir = ./result_mpi/31x31
+Tempera = 1
+head_unit = 1
+tail_unit = 3
+all_unit = 4
+bond_leng = 0.5
+ibond = 2
+search_rad = 1.7
+arc = 0.9
+Reo = 2
+prop_num = 3
+rc = 1
+rc2 = 1
+irc = 1
+rn_c = 1.2
+rn_c2 = 1.44
+box_leng.x = 31
+box_leng.y = 30
+box_leng.z = 31
+ibox_leng.x = 0.0322581
+ibox_leng.y = 0.0333333
+ibox_leng.z = 0.0322581
+init_amp_num = 9600
+amp_num = 9600
+dt = 0.005
+chi = 30
+kappa = 50
+rho_co = 25
+p_thresld = 0.1
+eps = 0.2
+max_amp_num = 10000
+beg_chem = 100000
+influ_rad = 5
+influ_hei = 0.8
+influ_dep = 4
+influ_grd = 0
+core_amp_id core_ptcl_id:
+0 0
+
+NOTE:
+cf_r are multiplied by 1 / sqrt(dt).
+cf_c:
+-83.3951 725.537 -83.3951 
+725.537 3535.95 725.537 
+-83.3951 725.537 -83.3951 
+cf_r:
+42.4264 42.4264 42.4264 
+42.4264 42.4264 42.4264 
+42.4264 42.4264 42.4264 
+cf_g:
+4.5 4.5 4.5 
+4.5 4.5 4.5 
+4.5 4.5 4.5 
+cf_m:
+0 0.948366 0.948366 0.948366 0.948366 0.948366 0.948366 0.948366 0.948366 0.948366 0.948366 0.948366 0.948366 0.948366 0.948366 0.948366 0.948366 0.948366 0.948366 0.948366 0.948366 0.948366 0.948366 0.948366 0.948366 0.948366 0 
+cf_s = 200
+cf_b = 0
+cf_b_rigid = 40
