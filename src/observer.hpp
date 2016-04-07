@@ -282,7 +282,7 @@ public:
 	      core_poss_h[i].x, core_poss_h[i].y, core_poss_h[i].z,
 	      sys[core_id].pos.x, sys[core_id].pos.y, sys[core_id].pos.z);
     }
-    fprintf(ptr_f[MEMB_NORMAL_VEC], "\n");
+    if (PS::Comm::getRank() == 0) fprintf(ptr_f[MEMB_NORMAL_VEC], "\n");
   }
 
   void NumAmp(const PS::U32 amp_num) {

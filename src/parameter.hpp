@@ -8,6 +8,7 @@
 #include <cassert>
 #include <array>
 #include "io_util.hpp"
+#include "error_defs.hpp"
 
 class Parameter {
   std::string cdir;
@@ -38,8 +39,7 @@ class Parameter {
     }
   }
 
-  void MatchingTagValues(std::map<std::string, std::vector<std::string> >& tag_val) 
-  {
+  void MatchingTagValues(std::map<std::string, std::vector<std::string> >& tag_val) {
     Matching(&(box_leng[0]) , std::string("box_leng"), tag_val, 3);
     ibox_leng.x = 1.0 / box_leng.x; ibox_leng.y = 1.0 / box_leng.y; ibox_leng.z = 1.0 / box_leng.z;
     Matching(&init_amp_num, std::string("init_amp_num"), tag_val, 1);
@@ -61,7 +61,6 @@ class Parameter {
     Matching(&step_mic, std::string("step_mic"), tag_val, 1);
     Matching(&step_mac, std::string("step_mac"), tag_val, 1);
 
-#ifdef CHEM_MODE
     Matching(&p_thresld, std::string("p_thresld"), tag_val, 1);
     Matching(&eps, std::string("eps"), tag_val, 1);
     Matching(&max_amp_num, std::string("max_amp_num"), tag_val, 1);
@@ -75,10 +74,9 @@ class Parameter {
       PS::Abort();
     }
     const PS::U32 num_core_amp = tag_val["core_amp_id"].size();
-    core_amp_id.resize(num_core_amp, 0xffffffff);
+    core_amp_id_.resize(num_core_amp, 0xffffffff);
     core_ptcl_id.resize(num_core_amp, 0xffffffff);
-    Matching(&(core_amp_id[0]), std::string("core_amp_id"), tag_val, num_core_amp);
-#endif
+    Matching(&(core_amp_id_[0]), std::string("core_amp_id"), tag_val, num_core_amp);
   }
 
   void CalcGammaWithHarmonicMean(const PS::S32 i, const PS::S32 j) {
@@ -155,6 +153,7 @@ public:
   static constexpr PS::U32 decom_freq   = 16;
   static constexpr PS::F64 rn_c         = 1.2; // used for calculate bilayer normal vector
   static constexpr PS::F64 rn_c2        = rn_c * rn_c;
+  static constexpr PS::F64 cf_b_rigid   = 40.0;
 
   static constexpr char atom_type[21] = {
     'O', 'N', 'C', 'S', 'P', 'Z', 'X', 'O', 'N', 'C', 'S', 'P', 'Z', 'X', 'O', 'N', 'C', 'S', 'P', 'Z', 'X'
@@ -187,19 +186,21 @@ public:
   PS::F64 kappa = std::numeric_limits<PS::F64>::signaling_NaN();
   PS::F64 rho_co = std::numeric_limits<PS::F64>::signaling_NaN();
 
-#ifdef CHEM_MODE
   //for chemical reaction
   PS::F64 p_thresld   = std::numeric_limits<PS::F64>::signaling_NaN();
   PS::F64 eps         = std::numeric_limits<PS::F64>::signaling_NaN();
   PS::U32 max_amp_num = 0xffffffff; //When amp_num >= max_amp_num, we stop the simulation.
-  std::vector<PS::U32> core_amp_id;
-  std::vector<PS::U32> core_ptcl_id;
   PS::F64 influ_rad   = std::numeric_limits<PS::F64>::signaling_NaN();
   PS::F64 influ_hei   = std::numeric_limits<PS::F64>::signaling_NaN();
   PS::F64 influ_dep   = std::numeric_limits<PS::F64>::signaling_NaN();
   PS::F64 influ_grd   = std::numeric_limits<PS::F64>::signaling_NaN();
+  std::vector<PS::U32> core_amp_id_;
+  std::vector<PS::U32> core_ptcl_id;
   static constexpr PS::U32 beg_chem = 100000;
-#endif
+
+  const std::vector<PS::U32>& core_amp_id() const {
+    return core_amp_id_;
+  }
   
   //for prng
   static PS::U32 time;
@@ -217,7 +218,7 @@ public:
     static_assert((ibond_is_finite == true) or (ibond_is_finite == false), "bond_is_finite should be true or false");
     return 0.0;
   }
-
+  
   void Initialize() {
     for (PS::S32 i = 0; i < prop_num; i++) {
       for (PS::S32 j = 0; j < prop_num; j++) {
@@ -245,8 +246,9 @@ public:
 			    std::map<std::string, std::vector<std::string> >& tag_val,
 			    const size_t num) {
     if (tag_val.find(tag) == tag_val.end()) {
-      std::cerr << "Unmatching occurs." << std::endl;			
-      std::cerr << "File:" << __FILE__ << " Line:" << __LINE__ << std::endl;
+      std::cerr << "Unmatching occurs." << std::endl;
+      std::cerr << "at " << __FILE__ << " " << __LINE__ << std::endl;
+      std::cerr << "tag: " << tag << std::endl;
       PS::Abort();							
     }									
     assert(tag_val[tag].size() == num);
@@ -416,19 +418,17 @@ public:
     }
   }
 
-#ifdef CHEM_MODE
   template<class Tpsys>
   void CalcCorePtclId(const Tpsys& sys) {
     const PS::U32 num_ptcl = sys.getNumberOfParticleLocal();
     for (PS::U32 i = 0; i < num_ptcl; i++) {
-      for (PS::U32 j = 0; j < core_amp_id.size(); j++) {
-	if (sys[i].amp_id == core_amp_id[j]) {
+      for (PS::U32 j = 0; j < core_amp_id_.size(); j++) {
+	if (sys[i].amp_id == core_amp_id_[j]) {
 	  if (sys[i].unit == 0) core_ptcl_id[j] = sys[i].id;
 	}
       }
     }
   }
-#endif
 
   void CheckLoaded() const {
     for (PS::S32 i = 0; i < prop_num; i++) {
@@ -465,26 +465,23 @@ public:
     assert(std::isfinite(kappa));
     assert(std::isfinite(rho_co));
     
-#ifdef CHEM_MODE
     assert(std::isfinite(p_thresld));
     assert(p_thresld <= 1.0); // p_thresld < 0.0 is OK.
     assert(std::isfinite(eps));
     assert(max_amp_num >= init_amp_num);
     assert(max_amp_num * Parameter::all_unit < std::numeric_limits<PS::U32>::max() );
     assert(max_amp_num != 0xffffffff);
-    
-    for (PS::U32 i = 0; i < core_amp_id.size(); i++) {
-      assert(core_amp_id[i] != 0xffffffff);
-      assert(core_amp_id[i] < init_amp_num);
-      assert(core_ptcl_id[i] != 0xffffffff);
-      assert(core_ptcl_id[i] < all_unit * init_amp_num);
-    }
-    
     assert(std::isfinite(influ_rad));
     assert(std::isfinite(influ_hei));
     assert(std::isfinite(influ_dep));
     assert(std::isfinite(influ_grd));
-#endif
+    
+    for (PS::U32 i = 0; i < core_amp_id_.size(); i++) {
+      assert(core_amp_id_[i] != 0xffffffff);
+      assert(core_amp_id_[i] < init_amp_num);
+      assert(core_ptcl_id[i] != 0xffffffff);
+      assert(core_ptcl_id[i] < all_unit * init_amp_num);
+    }
 
     assert(time != 0xffffffff);
     assert(all_time != 0xffffffff);
@@ -511,6 +508,9 @@ public:
     DUMPTAGANDVAL(rc);
     DUMPTAGANDVAL(rc2);
     DUMPTAGANDVAL(irc);
+
+    DUMPTAGANDVAL(rn_c);
+    DUMPTAGANDVAL(rn_c2);
     
     DUMPTAGANDVAL(box_leng.x);
     DUMPTAGANDVAL(box_leng.y);
@@ -528,7 +528,6 @@ public:
     DUMPTAGANDVAL(kappa);
     DUMPTAGANDVAL(rho_co);
 
-#ifdef CHEM_MODE
     DUMPTAGANDVAL(p_thresld);
     DUMPTAGANDVAL(eps);
     DUMPTAGANDVAL(max_amp_num);
@@ -539,11 +538,10 @@ public:
     DUMPTAGANDVAL(influ_grd);
 
     ost << "core_amp_id core_ptcl_id:\n";
-    for (PS::U32 i = 0; i < core_amp_id.size(); i++) {
-      ost << core_amp_id[i] << " " << core_ptcl_id[i] << std::endl;
+    for (PS::U32 i = 0; i < core_amp_id_.size(); i++) {
+      ost << core_amp_id_[i] << " " << core_ptcl_id[i] << std::endl;
     }
     ost << std::endl;
-#endif
 
     ost << "NOTE:\n";
     ost << "cf_r are multiplied by 1 / sqrt(dt).\n";
@@ -568,7 +566,7 @@ public:
 
     DUMPTAGANDVAL(cf_s);
     DUMPTAGANDVAL(cf_b);
-
+    DUMPTAGANDVAL(cf_b_rigid);
 #undef DUMPTAGANDVAL
 #undef DUMPINTRPARAM
   }
@@ -615,17 +613,26 @@ public:
     PS::Comm::broadcast(&kappa, 1, 0);
     PS::Comm::broadcast(&rho_co, 1, 0);
 
-#ifdef CHEM_MODE
     PS::Comm::broadcast(&p_thresld, 1, 0);
     PS::Comm::broadcast(&eps, 1, 0);
     PS::Comm::broadcast(&max_amp_num, 1, 0);
-    PS::Comm::broadcast(&(core_amp_id[0]), core_amp_id.size(), 0);
-    PS::Comm::broadcast(&(core_ptcl_id[0]), core_ptcl_id.size(), 0);
     PS::Comm::broadcast(&influ_rad, 1, 0);
     PS::Comm::broadcast(&influ_hei, 1, 0);
     PS::Comm::broadcast(&influ_dep, 1, 0);
     PS::Comm::broadcast(&influ_grd, 1, 0);
-#endif
+    
+    PS::U32 core_amp_id_size = core_amp_id_.size();
+    PS::U32 core_ptcl_id_size = core_ptcl_id.size();
+    PS::Comm::broadcast(&core_amp_id_size, 1, 0);
+    PS::Comm::broadcast(&core_ptcl_id_size, 1, 0);
+    
+    if (PS::Comm::getRank() != 0) {
+      core_amp_id_.resize(core_amp_id_size);
+      core_ptcl_id.resize(core_ptcl_id_size);
+    }
+    
+    PS::Comm::broadcast(&(core_amp_id_[0]), core_amp_id_size, 0);
+    PS::Comm::broadcast(&(core_ptcl_id[0]), core_ptcl_id_size, 0);
   }
   
   //for debug

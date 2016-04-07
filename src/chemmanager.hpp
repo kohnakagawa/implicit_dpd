@@ -88,13 +88,16 @@ class ChemManager {
 		  const PS::U32 core_id,
 		  PS::F64vec& core_pos_h,
 		  PS::F64vec& core_pos_t,
+		  PS::F64vec& core_pos_cm,
 		  const Parameter& param) {
     core_pos_h = std::numeric_limits<PS::F64>::quiet_NaN();
     core_pos_t = std::numeric_limits<PS::F64>::quiet_NaN();
+    core_pos_cm = std::numeric_limits<PS::F64>::quiet_NaN();
     for (PS::U32 i = 0; i < loc_num; i++) {
       if (sys[i].id == param.core_ptcl_id[core_id]) {
-	core_pos_h = sys[i].nei_cm_pos[Parameter::Hyphil];
-	core_pos_t = sys[i].nei_cm_pos[Parameter::Hyphob];
+	core_pos_h  = sys[i].pos;
+	core_pos_t  = sys[i].nei_cm_pos[Parameter::Hyphob];
+	core_pos_cm = sys[i].nei_cm_pos[Parameter::Hyphil];
 	break;
       }
     }
@@ -109,6 +112,7 @@ class ChemManager {
     const PS::S32 root_rank = PS::Comm::getMaxValue(rank);
     PS::Comm::broadcast(&core_pos_h, 1, root_rank);
     PS::Comm::broadcast(&core_pos_t, 1, root_rank);
+    PS::Comm::broadcast(&core_pos_cm, 1, root_rank);
   }
 
   void DetermineTargetIdWithCorePos(PS::ParticleSystem<FP>& sys,
@@ -116,15 +120,23 @@ class ChemManager {
 				    const PS::ReallocatableArray<PS::U32>& topol,
 				    const PS::U32 loc_num,
 				    Parameter& param) {
-    PS::F64vec core_pos_h, core_pos_t;
-    const PS::U32 num_core_amp_id = param.core_amp_id.size();
+    PS::F64vec core_pos_h, core_pos_t, core_pos_cm;
+    const PS::U32 num_core_amp_id = param.core_amp_id().size();
     
     for (PS::U32 i = 0; i < num_core_amp_id; i++) {
-      GetCorePos(sys, loc_num, i, core_pos_h, core_pos_t, param);
+      GetCorePos(sys, loc_num, i, core_pos_h, core_pos_t, core_pos_cm, param);
 
+      // first calculate membrane normal vector
       PS::F64vec h2t = core_pos_t - core_pos_h;
       ForceBonded<PS::ParticleSystem<FP> >::MinImage(h2t);
       Normalize(h2t);
+
+      // then reduce protorusion height fluct.
+      PS::F64vec core2cmpos = core_pos_cm - core_pos_h;
+      ForceBonded<PS::ParticleSystem<FP> >::MinImage(core2cmpos);
+      const PS::F64 prj_cf = core2cmpos * h2t;
+      core_pos_h += prj_cf * h2t;
+      ApplyPBC(core_pos_h);
     
       // calc target id
       for (PS::U32 j = 0; j < amp_num; j++) {
@@ -237,7 +249,7 @@ public:
     PS::U32 new_amp_id = param.amp_num;
     const PS::U32 old_amp_num = param.amp_num;
 #ifdef LOCAL_CHEM_EVENT
-    const PS::U32 num_core_amp_id = param.core_amp_id.size();
+    const PS::U32 num_core_amp_id = param.core_amp_id().size();
     core_poss_h_.resizeNoInitialize(num_core_amp_id);
     h2t_vecs_.resizeNoInitialize(num_core_amp_id);
     for (PS::U32 i = 0; i < num_core_amp_id; i++) {

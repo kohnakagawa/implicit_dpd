@@ -70,16 +70,12 @@ namespace {
 			       const Parameter& param,
 			       const PS::F64vec& bonded_vir) {
     observer.KineticTempera(system);
-    observer.Pressure(system, bonded_vir, param.ibox_leng);
+    observer.Pressure(system, bonded_vir, Parameter::ibox_leng);
     observer.Diffusion(system, param.amp_num, param.sol_num);
-    
 #ifdef CALC_HEIGHT
-    observer.MembHeight(system, param.box_leng);
+    observer.MembHeight(system, Parameter::box_leng);
 #endif
-
-#ifdef CHEM_MODE
     observer.NumAmp(param.amp_num);
-#endif
   }
   inline void do_observe_micro(Observer<PS::ParticleSystem<FPDPD> >& observer,
 			       const PS::ParticleSystem<FPDPD>& system) {
@@ -126,10 +122,8 @@ int main(int argc, char *argv[]) {
     system.setNumberOfParticleLocal(0);
   }
   
-#ifdef CHEM_MODE
   // Calc core id if needed.
   if (PS::Comm::getRank() == 0) param.CalcCorePtclId(system);
-#endif
 
   // Share parameter data with other processes.
   param.ShareDataWithOtherProc();
@@ -146,8 +140,8 @@ int main(int argc, char *argv[]) {
   system.exchangeParticle(dinfo);
 
   // Initial step
-  drift_and_predict(system, param.dt, param.box_leng, param.ibox_leng);
-  dinfo.decomposeDomain();
+  drift_and_predict(system, param.dt, Parameter::box_leng, Parameter::ibox_leng);
+  dinfo.decomposeDomainAll(system);
   system.exchangeParticle(dinfo);
   PS::TreeForForceShort<RESULT::Density, EPI::Density, EPJ::Density>::Gather dens_tree;
   PS::TreeForForceShort<RESULT::ForceDPD, EPI::DPD, EPJ::DPD>::Gather force_tree;
@@ -181,9 +175,9 @@ int main(int argc, char *argv[]) {
 #ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
   const PS::U32 est_loc_amp = param.init_amp_num / PS::Comm::getNumberOfProc() + 100;
   ForceBondedMPI<PS::ParticleSystem<FPDPD>, EPJ::DPD> fbonded(est_loc_amp);
-  fbonded.CalcListedForce(system, force_tree.epj_org(), bonded_vir);
+  fbonded.CalcListedForce(system, force_tree.epj_org(), bonded_vir, param.core_amp_id());
 #else
-  ForceBonded<PS::ParticleSystem<FPDPD> > fbonded(system, Parameter::all_unit * param.init_amp_num);
+  ForceBonded<PS::ParticleSystem<FPDPD> > fbonded(system, Parameter::all_unit * param.init_amp_num, param.init_amp_num, param.core_amp_id());
   fbonded.CalcListedForce(system, bonded_vir);
 #endif
   
@@ -210,7 +204,7 @@ int main(int argc, char *argv[]) {
   // Main MD loop
   const PS::U32 atime = Parameter::time + Parameter::all_time - 1;
   for (; Parameter::time < atime; Parameter::time++) {
-    drift_and_predict(system, param.dt, param.box_leng, param.ibox_leng);
+    drift_and_predict(system, param.dt, Parameter::box_leng, Parameter::ibox_leng);
     
     if (Parameter::time % Parameter::decom_freq == 0) dinfo.decomposeDomainAll(system);
 
@@ -236,7 +230,7 @@ int main(int argc, char *argv[]) {
 #endif
 
 #ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
-    fbonded.CalcListedForce(system, force_tree.epj_org(), bonded_vir);
+    fbonded.CalcListedForce(system, force_tree.epj_org(), bonded_vir, param.core_amp_id());
 #else
     fbonded.CalcListedForce(system, bonded_vir);
 #endif
@@ -251,7 +245,7 @@ int main(int argc, char *argv[]) {
 				     fbonded.cmplt_amp(), fbonded.imcmplt_amp(),
 				     param)) break;
 #else
-      if (!chemmanag.RandomChemEvent(system, fbonded.glob_topol, param)) break;
+      if (!chemmanag.RandomChemEvent(system, fbonded.glob_topol(), param)) break;
 #endif
     }
 #endif
@@ -265,13 +259,11 @@ int main(int argc, char *argv[]) {
 #endif
     }
 
-    if (Parameter::time % Parameter::step_mic == 0)
-      do_observe_micro(observer, system);
+    if (Parameter::time % Parameter::step_mic == 0) do_observe_micro(observer, system);
   }
   // end of Main MD loop
   timer_stop();
-  if (PS::Comm::getRank() == 0)
-    show_duration();
+  if (PS::Comm::getRank() == 0) show_duration();
 
   // print configuration for restart
   observer.FinConfig(system);
