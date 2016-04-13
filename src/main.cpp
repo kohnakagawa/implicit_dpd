@@ -165,8 +165,8 @@ int main(int argc, char *argv[]) {
 					       dinfo,
 					       n_walk_limit);
 #else
-  // CalcForceEpEpDPD::m_seed = static_cast<PS::U32>(time(nullptr));
-  CalcForceEpEpDPD::m_seed = 100;
+  CalcForceEpEpDPD::m_seed = static_cast<PS::U32>(time(nullptr));
+  // CalcForceEpEpDPD::m_seed = 100;
   dens_tree.calcForceAllAndWriteBack(CalcDensity(), system, dinfo);
   force_tree.calcForceAllAndWriteBack(CalcForceEpEpDPD(), system, dinfo);
 #endif
