@@ -212,11 +212,11 @@ void search_near_ptcl_id(std::vector<PS::U32>& near_ids,
 			 std::vector<FP>& near_ptcls,
 			 const std::vector<FP>& ptcls,
 			 const PS::F64 rad,
-			 const PS::S32 core_amp_id) {
+			 const PS::S32 core_ptcl_id) {
   near_ids.reserve(100);
   near_ptcls.reserve(100);
   
-  const PS::F64vec tar_pos = ptcls[core_amp_id].pos;
+  const PS::F64vec tar_pos = ptcls[core_ptcl_id].pos;
   const PS::F64 rad2 = rad * rad;
   
   const PS::S32 ptcl_size = ptcls.size();
@@ -345,21 +345,22 @@ int main(int argc, char* argv[]) {
   
     std::cout << "revised configuration is generaged at " << out_fname << std::endl;
   } else if (mode == "search") {
-    PS::S32 core_amp_id = -1;
-    std::cout << "Choose core amp id\n";
-    std::cin >> core_amp_id;
-    CHECK_GE(core_amp_id, 0);
-    CHECK_LT(core_amp_id, static_cast<int>(ptcls.size()));
+    PS::S32 core_ptcl_id = -1;
+    std::cout << "Choose core ptcl id\n";
+    std::cin >> core_ptcl_id;
+    CHECK_GE(core_ptcl_id, 0);
+    CHECK_LT(core_ptcl_id, static_cast<int>(ptcls.size()));
+    CHECK_EQ(core_ptcl_id % Parameter::all_unit, 0);
     
     PS::F64 s_rad = 0.0;
-    std::cout << "Now search particle ids which are located near id " << core_amp_id << ".\n";
+    std::cout << "Now search particle ids which are located near id " << core_ptcl_id << ".\n";
     std::cout << "Search radius ?\n";
     std::cin >> s_rad;
     CHECK_GT(s_rad, 0.0);
     
     std::vector<PS::U32> near_ids;
     std::vector<FPDPD> near_ptcls;
-    search_near_ptcl_id(near_ids, near_ptcls, ptcls, s_rad, core_amp_id);
+    search_near_ptcl_id(near_ids, near_ptcls, ptcls, s_rad, core_ptcl_id);
     
     std::cout << "Detected # of near particle ids is " << near_ids.size() << std::endl << std::endl;;
     const std::string fname_conf = cur_dir + "/ptcl_ids_near_core.xyz";
