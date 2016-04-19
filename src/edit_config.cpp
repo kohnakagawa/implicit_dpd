@@ -228,7 +228,7 @@ void search_near_ptcl_id(std::vector<PS::U32>& near_ids,
     const PS::F64 core2ptcl_dist2 = core2ptcl * core2ptcl;
     
     if ((core2ptcl_dist2 < rad2) && (prop == Parameter::Hyphil)) {
-      near_ids.push_back(ptcls[i].id);
+      near_ids.push_back(ptcls[i].amp_id);
       near_ptcls.push_back(ptcls[i]);
     }
   }
