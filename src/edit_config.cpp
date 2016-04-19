@@ -8,6 +8,8 @@
 #include "parameter.hpp"
 #include "f_calculator.hpp"
 
+PS::F64vec Parameter::box_leng, Parameter::ibox_leng;
+
 constexpr char Parameter::atom_type[21];
 const char axis_name[] = {
   'X', 'Y', 'Z'
@@ -205,6 +207,33 @@ void read_all_xyzform(std::vector<FP>& ptcls,
   }
 }
 
+template<class FP>
+void search_near_ptcl_id(std::vector<PS::U32>& near_ids,
+			 std::vector<FP>& near_ptcls,
+			 const std::vector<FP>& ptcls,
+			 const PS::F64 rad,
+			 const PS::S32 core_amp_id) {
+  near_ids.reserve(100);
+  near_ptcls.reserve(100);
+  
+  const PS::F64vec tar_pos = ptcls[core_amp_id].pos;
+  const PS::F64 rad2 = rad * rad;
+  
+  const PS::S32 ptcl_size = ptcls.size();
+  
+  for (PS::S32 i = 0; i < ptcl_size; i++) {
+    const PS::S32 prop = ptcls[i].prop;
+    PS::F64vec core2ptcl = ptcls[i].pos - tar_pos;
+    ForceBonded<PS::ParticleSystem<FPDPD> >::MinImage(core2ptcl);
+    const PS::F64 core2ptcl_dist2 = core2ptcl * core2ptcl;
+    
+    if ((core2ptcl_dist2 < rad2) && (prop == Parameter::Hyphil)) {
+      near_ids.push_back(ptcls[i].id);
+      near_ptcls.push_back(ptcls[i]);
+    }
+  }
+}
+
 int main(int argc, char* argv[]) {
   if (argc != 3) {
     std::cerr << "argv[1] is xyz file name.\n";
@@ -221,7 +250,6 @@ int main(int argc, char* argv[]) {
   std::cout << "Successfully load particle data.\n";
 
   // read box inform
-  PS::F64vec box;
   const std::string run_fname = cur_dir + "/run_param.txt";
   std::ifstream fin(run_fname.c_str());
   if (!fin) {
@@ -231,83 +259,124 @@ int main(int argc, char* argv[]) {
   }
   std::map<std::string, std::vector<std::string> > tag_val;
   Parameter::ReadTagValues(fin, tag_val);
-  Parameter::Matching(&(box[0]), std::string("box_leng"), tag_val, 3);
-
-  std::string shape;
-  std::cout << "Choose membrane shape [flat/sphere/cylind].\n";
-  std::cin >> shape;
-  if ((shape != "flat") && (shape != "sphere") && (shape != "cylind")) {
-    std::cerr << "Choose correct membrane shape.\n";
-    std::exit(1);
-  }
-
-  int added_sol_num = -1;
-  std::cout << "Add solvent particles in " << fname << std::endl;
-  std::cout << "# of solvent particles will be added.\n";
-  std::cin  >> added_sol_num;
-
-  if (added_sol_num <= 0) {
-    std::cerr << "added_sol_num should be larger than 0.\n";
-    std::exit(1);
-  }
-
-  const PS::F64 est_memb_thick = Parameter::all_unit * Parameter::bond_leng;
+  Parameter::Matching(&(Parameter::box_leng[0]), std::string("box_leng"), tag_val, 3);
+  for (PS::S32 i = 0; i < 3; i++) Parameter::ibox_leng[i] = 1.0 / Parameter::box_leng[i];
   
-  if (shape == "flat") {
-    std::cerr << "Choose upper side / downer side [up/dw].\n";
-    std::string side;
-    std::cin >> side;
-    const bool b_up = (side == "up");
-    
-    PS::F64 memb_up = 0.0, memb_dw = 0.0;
-    const auto axis = guess_bilayer_axis(ptcls, memb_dw, memb_up,
-					 [](const PS::F64* beg, const PS::F64* end) { return std::min_element(beg, end); });
-    std::cerr << "Bilayer normal axis is " << axis_name[axis] << ".\n";
-    
-    PS::F64vec up_pos = box, dw_pos = 0.0;
-    if (b_up) {
-      dw_pos[axis] = memb_up;
-    } else {
-      up_pos[axis] = memb_dw;
+  std::string mode;
+  std::cout << "Choose execution mode [solvent/search].\n";
+  std::cin >> mode;
+  
+  if (mode == "solvent") {
+    std::string shape;
+    std::cout << "Choose membrane shape [flat/sphere/cylind].\n";
+    std::cin >> shape;
+    if ((shape != "flat") && (shape != "sphere") && (shape != "cylind")) {
+      std::cerr << "Choose correct membrane shape.\n";
+      std::exit(1);
     }
-    add_solvents_cuboid(ptcls, up_pos, dw_pos, added_sol_num);
-  } else if ((shape == "sphere") || (shape == "cylind")) {
-    PS::U32 dim = 3, axis = 0xffffffff;
-    if (shape == "cylind") {
-      dim = 2;
+
+    int added_sol_num = -1;
+    std::cout << "Add solvent particles in " << fname << std::endl;
+    std::cout << "# of solvent particles will be added.\n";
+    std::cin  >> added_sol_num;
+
+    if (added_sol_num <= 0) {
+      std::cerr << "added_sol_num should be larger than 0.\n";
+      std::exit(1);
+    }
+
+    const PS::F64 est_memb_thick = Parameter::all_unit * Parameter::bond_leng;
+  
+    if (shape == "flat") {
+      std::cerr << "Choose upper side / downer side [up/dw].\n";
+      std::string side;
+      std::cin >> side;
+      const bool b_up = (side == "up");
+    
       PS::F64 memb_up = 0.0, memb_dw = 0.0;
-      axis = guess_bilayer_axis(ptcls, memb_dw, memb_up,
-				[](const PS::F64* beg, const PS::F64* end) { return std::max_element(beg, end);	}); 
-    }
-    PS::F64 rad = 0.0;
-    PS::F64vec cent = 0.0;
-    guess_bilayer_cent_and_rad(ptcls, rad, cent, dim, axis);
+      const auto axis = guess_bilayer_axis(ptcls, memb_dw, memb_up,
+					   [](const PS::F64* beg, const PS::F64* end) { return std::min_element(beg, end); });
+      std::cerr << "Bilayer normal axis is " << axis_name[axis] << ".\n";
+    
+      PS::F64vec up_pos = Parameter::box_leng, dw_pos = 0.0;
+      if (b_up) {
+	dw_pos[axis] = memb_up;
+      } else {
+	up_pos[axis] = memb_dw;
+      }
+      add_solvents_cuboid(ptcls, up_pos, dw_pos, added_sol_num);
+    } else if ((shape == "sphere") || (shape == "cylind")) {
+      PS::U32 dim = 3, axis = 0xffffffff;
+      if (shape == "cylind") {
+	dim = 2;
+	PS::F64 memb_up = 0.0, memb_dw = 0.0;
+	axis = guess_bilayer_axis(ptcls, memb_dw, memb_up,
+				  [](const PS::F64* beg, const PS::F64* end) { return std::max_element(beg, end);	});
+      }
+      PS::F64 rad = 0.0;
+      PS::F64vec cent = 0.0;
+      guess_bilayer_cent_and_rad(ptcls, rad, cent, dim, axis);
 
-    std::cerr << "Vesicle radius is " << rad << std::endl;
-    std::cerr << "Center position is " << cent << std::endl;
+      std::cerr << "Vesicle radius is " << rad << std::endl;
+      std::cerr << "Center position is " << cent << std::endl;
     
-    std::string side;
-    std::cerr << "Choose inside or outside [in/out].\n";
-    std::cin >> side;
-    const bool b_in = (side == "in");
+      std::string side;
+      std::cerr << "Choose inside or outside [in/out].\n";
+      std::cin >> side;
+      const bool b_in = (side == "in");
     
-    if (b_in) {
-      rad -= est_memb_thick;
-    } else {
-      rad += est_memb_thick;
+      if (b_in) {
+	rad -= est_memb_thick;
+      } else {
+	rad += est_memb_thick;
+      }
+    
+      add_solvents_sph(ptcls, cent, rad, added_sol_num, Parameter::box_leng, b_in, dim, axis);
     }
     
-    add_solvents_sph(ptcls, cent, rad, added_sol_num, box, b_in, dim, axis);
+    remove_cm_drift(ptcls);
+    check_config_is_valid(ptcls, Parameter::box_leng);
+  
+    const std::string out_fname = cur_dir + "/rev_config.xyz";
+    FILE* fp = io_util::xfopen(out_fname.c_str(), "w");
+    io_util::WriteXYZForm(&(ptcls[0]), ptcls.size(), time, fp);
+    fclose(fp);
+    fp = nullptr;
+  
+    std::cout << "revised configuration is generaged at " << out_fname << std::endl;
+  } else if (mode == "search") {
+    PS::S32 core_amp_id = -1;
+    std::cout << "Choose core amp id\n";
+    std::cin >> core_amp_id;
+    CHECK_GE(core_amp_id, 0);
+    CHECK_LT(core_amp_id, static_cast<int>(ptcls.size()));
+    
+    PS::F64 s_rad = 0.0;
+    std::cout << "Now search particle ids which are located near id " << core_amp_id << ".\n";
+    std::cout << "Search radius ?\n";
+    std::cin >> s_rad;
+    CHECK_GT(s_rad, 0.0);
+    
+    std::vector<PS::U32> near_ids;
+    std::vector<FPDPD> near_ptcls;
+    search_near_ptcl_id(near_ids, near_ptcls, ptcls, s_rad, core_amp_id);
+    
+    std::cout << "Detected # of near particle ids is " << near_ids.size() << std::endl << std::endl;;
+    const std::string fname_conf = cur_dir + "/ptcl_ids_near_core.xyz";
+    const std::string fname_ids  = cur_dir + "/nearid_lists.txt";
+    FILE* fp = io_util::xfopen(fname_conf.c_str(), "w");
+    io_util::WriteXYZForm(&(near_ptcls[0]), near_ptcls.size(), 0, fp);
+    fclose(fp);
+    fp = nullptr;
+
+    std::ofstream fout(fname_ids.c_str());
+    for (PS::U32 i = 0; i < near_ids.size(); i++) fout << near_ids[i] << " ";
+    fout << std::endl;
+    
+    std::cout << "The configuration of these particles are written in " << fname_conf << std::endl;
+    std::cout << "Particle ids near core amphiphile are written in " << fname_ids << std::endl << std::endl;;
+  } else {
+    std::cerr << "I do not know what to do.\n";
+    std::exit(1);
   }
-
-  remove_cm_drift(ptcls);
-  check_config_is_valid(ptcls, box);
-  
-  const std::string out_fname = cur_dir + "/rev_config.xyz";
-  FILE* fp = io_util::xfopen(out_fname.c_str(), "w");
-  io_util::WriteXYZForm(&(ptcls[0]), ptcls.size(), time, fp);
-  fclose(fp);
-  fp = nullptr;
-  
-  std::cout << "revised configuration is generaged at " << out_fname << std::endl;
 }
