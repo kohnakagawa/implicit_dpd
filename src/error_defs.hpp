@@ -56,11 +56,11 @@
     }									\
   } while (false)
 
-#define CHECK_FILE_OPEN(fin, name)			\
-  do {							\
-    if (!fin) {						\
-      cerr << "Cannot open file " << name << std::endl;	\
-      cerr << __FILE__ << " " << __LINE__ << std::endl;	\
-      exit(1);						\
-    }							\
+#define CHECK_FILE_OPEN(fin, name)				\
+  do {								\
+    if (!fin) {							\
+      std::cerr << "Cannot open file " << name << std::endl;	\
+      std::cerr << __FILE__ << " " << __LINE__ << std::endl;	\
+      std::exit(1);						\
+    }								\
   } while (false)

@@ -39,6 +39,22 @@ class Parameter {
     }
   }
 
+  void CalcInfluGrdAndRad() {
+    const PS::F64 hei_sum = influ_hei + influ_dep;
+    const PS::F64 val_in_sqrt = 12.0 * influ_vol / (M_PI * hei_sum) - 3.0 * upside_rad * upside_rad;
+    if (val_in_sqrt > 0.0) {
+      // trancated cone shape
+      const PS::F64 downside_rad = (std::sqrt(val_in_sqrt) - upside_rad) * 0.5;
+      influ_grd = (downside_rad - upside_rad) / hei_sum;
+    } else {
+      // cone shape
+      const PS::F64 hei_sum_new = 3.0 * influ_vol / (M_PI * upside_rad * upside_rad);
+      influ_grd = -upside_rad / hei_sum_new;
+    }
+    influ_rad = upside_rad + influ_grd * influ_hei;
+    CHECK_GT(influ_rad, 0.0);
+  }
+
   void MatchingTagValues(std::map<std::string, std::vector<std::string> >& tag_val) {
     Matching(&(box_leng[0]) , std::string("box_leng"), tag_val, 3);
     ibox_leng.x = 1.0 / box_leng.x; ibox_leng.y = 1.0 / box_leng.y; ibox_leng.z = 1.0 / box_leng.z;
@@ -64,10 +80,20 @@ class Parameter {
     Matching(&p_thresld, std::string("p_thresld"), tag_val, 1);
     Matching(&eps, std::string("eps"), tag_val, 1);
     Matching(&max_amp_num, std::string("max_amp_num"), tag_val, 1);
-    Matching(&influ_rad, std::string("influ_rad"), tag_val, 1);
     Matching(&influ_hei, std::string("influ_hei"), tag_val, 1);
     Matching(&influ_dep, std::string("influ_dep"), tag_val, 1);
-    Matching(&influ_grd, std::string("influ_grd"), tag_val, 1);
+
+    if (tag_val.find("influ_vol") != tag_val.end()) {
+      std::cerr << "influ_vol is specified. influ_grd is calculated using influ_vol and influ_rad.\n";
+      std::cerr << "Specified influ_grd and influ_rad in run_param.txt are ignored.\n";
+      Matching(&influ_vol, std::string("influ_vol"), tag_val, 1);
+      Matching(&upside_rad, std::string("upside_rad"), tag_val, 1);
+      CalcInfluGrdAndRad();
+    } else {
+      std::cerr << "influ_vol is not specified.\n";
+      Matching(&influ_rad, std::string("influ_rad"), tag_val, 1);
+      Matching(&influ_grd, std::string("influ_grd"), tag_val, 1);
+    }
     
     if (tag_val.find("core_amp_id") == tag_val.end()) {
       std::cerr << "core_amp_id is not specified in run input paramter.\n";
@@ -194,6 +220,9 @@ public:
   PS::F64 influ_hei   = std::numeric_limits<PS::F64>::signaling_NaN();
   PS::F64 influ_dep   = std::numeric_limits<PS::F64>::signaling_NaN();
   PS::F64 influ_grd   = std::numeric_limits<PS::F64>::signaling_NaN();
+  PS::F64 influ_vol   = std::numeric_limits<PS::F64>::signaling_NaN(); // for constant volume simulation.
+  PS::F64 upside_rad  = std::numeric_limits<PS::F64>::signaling_NaN();
+  
   std::vector<PS::U32> core_amp_id_;
   std::vector<PS::U32> core_ptcl_id;
   static constexpr PS::U32 beg_chem = 100000;
@@ -323,11 +352,7 @@ public:
   void LoadParam() {
     const std::string fname = cdir + "/run_param.txt";
     std::ifstream fin(fname.c_str());
-    if (!fin) {
-      std::cerr << fname.c_str() << " dose not exist.\n";
-      std::cerr << __FILE__ << " " << __LINE__ << std::endl;
-      PS::Abort();
-    }
+    CHECK_FILE_OPEN(fin, fname);
     std::map<std::string, std::vector<std::string> > tag_vals;
     ReadTagValues(fin, tag_vals);
     MatchingTagValues(tag_vals);
@@ -536,6 +561,8 @@ public:
     DUMPTAGANDVAL(influ_hei);
     DUMPTAGANDVAL(influ_dep);
     DUMPTAGANDVAL(influ_grd);
+    DUMPTAGANDVAL(influ_vol);
+    DUMPTAGANDVAL(upside_rad);
 
     ost << "core_amp_id core_ptcl_id:\n";
     for (PS::U32 i = 0; i < core_amp_id_.size(); i++) {

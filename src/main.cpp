@@ -84,10 +84,9 @@ namespace {
 } // end of anonymous namespace
 
 int main(int argc, char *argv[]) {
-  timer_start();
-
   PS::Initialize(argc, argv);
-  
+
+  timer_start();
 #ifdef ENABLE_GPU_CUDA
 #ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
   // Multi GPU case
@@ -103,9 +102,9 @@ int main(int argc, char *argv[]) {
     std::cerr << "gpu device id is not specified.\n";
     PS::Abort();
   }
-#endif
-#endif
-
+#endif // end of PARTICLE_SIMULATOR_MPI_PARALLEL
+#endif // end of ENABLE_GPU_CUDA
+  
   // Initialize run input parameter
   const std::string cdir = argv[1];
   Parameter param(cdir);
