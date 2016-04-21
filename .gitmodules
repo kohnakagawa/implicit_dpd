@@ -1,3 +1,6 @@
 [submodule "FDPS"]
 	path = FDPS
 	url = https://github.com/kohnakagawa/FDPS.git
+[submodule "plog"]
+	path = plog
+	url = https://github.com/kohnakagawa/plog.git
