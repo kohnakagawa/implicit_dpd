@@ -1,0 +1,1 @@
+/usr/bin/c++  -fPIC -O3 -DNDEBUG   -shared -Wl,-soname,libmdstresspy.so -o libmdstresspy.so CMakeFiles/mdstresspy.dir/mds_boostpython.cpp.o ../libmdstress.so -lboost_python -lpython2.7 -llapack -Wl,-rpath,/home/nakagawa/programming/implicit_dpd/analysis/local_stress/mdstresslib/build: 
