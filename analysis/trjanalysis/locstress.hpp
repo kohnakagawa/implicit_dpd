@@ -14,6 +14,19 @@ PS::F64 Parameter::cf_m[Parameter::prop_num][Parameter::prop_num][Parameter::pro
 PS::F64 Parameter::cf_s, Parameter::cf_b;
 
 class TrjAnalysisLocStress : public TrjAnalysis<FPDPD, Particle> {
+  const char mdstress_errors[10][128] = {
+    "the stress type is not correct.",
+    "the number of cells at one side is negative.",
+    "the local spacing is too small.",
+    "the box is not set.",
+    "the force decomposition is incorrect.",
+    "the number of atoms is not set.",
+    "the contribution is not correct",
+    "the filename is not set",
+    "DistributeInteraction has been called with an incorrect number of atoms",
+    "Lapack failed"
+  };
+
   void SetDensity(const std::vector<std::vector<int> >& near_ptcl_id) {
     const int num_iptcl = ptcls_.size();
     for (int i = 0; i < num_iptcl; i++) {
@@ -177,6 +190,15 @@ class TrjAnalysisLocStress : public TrjAnalysis<FPDPD, Particle> {
     }
   }
 
+  void AddKineticTerm(mds::StressGrid& stressgrid) {
+    const int num_iptcl = ptcls_.size();
+    for (int i = 0; i < num_iptcl; i++) {
+      double x[]  = {ptcls_[i].r.x, ptcls_[i].r.y, ptcls_[i].r.z};
+      double va[] = {ptcls_[i].v.x, ptcls_[i].v.y, ptcls_[i].v.z};
+      stressgrid.DistributeKinetic(1.0, x, va, nullptr, -1);
+    }
+  }
+
 
   void SetBendInteractionCoefs(std::vector<double>& cf_bends,
 			       const std::vector<PS::U32>& core_amp_id,
@@ -219,9 +241,11 @@ class TrjAnalysisLocStress : public TrjAnalysis<FPDPD, Particle> {
 		       const int num_mol,
 		       const PS::U32 nbdf_seed,
 		       const PS::U32 time) {
+    stressgrid.Update();
     SetDensity(near_ptcl_id);
     AddInterMolecularTerm(stressgrid, near_ptcl_id, nbdf_seed + time);
     AddIntraMolecularTerm(stressgrid, num_mol);
+    AddKineticTerm(stressgrid);
   }
 
   int GetNumOfAmp() {
@@ -245,14 +269,9 @@ public:
   ~TrjAnalysisLocStress() override {}
 
   void SetStressGridParam(mds::StressGrid& stressgrid,
-  			  const int grid_n[3],
   			  const char* fname,
   			  const double spacing,
   			  const PS::F64vec& box_leng) {
-    stressgrid.SetNumberOfGridCellsX(grid_n[0]);
-    stressgrid.SetNumberOfGridCellsY(grid_n[1]);
-    stressgrid.SetNumberOfGridCellsZ(grid_n[2]);
-    
     stressgrid.SetSpacing(spacing);
     stressgrid.SetForceDecomposition(mds_ccfd);
     stressgrid.SetStressType(mds_spat);
@@ -273,10 +292,9 @@ public:
 
     // local stress information
     const char fname[] = {"loc_stress"};
-    const int grid_n[] = {20, 20, 20};
     const double spacing = 2.0;
     mds::StressGrid stressgrid;
-    SetStressGridParam(stressgrid, grid_n, fname, spacing, Parameter::box_leng);
+    SetStressGridParam(stressgrid, fname, spacing, Parameter::box_leng);
 
     // for dissipative force calculation
     PS::U32 m_seed = 0;
@@ -301,12 +319,20 @@ public:
       // change base axis
       aadjuster.CreateMomInertia(ptcls_, ptch_id, tar_patch_id);
       aadjuster.DoTransform(ptcls_);
-      
+
       CalcLocalStress(stressgrid, ptr_connector->near_ptcl_id(), GetNumOfAmp(), m_seed, time);
-      
+
+      // check mdstress error
+      int err_id = 0;
+      if ((err_id = stressgrid.GetError()) != 0) {
+	std::cout << mdstress_errors[err_id - 1] << std::endl;
+      }
+
       // DebugDump(ptcls_, time);
 
       ptr_connector->ClearForNextStep();
     }
+
+    stressgrid.Write();
   }
 };

@@ -1,9 +1,9 @@
-#CXX = g++
-CXX = icpc
+CXX = g++
+# CXX = icpc
 
 WARNINGS = -Wextra -Wunused-variable -Wsign-compare #-Wnon-virtual-dtor -Woverloaded-virtual
 DEBUG = -O0 -g -DDEBUG
-RELEASE = -O3
+RELEASE = -O3 -DEIGEN_NO_DEBUG
 STDCPP11 = -std=c++11
 
 INCLUDE = -I../../FDPS/src -I../../src
