@@ -26,6 +26,8 @@ class TrjAnalysisLocStress : public TrjAnalysis<FPDPD, Particle> {
     "DistributeInteraction has been called with an incorrect number of atoms",
     "Lapack failed"
   };
+  
+  PS::F64vec press_sum;
 
   void GetNewBox(PS::F64vec& box_org, PS::F64vec& box_top) {
     PS::F64 min_x = std::numeric_limits<PS::F64>::max(), max_x = std::numeric_limits<PS::F64>::min();
@@ -64,8 +66,8 @@ class TrjAnalysisLocStress : public TrjAnalysis<FPDPD, Particle> {
 	const auto j = near_ptcl_id[i][jj];
 	const auto rj = ptcls_[j].r;
 	const auto propj = ptcls_[j].prop;
-	const auto drij = rj - ri;
-	const auto dr2 = drij * drij;
+	const auto drji = rj - ri;
+	const auto dr2 = drji * drji;
 	if (dr2 < Parameter::rc2) {
 	  const auto dr = std::sqrt(dr2);
 	  d_sum[propj] += (Parameter::rc - dr) * (Parameter::rc - dr);
@@ -86,9 +88,9 @@ class TrjAnalysisLocStress : public TrjAnalysis<FPDPD, Particle> {
       const int num_jptcl = near_ptcl_id[i].size();
       const auto ri    = ptcls_[i].r;
       const auto vi    = ptcls_[i].v;
+      const auto idi   = ptcls_[i].id;
       const auto propi = ptcls_[i].prop;
       const auto densi = ptcls_[i].dens;
-      const auto idi   = ptcls_[i].id;
       
       for (int j = 0; j < 3; j++) atoms_pos[0][j] = ri[j];
       
@@ -118,8 +120,8 @@ class TrjAnalysisLocStress : public TrjAnalysis<FPDPD, Particle> {
 	  const auto rnd = saru.nrml();
 
 	  const auto dr = std::sqrt(dr2);
-	  const auto propj = ptcls_[j].prop;
 	  const auto inv_dr = 1.0 / dr;
+	  const auto propj = ptcls_[j].prop;
 	  const auto one_m_dr = 1.0 - dr * Parameter::irc;
 	  
 	  const auto cf_co  = Parameter::cf_c[propi][propj] * (dr - Parameter::arc) * (dr - Parameter::rc) * (dr >= Parameter::arc);
@@ -133,10 +135,14 @@ class TrjAnalysisLocStress : public TrjAnalysis<FPDPD, Particle> {
 	  const auto sq_wrji = std::sqrt(wrji);
 	  const auto drji_dvji = drji * dvji;
 	  const auto all_cf = (cf_co + cf_mbd +  //conservative
-			       Parameter::cf_r[propi][propj] * sq_wrji * rnd - //random
+			       Parameter::cf_r[propi][propj] * sq_wrji * rnd + //random
 			       Parameter::cf_g[propi][propj] * wrji * drji_dvji * inv_dr) * inv_dr; //dissipation
 
 	  double Force[][3] = {{all_cf * drji.x, all_cf * drji.y, all_cf * drji.z}};
+
+	  press_sum.x += Force[0][0] * drji.x;
+	  press_sum.y += Force[0][1] * drji.y;
+	  press_sum.z += Force[0][2] * drji.z;
 	  
 	  stressgrid.DistributeInteraction(2, atoms_pos, Force, nullptr);
 	}
@@ -145,7 +151,7 @@ class TrjAnalysisLocStress : public TrjAnalysis<FPDPD, Particle> {
   }
 
   void AddBondInteractionTerm(mds::StressGrid& stressgrid,
-			      const int beg_id) {
+			      const PS::U32 beg_id) {
     const auto amp_id = ptcls_[beg_id].amp_id;
     for (auto i = 0u; i < Parameter::all_unit - 1; i++) {
       const auto r0 = ptcls_[beg_id + i    ].r;
@@ -161,13 +167,17 @@ class TrjAnalysisLocStress : public TrjAnalysis<FPDPD, Particle> {
 
       double atoms_pos[][3] = {{r0.x, r0.y, r0.z}, {r1.x, r1.y, r1.z}};
       double Force[][3] = {{cf_bond * dr01.x, cf_bond * dr01.y, cf_bond * dr01.z}};
+
+      press_sum.x += Force[0][0] * dr01.x;
+      press_sum.y += Force[0][1] * dr01.y;
+      press_sum.z += Force[0][2] * dr01.z;
       
       stressgrid.DistributeInteraction(2, atoms_pos, Force, nullptr);
     }
   }
 
   void AddAngleInteractionTerm(mds::StressGrid& stressgrid,
-			       const int beg_id,
+			       const PS::U32 beg_id,
 			       const double cf_b) {
     if (Parameter::all_unit > 2) {
       const auto amp_id = ptcls_[beg_id].amp_id;
@@ -201,10 +211,14 @@ class TrjAnalysisLocStress : public TrjAnalysis<FPDPD, Particle> {
 	const double Ftb1[] = {cf_bd * (dr01.x - cf_crs[1] * dr12.x),
 			       cf_bd * (dr01.y - cf_crs[1] * dr12.y),
 			       cf_bd * (dr01.z - cf_crs[1] * dr12.z)};
+
+	press_sum.x += dr01.x * Ftb0[0] + dr12.x * Ftb1[0];
+	press_sum.y += dr01.y * Ftb0[1] + dr12.y * Ftb1[1];
+	press_sum.z += dr01.z * Ftb0[2] + dr12.z * Ftb1[2];
 	
 	double atoms_pos[][3] = {{r0.x, r0.y, r0.z}, {r1.x, r1.y, r1.z}, {r2.x, r2.y, r2.z}};
 	double Force[][3] = {{0.0, 0.0, 0.0}, {0.0, 0.0, 0.0}, {0.0, 0.0, 0.0}};
-	
+
 	for (int k = 0; k < 3; k++) {
 	  Force[0][k] -= Ftb0[k];
 	  Force[1][k] += Ftb0[k] - Ftb1[k];
@@ -222,6 +236,10 @@ class TrjAnalysisLocStress : public TrjAnalysis<FPDPD, Particle> {
       double x[]  = {ptcls_[i].r.x, ptcls_[i].r.y, ptcls_[i].r.z};
       double va[] = {ptcls_[i].v.x, ptcls_[i].v.y, ptcls_[i].v.z};
       stressgrid.DistributeKinetic(1.0, x, va, nullptr, -1);
+      
+      press_sum.x += va[0] * va[0];
+      press_sum.y += va[1] * va[1];
+      press_sum.z += va[2] * va[2];
     }
   }
 
@@ -267,6 +285,7 @@ class TrjAnalysisLocStress : public TrjAnalysis<FPDPD, Particle> {
 		       const int num_mol,
 		       const PS::U32 nbdf_seed,
 		       const PS::U32 time) {
+    press_sum.x = press_sum.y = press_sum.z = 0.0;
     SetDensity(near_ptcl_id);
     AddInterMolecularTerm(stressgrid, near_ptcl_id, nbdf_seed + time);
     AddIntraMolecularTerm(stressgrid, num_mol);
@@ -327,6 +346,10 @@ public:
     // local stress information
     mds::StressGrid stressgrid;
     PS::F64vec ls_box_org(0.0, 0.0, 0.0), ls_box_top(0.0, 0.0, 0.0);
+
+    // sum of press
+    const auto fname_psum = cur_dir_ + "/press_sum.txt";
+    std::ofstream fout(fname_psum.c_str());
     
     // main loop
     PS::U32 time = 0;
@@ -359,8 +382,9 @@ public:
 	// change orgin
 	ChangeCoordOrigin(ls_box_org, ls_box_top);
 
-	const char fname[] = {"loc_stress"}; const double spacing = 2.0;
-	SetStressGridParam(stressgrid, fname, spacing, ls_box_top - ls_box_org);
+	const std::string fname =  cur_dir_ + "loc_stress";
+	const double spacing = 2.0;
+	SetStressGridParam(stressgrid, fname.c_str(), spacing, ls_box_top - ls_box_org);
 	is_first = false;
       } else {
 	// change base axis
@@ -378,7 +402,8 @@ public:
 	std::cerr << "Error: " << mdstress_errors[err_id - 1] << std::endl;
 	std::exit(1);
       }
-
+      
+      fout << std::setprecision(15) << press_sum << std::endl;
       // DebugDump(ptcls_, time);
 
       ptr_connector->ClearForNextStep();
