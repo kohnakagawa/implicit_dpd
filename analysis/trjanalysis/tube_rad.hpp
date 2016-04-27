@@ -78,7 +78,7 @@ public:
     const std::string fname = cur_dir_ + "/slice_rad.txt";
     fout.open(fname.c_str());
    
-    size_t time = 0;
+    PS::U32 time = 0;
     AxisAdjuster<Particle> aadjuster;
     while (true) {
       if (ReadOneFrame(time, [] (const Particle& p) -> bool { return (p.prop == Parameter::Hyphil) || (p.prop == Parameter::Hyphob); })) break;

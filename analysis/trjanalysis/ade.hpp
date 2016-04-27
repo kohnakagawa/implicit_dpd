@@ -26,7 +26,7 @@ public:
     std::ofstream fout(name_fout.c_str());
     fout << "#time\tnum0\tnum1\thyphil_all\n";
     
-    size_t time = 0;
+    PS::U32 time = 0;
     while (true) {
       if (ReadOneFrame(time, [] (const Particle& p) -> bool { return (p.prop == Parameter::Hyphil); })) break;
       std::cout << "time = " << time << std::endl;

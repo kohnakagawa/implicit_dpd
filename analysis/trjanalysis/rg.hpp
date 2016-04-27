@@ -41,7 +41,7 @@ public:
     const std::string name_fout = cur_dir_ + "/rg.txt";
     std::ofstream fout_rg(name_fout.c_str());
 
-    size_t time = 0;
+    PS::U32 time = 0;
     while (true) {
       if (ReadOneFrame(time, [] (const Particle& p) -> bool {return ((p.prop == Parameter::Hyphil) || (p.prop == Parameter::Hyphob));})) break;
       std::cout << "time = " << time << std::endl;

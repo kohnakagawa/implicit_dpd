@@ -12,7 +12,8 @@ SET(MDSTRESS_SOURCES ${MDSTRESS_SOURCES_CPP} ${MDSTRESS_SOURCES_H})
 
 INCLUDE_DIRECTORIES(include/)
 
-FIND_LIBRARY(LAPACK_LIBRARY NAMES lapack liblapack HINTS /usr/lib /cm/shared/apps/lapack/intel/64/3.6.0 REQUIRED)
+# FIND_LIBRARY(LAPACK_LIBRARY NAMES lapack liblapack HINTS /usr/lib REQUIRED)
+FIND_LIBRARY(LAPACK_LIBRARY NAMES mkl_intel_lp64 libmkl_intel_lp64 mkl_sequential libmkl_sequential mkl_core libmkl_core PATHS /cm/shared/apps/intel/composer_xe/2015.5.223/mkl/lib/intel64 REQUIRED)
 
 # ADD_LIBRARY(mdstress SHARED ${MDSTRESS_SOURCES})
 ADD_LIBRARY(mdstress STATIC ${MDSTRESS_SOURCES})
