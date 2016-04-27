@@ -269,7 +269,7 @@ int main(int argc, char *argv[]) {
 
   // cleanup
   observer.CleanUp();
-  param.DumpAllParam();
+  param.DumpAllParam(CalcForceEpEpDPD::m_seed);
 #ifdef ENABLE_GPU_CUDA
   clean_up_gpu();
 #endif

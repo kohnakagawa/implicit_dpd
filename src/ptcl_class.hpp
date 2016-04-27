@@ -63,7 +63,7 @@ struct FPDPD {
 		       &buf, &(pos.x), &(pos.y), &(pos.z),
 		       &id, &prop, &amp_id, &unit,
 		       &(vel.x), &(vel.y), &(vel.z), &(vel_buf.x), &(vel_buf.y), &(vel_buf.z),
-		       &(acc.x), &(acc.y), &(acc.z)) );
+		       &(acc.x), &(acc.y), &(acc.z)));
     delta_sumr = press = nei_cm_pos[0] = nei_cm_pos[1] = 0.0;
     density.fill(0.0);
   }
@@ -73,6 +73,16 @@ struct FPDPD {
 	    id, prop, amp_id, unit,
 	    vel.x, vel.y, vel.z, vel_buf.x, vel_buf.y, vel_buf.z,
 	    acc.x, acc.y, acc.z);
+  }
+  void readFromString(const char* line) {
+    char buf;
+    assert(0 != sscanf(line, "%c %lf %lf %lf %u %u %u %u %lf %lf %lf %lf %lf %lf %lf %lf %lf\n",
+		       &buf, &(pos.x), &(pos.y), &(pos.z),
+		       &id, &prop, &amp_id, &unit,
+		       &(vel.x), &(vel.y), &(vel.z), &(vel_buf.x), &(vel_buf.y), &(vel_buf.z),
+		       &(acc.x), &(acc.y), &(acc.z)));
+    delta_sumr = press = nei_cm_pos[0] = nei_cm_pos[1] = 0.0;
+    density.fill(0.0);
   }
 };
 

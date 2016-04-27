@@ -594,20 +594,22 @@ public:
     DUMPTAGANDVAL(cf_s);
     DUMPTAGANDVAL(cf_b);
     DUMPTAGANDVAL(cf_b_rigid);
+
 #undef DUMPTAGANDVAL
 #undef DUMPINTRPARAM
   }
 
-  void DumpAllParam() const {
-#ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
+  void DumpAllParam(const PS::U32 nbdf_m_seed) const {
     if (PS::Comm::getRank() == 0) {
-#endif
-      const std::string fname = cdir + "/all_param.txt";
-      std::ofstream fout(fname.c_str());
+      const std::string fname_all = cdir + "/all_param.txt";
+      std::ofstream fout(fname_all.c_str());
       DumpAllParam(fout);
-#ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
+      fout.close();
+      
+      const std::string fname_rnd = cdir + "/nbdf_rand_seed.txt";
+      fout.open(fname_rnd.c_str());
+      fout << nbdf_m_seed << std::endl;
     }
-#endif
   }
 
   //for share data
