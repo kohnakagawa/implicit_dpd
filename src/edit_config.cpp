@@ -1,3 +1,5 @@
+#define _FILE_OFFSET_BITS 64 // This line is needed on 32bit environment.
+
 #include <iostream>
 #include <string>
 #include <vector>
@@ -186,23 +188,56 @@ void check_config_is_valid(std::vector<FP>& ptcls, const PS::F64vec& box) {
 }
 
 template<class FP>
-void read_all_xyzform(std::vector<FP>& ptcls,
-		      PS::U32& num,
-		      PS::U32& time,
-		      const char* fname) {
+bool read_one_frame(std::vector<FP>& ptcls,
+		    PS::U32& num,
+		    PS::U32& time,
+		    FILE*& fp) {
   char name[4];
-  FILE* fp = io_util::xfopen(fname, "r");
   assert(0 != fscanf(fp, "%u\n", &num));
+  if (feof(fp)) return false;
   assert(0 != fscanf(fp, "%s %u\n", name, &time));
   ptcls.resize(num);
-  for (auto& ptcl : ptcls) {
-    ptcl.readAscii(fp);
-  }
-  fclose(fp);
+  for (auto& ptcl : ptcls) ptcl.readAscii(fp);
+  return true;
+}
+
+template<class FP>
+void read_config(std::vector<FP>& ptcls,
+		 PS::U32& num,
+		 PS::U32& time,
+		 const char* fname) {
+  FILE* fp = io_util::xfopen(fname, "r");
+  assert(read_one_frame(ptcls, num, time, fp));
   char buf;
   assert(0 != fscanf(fp, "%c\n", &buf));
   if (feof(fp)) {
     std::cerr << "# of lines is not equal to the information specified in file header.\n";
+    std::exit(1);
+  }
+  fclose(fp);
+}
+
+template<class FP>
+void read_trj(std::vector<FP>& ptcls,
+	      PS::U32& num,
+	      PS::U32& time,
+	      const PS::U32 tar_time,
+	      const char* fname) {
+  FILE* fp = io_util::xfopen(fname, "r");
+  while (true) {
+    if (!read_one_frame(ptcls, num, time, fp)) break;
+    std::cout << "reading frame at time = " << time << std::endl;
+    if (tar_time == time) {
+      std::cout << "Found!.\n";
+      break;
+    }
+  }
+  fclose(fp);
+  
+  if (time != tar_time) {
+    std::cerr << "Error!\n";
+    std::cerr << "Tried to find the frame at time = " << tar_time << ".\n";
+    std::cerr << "However, we can not find it.\n";
     std::exit(1);
   }
 }
@@ -244,11 +279,6 @@ int main(int argc, char* argv[]) {
   const std::string cur_dir = argv[2];
   PS::MT::init_genrand(100);
 
-  // read particles data
-  std::vector<FPDPD> ptcls; PS::U32 num = -1, time = -1;
-  read_all_xyzform(ptcls, num, time, fname.c_str());
-  std::cout << "Successfully load particle data.\n";
-
   // read box inform
   const std::string run_fname = cur_dir + "/run_param.txt";
   std::ifstream fin(run_fname.c_str());
@@ -261,10 +291,17 @@ int main(int argc, char* argv[]) {
   Parameter::ReadTagValues(fin, tag_val);
   Parameter::Matching(&(Parameter::box_leng[0]), std::string("box_leng"), tag_val, 3);
   for (PS::S32 i = 0; i < 3; i++) Parameter::ibox_leng[i] = 1.0 / Parameter::box_leng[i];
-  
+
   std::string mode;
-  std::cout << "Choose execution mode [solvent/search].\n";
+  std::cout << "Choose execution mode [solvent/search/trjextract].\n";
   std::cin >> mode;
+
+  std::vector<FPDPD> ptcls; PS::U32 num = 0, time = 0;
+  if (mode != "trjextract") {
+    // read only one frame
+    read_config(ptcls, num, time, fname.c_str());
+    std::cout << "Successfully load particle data.\n";
+  }
   
   if (mode == "solvent") {
     std::string shape;
@@ -376,6 +413,20 @@ int main(int argc, char* argv[]) {
     
     std::cout << "The configuration of these particles are written in " << fname_conf << std::endl;
     std::cout << "Particle ids near core amphiphile are written in " << fname_ids << std::endl << std::endl;;
+  } else if (mode == "trjextract") {
+    std::cout << "Please specify simulation time at which configuration data is extracted.\n";
+    PS::U32 tar_time = 0;
+    std::cin >> tar_time;
+    std::cout << "Now read trajectory data.\n";
+    read_trj(ptcls, num, time, tar_time, fname.c_str());
+
+    std::stringstream ss;
+    ss << cur_dir << "/extracted_frame_time" << tar_time << ".xyz";
+    FILE* fp = io_util::xfopen(ss.str().c_str(), "w");
+    io_util::WriteXYZForm(&(ptcls[0]), num, tar_time, fp);
+    std::cout << "Extracted data -> " << ss.str() << std::endl;
+    fclose(fp);
+    fp = nullptr;
   } else {
     std::cerr << "I do not know what to do.\n";
     std::exit(1);
