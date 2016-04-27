@@ -6,7 +6,7 @@ class TrjAnalysisTubeRad : public TrjAnalysis<FPDPD, Particle> {
   std::ofstream fout;
   
   static constexpr int num_slice = 20;
-  double slice_len = -1.0, tube_len = -1.0, min_z, max_z;
+  double slice_len = -1.0, tube_len = -1.0, min_z = -1.0, max_z = -1.0;
   std::array<PS::F64vec, num_slice> cm_in_slab;
   std::array<double, num_slice> rad_in_slab;
   std::array<int, num_slice> num_in_slab;
@@ -89,9 +89,9 @@ public:
 
       const auto& ptch_id = ptr_connector->patch_id();
       const auto tar_patch_id = GetLargestPatchId(ptch_id, num_patch);
-      
       aadjuster.CreateMomInertia(ptcls_, ptch_id, tar_patch_id);
-      aadjuster.DoTransform(ptcls_);
+      aadjuster.MakeNewBaseVector(ptcls_);
+      aadjuster.ChangeBaseVector(ptcls_);
       
       CalcTubeLength(tar_patch_id, ptch_id);
       CalcTubeRadius(tar_patch_id, ptch_id);

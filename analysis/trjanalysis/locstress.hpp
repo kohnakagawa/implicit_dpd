@@ -27,6 +27,32 @@ class TrjAnalysisLocStress : public TrjAnalysis<FPDPD, Particle> {
     "Lapack failed"
   };
 
+  void GetNewBox(PS::F64vec& box_org, PS::F64vec& box_top) {
+    PS::F64 min_x = std::numeric_limits<PS::F64>::max(), max_x = std::numeric_limits<PS::F64>::min();
+    PS::F64 min_y = std::numeric_limits<PS::F64>::max(), max_y = std::numeric_limits<PS::F64>::min();
+    PS::F64 min_z = std::numeric_limits<PS::F64>::max(), max_z = std::numeric_limits<PS::F64>::min();
+    
+    for (const auto& ptcl : ptcls_) {
+      if (ptcl.r.x < min_x) min_x = ptcl.r.x;
+      if (ptcl.r.x > max_x) max_x = ptcl.r.x;
+      if (ptcl.r.y < min_y) min_y = ptcl.r.y;
+      if (ptcl.r.y > max_y) max_y = ptcl.r.y;
+      if (ptcl.r.z < min_z) min_z = ptcl.r.z;
+      if (ptcl.r.z > max_z) max_z = ptcl.r.z;
+    }
+
+    const PS::F64vec offset(10.0);
+    box_org -= offset;
+    box_top += offset;
+  }
+
+  void ChangeCoordOrigin(const PS::F64vec box_org, const PS::F64vec& box_top) {
+    for (auto& ptcl : ptcls_) {
+      ptcl.r -= box_org;
+      for (int j = 0; j < 3; j++) assert(ptcl.r[j] <= box_top[j]);
+    }
+  }
+
   void SetDensity(const std::vector<std::vector<int> >& near_ptcl_id) {
     const int num_iptcl = ptcls_.size();
     for (int i = 0; i < num_iptcl; i++) {
@@ -241,11 +267,11 @@ class TrjAnalysisLocStress : public TrjAnalysis<FPDPD, Particle> {
 		       const int num_mol,
 		       const PS::U32 nbdf_seed,
 		       const PS::U32 time) {
-    stressgrid.Update();
     SetDensity(near_ptcl_id);
     AddInterMolecularTerm(stressgrid, near_ptcl_id, nbdf_seed + time);
     AddIntraMolecularTerm(stressgrid, num_mol);
     AddKineticTerm(stressgrid);
+    stressgrid.Update();
   }
 
   int GetNumOfAmp() {
@@ -290,12 +316,6 @@ public:
     SetSearchRadius(1.2, 1.2);
     ptr_connector->Initialize(est_grid_leng_, cutof_leng_, Parameter::box_leng);
 
-    // local stress information
-    const char fname[] = {"loc_stress"};
-    const double spacing = 2.0;
-    mds::StressGrid stressgrid;
-    SetStressGridParam(stressgrid, fname, spacing, Parameter::box_leng);
-
     // for dissipative force calculation
     PS::U32 m_seed = 0;
     const auto fname_seed = cur_dir_ + "/nbdf_rand_seed.txt";
@@ -303,29 +323,60 @@ public:
     CHECK_FILE_OPEN(fin, fname_seed);
     fin >> m_seed;
     std::cout << "nbdf_rand_seed is " << m_seed << std::endl;
+
+    // local stress information
+    mds::StressGrid stressgrid;
+    PS::F64vec ls_box_org(0.0, 0.0, 0.0), ls_box_top(0.0, 0.0, 0.0);
     
+    // main loop
     PS::U32 time = 0;
     AxisAdjuster<Particle> aadjuster;
+    bool is_first = true;
     while (true) {
       if (ReadOneFrame(time, [] (const Particle& p) -> bool { return (p.prop == Parameter::Hyphil) || (p.prop == Parameter::Hyphob); })) break;
       std::cout << "time = " << time << std::endl;
       ptr_connector->ResizeIfNeeded(ptcls_.size());
       const auto num_patch = gen_connected_image(ptr_connector.get(), ptcls_, Parameter::box_leng, false);
       std::cout << "# of patch is " << num_patch << std::endl;
-      
-      const auto& ptch_id = ptr_connector->patch_id();
-      const auto tar_patch_id = GetLargestPatchId(ptch_id, num_patch);
-      
-      // change base axis
-      aadjuster.CreateMomInertia(ptcls_, ptch_id, tar_patch_id);
-      aadjuster.DoTransform(ptcls_);
+
+#if 1
+      if (is_first) {
+	const char fname[] = {"loc_stress"}; const double spacing = 2.0;
+	SetStressGridParam(stressgrid, fname, spacing, Parameter::box_leng);
+	is_first = false;
+      }
+#else
+      if (is_first) {
+	// make transform matrix
+	const auto& ptch_id = ptr_connector->patch_id();
+	aadjuster.CreateMomInertia(ptcls_, ptch_id, GetLargestPatchId(ptch_id, num_patch));
+	aadjuster.MakeNewBaseVector(ptcls_);
+	aadjuster.ChangeBaseVector(ptcls_);
+	
+	// calc new box leng
+	GetNewBox(ls_box_org, ls_box_top);
+	
+	// change orgin
+	ChangeCoordOrigin(ls_box_org, ls_box_top);
+
+	const char fname[] = {"loc_stress"}; const double spacing = 2.0;
+	SetStressGridParam(stressgrid, fname, spacing, ls_box_top - ls_box_org);
+	is_first = false;
+      } else {
+	// change base axis
+	aadjuster.ChangeBaseVector(ptcls_);
+	ChangeCoordOrigin(ls_box_org, ls_box_top);
+      }
+#endif
 
       CalcLocalStress(stressgrid, ptr_connector->near_ptcl_id(), GetNumOfAmp(), m_seed, time);
 
       // check mdstress error
       int err_id = 0;
       if ((err_id = stressgrid.GetError()) != 0) {
-	std::cout << mdstress_errors[err_id - 1] << std::endl;
+	std::cerr << "Error occurs in md::stressgrid.\n";
+	std::cerr << "Error: " << mdstress_errors[err_id - 1] << std::endl;
+	std::exit(1);
       }
 
       // DebugDump(ptcls_, time);

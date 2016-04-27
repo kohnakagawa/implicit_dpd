@@ -7,8 +7,9 @@ template<class Ptcl>
 class AxisAdjuster {
   PS::F64vec cmpos;
   Eigen::Matrix3d Im;
+  Eigen::Vector3d new_base[3];
   
-  PS::F64vec CalcCmPos(const std::vector<Ptcl>& ptcls,
+  void CalcCmPos(const std::vector<Ptcl>& ptcls,
 		       const std::vector<int>& patch_id,
 		       const int tar_ptch_id) {
     int cnt = 0;
@@ -20,7 +21,6 @@ class AxisAdjuster {
       }
     }
     cmpos /= cnt;
-    return cmpos;
   }
   
 public:
@@ -45,7 +45,7 @@ public:
 	Im(i, j) /= cnt;
   }
 
-  void DoTransform(std::vector<Ptcl>& ptcls) {
+  void MakeNewBaseVector(std::vector<Ptcl>& ptcls) {
     Eigen::SelfAdjointEigenSolver<Eigen::Matrix3d> es(Im);
     if (es.info() != Eigen::Success) {
       std::cerr << "Error occurs in Eigen solver.\n";
@@ -56,8 +56,7 @@ public:
     const auto max = es.eigenvalues().maxCoeff(&maxId);
     std::cout << "max eigen value is " << max << std::endl;
     const auto evec = es.eigenvectors();
-    
-    Eigen::Vector3d new_base[3];
+
     int id = 0;
     for (int i = 0; i < 3; i++) {
       if (i != maxId) {
@@ -66,14 +65,21 @@ public:
 	new_base[2] = evec.col(maxId);
       }
     }
-    
-    // change base
-    Eigen::Vector3d cm2ptcl;
+  }
+
+  void ChangeBaseVector(std::vector<Ptcl>& ptcls) {
+    Eigen::Vector3d cm2ptcl, veloc;
     for (size_t pi = 0; pi < ptcls.size(); pi++) {
       cm2ptcl << (ptcls[pi].r[0] - cmpos[0]), (ptcls[pi].r[1] - cmpos[1]), (ptcls[pi].r[2] - cmpos[2]);
+      veloc << ptcls[pi].v[0], ptcls[pi].v[1], ptcls[pi].v[2];
+      
       ptcls[pi].r.x = cm2ptcl.dot(new_base[0]);
       ptcls[pi].r.y = cm2ptcl.dot(new_base[1]);
       ptcls[pi].r.z = cm2ptcl.dot(new_base[2]);
+      
+      ptcls[pi].v.x = veloc.dot(new_base[0]);
+      ptcls[pi].v.y = veloc.dot(new_base[1]);
+      ptcls[pi].v.z = veloc.dot(new_base[2]);
     }
   }
 };
