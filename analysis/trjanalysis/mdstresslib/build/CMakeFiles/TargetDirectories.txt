@@ -1,1 +1,0 @@
-/home/nakagawa/programming/implicit_dpd/analysis/trjanalysis/mdstresslib/build/CMakeFiles/mdstress.dir
