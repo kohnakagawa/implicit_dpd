@@ -55,6 +55,22 @@ class Parameter {
     CHECK_GT(influ_rad, 0.0);
   }
 
+  void CalcInfluVol() {
+    const PS::F64 hei_sum      = influ_hei + influ_dep;
+    const PS::F64 upside_rad   = influ_rad - influ_grd * influ_hei;
+    const PS::F64 downside_rad = influ_rad + influ_grd * influ_dep;
+    if (downside_rad >= 0.0) {
+      // trancated cone shape
+      const PS::F64 upside_area   = M_PI * upside_rad   * upside_rad;
+      const PS::F64 downside_area = M_PI * downside_rad * downside_rad;
+      influ_vol = (upside_area + downside_area + std::sqrt(downside_area * upside_area)) * hei_sum / 3.0;
+    } else {
+      // cone shape
+      const PS::F64 hei_sum_new = -upside_rad / influ_grd;
+      influ_vol = M_PI * upside_rad * upside_rad * hei_sum_new / 3.0;
+    }
+  }
+
   void MatchingTagValues(std::map<std::string, std::vector<std::string> >& tag_val) {
     Matching(&(box_leng[0]) , std::string("box_leng"), tag_val, 3);
     ibox_leng.x = 1.0 / box_leng.x; ibox_leng.y = 1.0 / box_leng.y; ibox_leng.z = 1.0 / box_leng.z;
@@ -93,6 +109,7 @@ class Parameter {
       std::cerr << "influ_vol is not specified.\n";
       Matching(&influ_rad, std::string("influ_rad"), tag_val, 1);
       Matching(&influ_grd, std::string("influ_grd"), tag_val, 1);
+      CalcInfluVol();
     }
     
     if (tag_val.find("core_amp_id") == tag_val.end()) {
