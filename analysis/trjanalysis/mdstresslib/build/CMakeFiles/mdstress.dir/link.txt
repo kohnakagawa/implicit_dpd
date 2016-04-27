@@ -1,0 +1,2 @@
+/usr/bin/ar cr libmdstress.a  CMakeFiles/mdstress.dir/src/mds_cmenger.cpp.o CMakeFiles/mdstress.dir/src/mds_stressgrid.cpp.o CMakeFiles/mdstress.dir/src/mds_basicops.cpp.o CMakeFiles/mdstress.dir/src/mds_lapack.cpp.o
+/usr/bin/ranlib libmdstress.a

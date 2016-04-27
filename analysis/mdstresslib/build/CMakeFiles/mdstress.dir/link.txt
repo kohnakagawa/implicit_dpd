@@ -1,1 +1,0 @@
-/usr/bin/c++  -fPIC -O3 -DNDEBUG   -shared -Wl,-soname,libmdstress.so -o libmdstress.so CMakeFiles/mdstress.dir/src/mds_cmenger.cpp.o CMakeFiles/mdstress.dir/src/mds_stressgrid.cpp.o CMakeFiles/mdstress.dir/src/mds_basicops.cpp.o CMakeFiles/mdstress.dir/src/mds_lapack.cpp.o -llapack 
