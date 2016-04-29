@@ -36,7 +36,8 @@ namespace mds
     #define mds_maxpart 200
     #define mds_nlvl    10 //This is very big!
     
-    #define mds_units   16.6054
+    /* #define mds_units   16.6054 */
+    #define mds_units   1.0
 
     #define mds_spat    0
     #define mds_atom    1

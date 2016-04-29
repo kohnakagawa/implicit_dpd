@@ -173,7 +173,7 @@ void StressGrid::Init()
             if(this->nx == 0)   this->nx = static_cast<int>(box[0][0]/this->spacing);
             if(this->ny == 0)   this->ny = static_cast<int>(box[1][1]/this->spacing);
             if(this->nz == 0)   this->nz = static_cast<int>(box[2][2]/this->spacing);
-            
+
             this->ncells = this->nx*this->ny*this->nz;
 
             if(this->nx==0)  this->nx=1;
@@ -629,7 +629,7 @@ void StressGrid::DistributeKinetic(double mass, darray x, darray va, darray vb =
 
     dmatrix stress;
 
-    if (ierr != 0)
+    if (!ierr)
     {
         if (vb == NULL)
         {
@@ -758,10 +758,9 @@ void StressGrid::SpreadPointSource( darray pt, dmatrix stress )
 
     // Spreads the velocity in one point
 
-    int i, j, k, ii, jj, kk, iii, jjj, kkk, nx, ny, nz;
+    int ii, jj, kk, iii, jjj, kkk;
     dmatrix part_stress;
-    double factor, invgridsp, dummy1, dummy2;
-    int gridcell;
+    double dummy1, dummy2;
     
     // Get the coordinates of the point in the grid
     this->GridCoord(pt,&ii,&jj,&kk);
@@ -770,20 +769,21 @@ void StressGrid::SpreadPointSource( darray pt, dmatrix stress )
     kkk=kk;
 
     // Spread it
-    for(i=1;i>=-1;i-=2)
+    for(int i=1; i>=-1;i-=2)
     {
         iii+=i;
         dummy1 = i * invgridsp * invgridsp * (pt[0]-(ii+0.5*(1-i))*gridsp[0]);
-        for(j=1;j>=-1;j-=2)
+        for(int j=1;j>=-1;j-=2)
         {
             jjj+=j;
             dummy2 = dummy1 * j * (pt[1]-(jj+0.5*(1-j))*gridsp[1]);
-            for(k=1;k>=-1;k-=2)
+            for(int k=1;k>=-1;k-=2)
             {
                 kkk+=k;
-                factor = dummy2 * k * (pt[2]-(kk+0.5*(1-k))*gridsp[2]);
+                const double factor = dummy2 * k * (pt[2]-(kk+0.5*(1-k))*gridsp[2]);
                 scalematrix(stress,factor,part_stress);
-                gridcell = modulo(iii,nx)*nz*ny+modulo(jjj,ny)*nz+modulo(kkk,nz);
+                const int gridcell = modulo(iii,nx)*nz*ny+modulo(jjj,ny)*nz+modulo(kkk,nz);
+
                 this->AddAtomStressToGrid( gridcell,part_stress );
             }
         }

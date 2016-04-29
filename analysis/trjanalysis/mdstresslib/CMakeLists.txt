@@ -5,6 +5,7 @@ enable_language(CXX)
 enable_language(Fortran)
 
 set(CMAKE_BUILD_TYPE Release)
+# set(CMAKE_BUILD_TYPE Debug)
 
 FILE(GLOB MDSTRESS_SOURCES_H   include/*.h)
 FILE(GLOB MDSTRESS_SOURCES_CPP src/*.cpp)
