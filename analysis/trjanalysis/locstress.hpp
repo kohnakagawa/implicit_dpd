@@ -363,8 +363,9 @@ public:
       std::cout << "# of patch is " << num_patch << std::endl;
 
 #if 1
+      // without changing base axis
       if (is_first) {
-	const char fname[] = {"loc_stress"}; const double spacing = 120.0;
+	const char fname[] = {"loc_stress"}; const double spacing = 5.0;
 	SetStressGridParam(stressgrid, fname, spacing, Parameter::box_leng);
 	is_first = false;
       }
@@ -383,7 +384,7 @@ public:
 	ChangeCoordOrigin(ls_box_org, ls_box_top);
 
 	const std::string fname =  cur_dir_ + "/loc_stress";
-	const double spacing = 2.0;
+	const double spacing = 5.0;
 	SetStressGridParam(stressgrid, fname.c_str(), spacing, ls_box_top - ls_box_org);
 	is_first = false;
       } else {
