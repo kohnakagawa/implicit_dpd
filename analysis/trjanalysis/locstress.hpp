@@ -367,6 +367,7 @@ public:
 	is_first = false;
       }
 #else
+      // change base axis
       if (is_first) {
 	// make transform matrix
 	const auto& ptch_id = ptr_connector->patch_id();
@@ -402,6 +403,7 @@ public:
       }
       
       fout << std::setprecision(15) << stress_sum_ * Parameter::ibox_leng.x * Parameter::ibox_leng.y * Parameter::ibox_leng.z << std::endl;
+      std::cerr << "trace of stress_sum_ is " << stress_sum_.x + stress_sum_.y + stress_sum_.z << std::endl;
       // DebugDump(ptcls_, time);
 
       ptr_connector->ClearForNextStep();
