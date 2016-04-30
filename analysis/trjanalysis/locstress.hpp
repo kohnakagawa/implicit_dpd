@@ -135,7 +135,7 @@ class TrjAnalysisLocStress : public TrjAnalysis<FPDPD, Particle> {
 	  const auto sq_wrji = std::sqrt(wrji);
 	  const auto drji_dvji = drji * dvji;
 	  const auto all_cf = (cf_co + cf_mbd +  //conservative
-			       Parameter::cf_r[propi][propj] * sq_wrji * rnd + //random
+			       Parameter::cf_r[propi][propj] * sq_wrji * rnd - //random
 			       Parameter::cf_g[propi][propj] * wrji * drji_dvji * inv_dr) * inv_dr; //dissipation
 
 	  double Force[][3] = {{-0.5 * all_cf * drji.x, -0.5 * all_cf * drji.y, -0.5 * all_cf * drji.z}}; // We do not use action-reaction law.
