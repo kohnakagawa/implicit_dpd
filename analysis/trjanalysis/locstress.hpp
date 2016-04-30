@@ -49,10 +49,7 @@ class TrjAnalysisLocStress : public TrjAnalysis<FPDPD, Particle> {
   }
 
   void ChangeCoordOrigin(const PS::F64vec box_org, const PS::F64vec& box_top) {
-    for (auto& ptcl : ptcls_) {
-      ptcl.r -= box_org;
-      for (int j = 0; j < 3; j++) assert(ptcl.r[j] <= box_top[j]);
-    }
+    for (auto& ptcl : ptcls_) ptcl.r -= box_org;
   }
 
   void SetDensity(const std::vector<std::vector<int> >& near_ptcl_id) {
@@ -362,7 +359,7 @@ public:
       const auto num_patch = gen_connected_image(ptr_connector.get(), ptcls_, Parameter::box_leng, false);
       std::cout << "# of patch is " << num_patch << std::endl;
 
-#if 1
+#if 0
       // without changing base axis
       if (is_first) {
 	const char fname[] = {"loc_stress"}; const double spacing = 5.0;
