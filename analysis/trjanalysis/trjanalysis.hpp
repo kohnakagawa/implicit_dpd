@@ -54,6 +54,32 @@ protected:
     return std::distance(elem_in_each.begin(),
 			 std::max_element(elem_in_each.begin(), elem_in_each.end()));
   }
+
+  void GetNewBox(PS::F64vec& box_org, PS::F64vec& box_top) {
+    PS::F64 min_x = std::numeric_limits<PS::F64>::max(), max_x = std::numeric_limits<PS::F64>::min();
+    PS::F64 min_y = std::numeric_limits<PS::F64>::max(), max_y = std::numeric_limits<PS::F64>::min();
+    PS::F64 min_z = std::numeric_limits<PS::F64>::max(), max_z = std::numeric_limits<PS::F64>::min();
+    
+    for (const auto& ptcl : ptcls_) {
+      if (ptcl.r.x < min_x) min_x = ptcl.r.x;
+      if (ptcl.r.x > max_x) max_x = ptcl.r.x;
+      if (ptcl.r.y < min_y) min_y = ptcl.r.y;
+      if (ptcl.r.y > max_y) max_y = ptcl.r.y;
+      if (ptcl.r.z < min_z) min_z = ptcl.r.z;
+      if (ptcl.r.z > max_z) max_z = ptcl.r.z;
+    }
+
+    box_org.x = min_x; box_org.y = min_y; box_org.z = min_z;
+    box_top.x = max_x; box_top.y = max_y; box_top.z = max_z;
+
+    const PS::F64vec offset(0.0);
+    box_org -= offset;
+    box_top += offset;
+  }
+
+  void ChangeCoordOrigin(const PS::F64vec box_org) {
+    for (auto& ptcl : ptcls_) ptcl.r -= box_org;
+  }
   
 public:
   TrjAnalysis(const std::string cur_dir,

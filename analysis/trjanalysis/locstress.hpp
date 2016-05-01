@@ -28,30 +28,7 @@ class TrjAnalysisLocStress : public TrjAnalysis<FPDPD, Particle> {
   };
   
   PS::F64vec stress_sum_;
-
-  void GetNewBox(PS::F64vec& box_org, PS::F64vec& box_top) {
-    PS::F64 min_x = std::numeric_limits<PS::F64>::max(), max_x = std::numeric_limits<PS::F64>::min();
-    PS::F64 min_y = std::numeric_limits<PS::F64>::max(), max_y = std::numeric_limits<PS::F64>::min();
-    PS::F64 min_z = std::numeric_limits<PS::F64>::max(), max_z = std::numeric_limits<PS::F64>::min();
-    
-    for (const auto& ptcl : ptcls_) {
-      if (ptcl.r.x < min_x) min_x = ptcl.r.x;
-      if (ptcl.r.x > max_x) max_x = ptcl.r.x;
-      if (ptcl.r.y < min_y) min_y = ptcl.r.y;
-      if (ptcl.r.y > max_y) max_y = ptcl.r.y;
-      if (ptcl.r.z < min_z) min_z = ptcl.r.z;
-      if (ptcl.r.z > max_z) max_z = ptcl.r.z;
-    }
-
-    const PS::F64vec offset(10.0);
-    box_org -= offset;
-    box_top += offset;
-  }
-
-  void ChangeCoordOrigin(const PS::F64vec box_org, const PS::F64vec& box_top) {
-    for (auto& ptcl : ptcls_) ptcl.r -= box_org;
-  }
-
+  
   void SetDensity(const std::vector<std::vector<int> >& near_ptcl_id) {
     const int num_iptcl = ptcls_.size();
     for (int i = 0; i < num_iptcl; i++) {
@@ -317,14 +294,10 @@ public:
     stressgrid.SetSpacing(spacing);
     stressgrid.SetForceDecomposition(mds_ccfd);
     stressgrid.SetStressType(mds_spat);
-    
-    double box[3][3];
-    for (int i = 0; i < 3; i++) for(int j = 0; j < 3; j++) box[i][j] = 0.0;
+    double box[3][3] = {{0.0, 0.0, 0.0}, {0.0, 0.0, 0.0}, {0.0, 0.0, 0.0}};
     for (int i = 0; i < 3; i++) box[i][i] = box_leng[i];
     stressgrid.SetBox(box);
-    
     stressgrid.SetFileName(fname);
-
     stressgrid.Init();
   }
 
@@ -367,28 +340,25 @@ public:
 	is_first = false;
       }
 #else
-      // change base axis
-      if (is_first) {
-	// make transform matrix
-	const auto& ptch_id = ptr_connector->patch_id();
-	aadjuster.CreateMomInertia(ptcls_, ptch_id, GetLargestPatchId(ptch_id, num_patch));
-	aadjuster.MakeNewBaseVector(ptcls_);
-	aadjuster.ChangeBaseVector(ptcls_);
+      // make transform matrix
+      const auto& ptch_id = ptr_connector->patch_id();
+      aadjuster.CreateMomInertia(ptcls_, ptch_id, GetLargestPatchId(ptch_id, num_patch));
+      aadjuster.MakeNewBaseVector(ptcls_);
+      aadjuster.ChangeBaseVector(ptcls_);
 	
-	// calc new box leng
-	GetNewBox(ls_box_org, ls_box_top);
+      // calc new box leng
+      GetNewBox(ls_box_org, ls_box_top);
 	
-	// change orgin
-	ChangeCoordOrigin(ls_box_org, ls_box_top);
+      // change origin
+      ChangeCoordOrigin(ls_box_org);
 
+      if (is_first) {
 	const std::string fname =  cur_dir_ + "/loc_stress";
 	const double spacing = 5.0;
+	std::cout << "ls_box_top: " << ls_box_top << std::endl;
+	std::cout << "ls_box_org: " << ls_box_org << std::endl;
 	SetStressGridParam(stressgrid, fname.c_str(), spacing, ls_box_top - ls_box_org);
-	is_first = false;
-      } else {
-	// change base axis
-	aadjuster.ChangeBaseVector(ptcls_);
-	ChangeCoordOrigin(ls_box_org, ls_box_top);
+      	is_first = false;
       }
 #endif
 
@@ -404,10 +374,11 @@ public:
       
       fout << std::setprecision(15) << stress_sum_ * Parameter::ibox_leng.x * Parameter::ibox_leng.y * Parameter::ibox_leng.z << std::endl;
       std::cerr << "trace of stress_sum_ is " << stress_sum_.x + stress_sum_.y + stress_sum_.z << std::endl;
-      // DebugDump(ptcls_, time);
-
+      
       ptr_connector->ClearForNextStep();
     }
+
+    DebugDump();
 
     stressgrid.Write();
   }
