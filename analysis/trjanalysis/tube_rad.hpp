@@ -97,9 +97,9 @@ public:
       CalcTubeRadius(tar_patch_id, ptch_id);
       WriteTubeRadDistrib();
 
-      DebugDump();
-
       ptr_connector->ClearForNextStep();
     }
+
+    DebugDump();
   }
 };
