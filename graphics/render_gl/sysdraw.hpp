@@ -86,7 +86,7 @@ protected:
   std::vector<particle> Particle;
   std::ifstream fin;
   std::vector<int> core_amp_id;
-  double influ_rad = 0.0;
+  double influ_rad = 5.0;
   
   std::unique_ptr<Jpegout> jpgout;
   
