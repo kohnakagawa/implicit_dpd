@@ -219,7 +219,7 @@ void StressGrid::Init()
         this->nframes = -1;
 	for (int i = 0; i < mds_ndim; i++)
 	  for (int j = 0; j < mds_ndim; j++)
-	    this->sumbox[i][j] = -this->box[i][j]
+	    this->sumbox[i][j] = -this->box[i][j];
         this->Update();
     }
 }
