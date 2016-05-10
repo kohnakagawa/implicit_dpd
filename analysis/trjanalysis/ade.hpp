@@ -19,7 +19,7 @@ public:
   ~TrjAnalysisAde() override {}
 
   void DoAnalysis() override {
-    SetSearchRadius(1.1, 1.1);
+    SetSearchRadius(1.1, 1.05);
     ptr_connector->Initialize(est_grid_leng_, cutof_leng_, Parameter::box_leng);
     
     const std::string name_fout = cur_dir_ + "/elem_in_each.txt";

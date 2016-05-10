@@ -75,8 +75,10 @@ public:
     SetSearchRadius(1.2, 1.2);
     ptr_connector->Initialize(est_grid_leng_, cutof_leng_, Parameter::box_leng);
     
-    const std::string fname = cur_dir_ + "/slice_rad.txt";
+    std::string fname = cur_dir_ + "/slice_rad.txt";
     fout_.open(fname.c_str());
+    fname = cur_dir_ + "/tube_len.txt";
+    std::ofstream fout_len(fname.c_str());
    
     PS::U32 time = 0;
     AxisAdjuster<Particle> aadjuster;
@@ -96,6 +98,8 @@ public:
       CalcTubeLength(tar_patch_id, ptch_id);
       CalcTubeRadius(tar_patch_id, ptch_id);
       WriteTubeRadDistrib();
+      
+      fout_len << tube_len_ << std::endl;
 
       ptr_connector->ClearForNextStep();
     }

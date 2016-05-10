@@ -210,7 +210,7 @@ void read_config(std::vector<FP>& ptcls,
   assert(read_one_frame(ptcls, num, time, fp));
   char buf;
   assert(0 != fscanf(fp, "%c\n", &buf));
-  if (feof(fp)) {
+  if (!feof(fp)) {
     std::cerr << "# of lines is not equal to the information specified in file header.\n";
     std::exit(1);
   }
