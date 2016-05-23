@@ -189,7 +189,7 @@ public:
   static constexpr PS::F64 search_rad   = 1.7;
 #endif
   static constexpr PS::F64 arc		= 0.9;
-  static constexpr PS::F64 Reo		= 1.2;
+  static constexpr PS::F64 Reo		= 1.4;
   static constexpr PS::F64 rc           = 1.0;
   static constexpr PS::F64 rc2          = rc * rc;
   static constexpr PS::F64 irc          = 1.0 / rc;
