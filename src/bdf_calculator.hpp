@@ -143,7 +143,7 @@ struct ForceBonded {
     d_vir.z += 2.0 * (dr[0].z * Ftb0.z + dr[1].z * Ftb1.z);
 
     //NOTE: The value of lap is twice.
-    d_lap += 2.0 * cf_bd * in_prod * (2.0 * (inv_dist[0] + inv_dist[1]) - in_prod * inv_dr_prod * inv_dr_prod - 1.0 / in_prod);
+    lap_conf += 2.0 * cf_b * (in_prod * (2.0 * (inv_dist[0] + inv_dist[1]) + in_prod * inv_dr_prod * inv_dr_prod) + 1.0);
     
     F[0] -= Ftb0;
     F[1] += Ftb0 - Ftb1;
