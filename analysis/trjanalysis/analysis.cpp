@@ -4,6 +4,8 @@
 #include "locstress.hpp"
 #include "tube_rad.hpp"
 #include "density_map.hpp"
+#include "Reo.hpp"
+#include "thickness.hpp"
 
 // static members in Parameter
 constexpr char Parameter::atom_type[21];
@@ -11,7 +13,7 @@ PS::F64vec Parameter::box_leng, Parameter::ibox_leng;
 PS::U32 Parameter::time, Parameter::all_time, Parameter::step_mic, Parameter::step_mac;
 
 namespace {
-  const std::string suppording_mode = "Rg/Ade/LocStress/Rtube/Density";
+  const std::string suppording_mode = "Rg/Ade/LocStress/Rtube/Density/Reo/Thickness";
   
   TrjAnalysis<FPDPD, Particle>* trjana_factory(const std::string& mode_name,
 					       const std::string& cur_dir,
@@ -27,6 +29,10 @@ namespace {
       return new TrjAnalysisTubeRad(cur_dir, trj_fname, run_fname);
     } else if (mode_name == "Density") {
       return new TrjAnalysisDensity(cur_dir, trj_fname, run_fname);
+    } else if (mode_name == "Reo") {
+      return new TrjAnalysisReo(cur_dir, trj_fname, run_fname);
+    } else if (mode_name == "Thickness") {
+      return new TrjAnalysisThickness(cur_dir, trj_fname, run_fname);
     } else {
       std::cerr << "Unknown mode " << mode_name << std::endl;
       std::cerr << "Only suport " << suppording_mode << std::endl;
