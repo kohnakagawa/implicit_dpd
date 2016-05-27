@@ -9,10 +9,8 @@ class ChemManager {
     vec /= std::sqrt(vec * vec);
   }
 
-  static inline PS::F64vec CrossVec(const PS::F64vec& a0, const PS::F64vec a1) {
-    PS::F64vec v(a0.y * a1.z - a0.z * a1.y,
-		 a0.z * a1.x - a0.x * a1.z,
-		 a0.x * a1.y - a0.y * a1.x);
+  static inline PS::F64vec CrossVecWithNormailize(const PS::F64vec& a0, const PS::F64vec a1) {
+    PS::F64vec v = a0 ^ a1;
     Normalize(v);
     return v;
   }
@@ -215,7 +213,7 @@ public:
       PS::F64vec base_vec0(PS::MT::genrand_real1(), PS::MT::genrand_real1(), 0.0);
       base_vec0.z = -(h2e.x * base_vec0.x + h2e.y * base_vec0.y) / h2e.z;
       Normalize(base_vec0);
-      const PS::F64vec base_vec1 = CrossVec(base_vec0, h2e);
+      const PS::F64vec base_vec1 = CrossVecWithNormalize(base_vec0, h2e);
       
       const PS::F64 theta = 2.0 * M_PI * PS::MT::genrand_real1();
       const PS::F64vec tang_vec = (base_vec0 * std::cos(theta) + base_vec1 * std::sin(theta)) * param.eps;
@@ -299,7 +297,7 @@ public:
 	PS::F64vec base_vec0(PS::MT::genrand_real1(), PS::MT::genrand_real1(), 0.0);
 	base_vec0.z = -(h2e.x * base_vec0.x + h2e.y * base_vec0.y) / h2e.z;
 	Normalize(base_vec0);
-	const PS::F64vec base_vec1 = CrossVec(base_vec0, h2e);
+	const PS::F64vec base_vec1 = CrossVecWithNormalize(base_vec0, h2e);
       
 	const PS::F64 theta = 2.0 * M_PI * PS::MT::genrand_real1();
 	const PS::F64vec tang_vec = (base_vec0 * std::cos(theta) + base_vec1 * std::sin(theta)) * param.eps;
