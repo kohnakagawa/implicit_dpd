@@ -88,9 +88,9 @@ class ChemManager {
 		  PS::F64vec& core_pos_t,
 		  PS::F64vec& core_pos_cm,
 		  const Parameter& param) {
-    core_pos_h = std::numeric_limits<PS::F64>::quiet_NaN();
-    core_pos_t = std::numeric_limits<PS::F64>::quiet_NaN();
-    core_pos_cm = std::numeric_limits<PS::F64>::quiet_NaN();
+    core_pos_h = -1.0;
+    core_pos_t = -1.0;
+    core_pos_cm = -1.0;
     for (PS::U32 i = 0; i < loc_num; i++) {
       if (sys[i].id == param.core_ptcl_id[core_id]) {
 	core_pos_h  = sys[i].pos;
@@ -100,11 +100,11 @@ class ChemManager {
       }
     }
     
-    PS::S32 rank = -1;
-    if (std::isfinite(core_pos_h.x) &&
-	std::isfinite(core_pos_h.y) &&
-	std::isfinite(core_pos_h.z)) {
-      rank = PS::Comm::getRank();
+    PS::S32 rank = PS::Comm::getRank();
+    if ((core_pos_h.x < 0.0) &&
+	(core_pos_h.y < 0.0) &&
+	(core_pos_h.z < 0.0)) {
+      rank = -1;
     }
     
     const PS::S32 root_rank = PS::Comm::getMaxValue(rank);
