@@ -142,10 +142,11 @@ int main(int argc, char *argv[]) {
   drift_and_predict(system, param.dt, Parameter::box_leng, Parameter::ibox_leng);
   dinfo.decomposeDomainAll(system);
   system.exchangeParticle(dinfo);
+  const PS::S32 est_max_ptcl_num = param.sol_num + static_cast<PS::S32>(param.max_amp_num * Parameter::all_unit * 1.3);
   PS::TreeForForceShort<RESULT::Density, EPI::Density, EPJ::Density>::Gather dens_tree;
   PS::TreeForForceShort<RESULT::ForceDPD, EPI::DPD, EPJ::DPD>::Gather force_tree;
-  dens_tree.initialize(5 * system.getNumberOfParticleGlobal() );
-  force_tree.initialize(5 * system.getNumberOfParticleGlobal() );
+  dens_tree.initialize(est_max_ptcl_num);
+  force_tree.initialize(est_max_ptcl_num);
   
 #ifdef ENABLE_GPU_CUDA
   const PS::S32 n_walk_limit = 200;
@@ -188,7 +189,7 @@ int main(int argc, char *argv[]) {
   // const PS::U32 seed = 123;
   const PS::U32 seed = static_cast<PS::U32>(time(nullptr));
   ChemManager<FPDPD> chemmanag(seed);
-  system.ExpandParticleBuffer(param.max_amp_num * Parameter::all_unit);
+  system.ExpandParticleBuffer(est_max_ptcl_num);
   
 #ifndef PARTICLE_SIMULATOR_MPI_PARALLEL
   fbonded.ExpandTopolBuffer(param.max_amp_num * Parameter::all_unit);
