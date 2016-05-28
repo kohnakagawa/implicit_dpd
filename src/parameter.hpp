@@ -431,12 +431,12 @@ public:
     for (PS::U32 i = 0; i < num; i++) {
       kin_temp += sys[i].vel * sys[i].vel;
       
-      assert(sys[i].id >= 0 && sys[i].id < num);
-      assert(sys[i].prop >= 0 && sys[i].prop < prop_num);
+      assert(sys[i].id < num);
+      assert(sys[i].prop < prop_num);
       
       if (sys[i].prop != Solvent) {
-	assert(sys[i].amp_id >= 0 && sys[i].amp_id < init_amp_num);
-	assert(sys[i].unit >= 0 && sys[i].unit < all_unit);
+	assert(sys[i].amp_id < init_amp_num);
+	assert(sys[i].unit < all_unit);
       } else {
 	assert(sys[i].amp_id == 0xffffffff);
 	assert(sys[i].unit   == 0xffffffff);
