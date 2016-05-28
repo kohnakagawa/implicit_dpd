@@ -9,7 +9,7 @@ class ChemManager {
     vec /= std::sqrt(vec * vec);
   }
 
-  static inline PS::F64vec CrossVecWithNormailize(const PS::F64vec& a0, const PS::F64vec a1) {
+  static inline PS::F64vec CrossVecWithNormalize(const PS::F64vec& a0, const PS::F64vec a1) {
     PS::F64vec v = a0 ^ a1;
     Normalize(v);
     return v;
