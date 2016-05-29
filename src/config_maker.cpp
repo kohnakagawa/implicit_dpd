@@ -165,8 +165,8 @@ class ConfigMaker {
 			    const PS::F64 rad,
 			    const PS::F64 sign,
 			    const PS::U32 end_idx,
-			    PS::U32& idx)
-  {
+			    PS::U32& idx) {
+    if (idx >= end_idx) return;
     const PS::F64vec cent = 0.5 * box_leng;
     for(PS::S32 i = 0; i < elem; i++) {
       const PS::F64 the = d_the * (i + offset);
