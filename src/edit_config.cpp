@@ -11,6 +11,7 @@
 #include "f_calculator.hpp"
 
 PS::F64vec Parameter::box_leng, Parameter::ibox_leng;
+PS::U32 Parameter::all_time, Parameter::step_mic, Parameter::step_mac, Parameter::time;
 
 constexpr char Parameter::atom_type[21];
 const char axis_name[] = {
@@ -278,22 +279,13 @@ int main(int argc, char* argv[]) {
   const std::string fname = argv[1];
   const std::string cur_dir = argv[2];
   PS::MT::init_genrand(100);
-
-  // read box inform
-  const std::string run_fname = cur_dir + "/run_param.txt";
-  std::ifstream fin(run_fname.c_str());
-  if (!fin) {
-    std::cerr << "Cannot open run_param file\n";
-    std::cerr << __FILE__ << " " << __LINE__ << std::endl;
-    std::exit(1);
-  }
-  std::map<std::string, std::vector<std::string> > tag_val;
-  Parameter::ReadTagValues(fin, tag_val);
-  Parameter::Matching(&(Parameter::box_leng[0]), std::string("box_leng"), tag_val, 3);
-  for (PS::S32 i = 0; i < 3; i++) Parameter::ibox_leng[i] = 1.0 / Parameter::box_leng[i];
+  
+  Parameter param(cur_dir);
+  param.Initialize();
+  param.LoadParam();
 
   std::string mode;
-  std::cout << "Choose execution mode [solvent/search/trjextract].\n";
+  std::cout << "Choose execution mode [solvent/search/trjextract/extractcore].\n";
   std::cin >> mode;
 
   std::vector<FPDPD> ptcls; PS::U32 num = 0, time = 0;
@@ -427,6 +419,21 @@ int main(int argc, char* argv[]) {
     std::cout << "Extracted data -> " << ss.str() << std::endl;
     fclose(fp);
     fp = nullptr;
+
+  } else if (mode == "extractcore") {
+    const std::string fname = cur_dir + "/core_amp_coord.xyz";
+    
+    std::vector<FPDPD> core_ptcls;
+    for (const auto& ptcl : ptcls)
+      for (auto j = 0u; j < param.core_amp_id_.size(); j++)
+	if (ptcl.amp_id == param.core_amp_id_[j])
+	  core_ptcls.push_back(ptcl);
+
+    FILE* fp = io_util::xfopen(fname.c_str(), "w");
+    io_util::WriteXYZForm(&(core_ptcls[0]), core_ptcls.size(), 0, fp);
+    fclose(fp);
+
+    std::cout << "The configuration of these particles are written in " << fname << "\n";
   } else {
     std::cerr << "I do not know what to do.\n";
     std::exit(1);
