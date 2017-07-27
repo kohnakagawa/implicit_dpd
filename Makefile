@@ -22,11 +22,11 @@ ifeq ($(CXX),mpicxx)
 OPENMP += -fopenmp
 endif
 
-WARNINGS = -Wextra -Wunused-variable -Wsign-compare #-Wnon-virtual-dtor -Woverloaded-virtual
+WARNINGS = -Wall -Wextra -Wunused-variable -Wsign-compare #-Wnon-virtual-dtor -Woverloaded-virtual
 DEBUG = -O0 -g -DDEBUG
 RELEASE = -O3
 
-INCLUDE = -I./FDPS/src -I./src
+INCLUDE = -isystem ./FDPS/src -I./src
 
 # COMMON_FLAGS = $(DEBUG)
 COMMON_FLAGS = $(RELEASE)
