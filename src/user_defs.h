@@ -9,7 +9,7 @@
 #endif
 
 #ifdef ENABLE_GPU_CUDA
-
+#error "GPU mode is not available!"
 enum {
   NUM_GPU_IN_ONE_NODE = 2,
 };
