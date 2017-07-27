@@ -26,7 +26,7 @@ WARNINGS = -Wall -Wextra -Wunused-variable -Wsign-compare #-Wnon-virtual-dtor -W
 DEBUG = -O0 -g -DDEBUG
 RELEASE = -O3
 
-INCLUDE = -isystem ./FDPS/src -I./src
+INCLUDE = -isystem ./FDPS/src -I./include
 
 # COMMON_FLAGS = $(DEBUG)
 COMMON_FLAGS = $(RELEASE)
