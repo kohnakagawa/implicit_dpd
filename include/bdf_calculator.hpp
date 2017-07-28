@@ -286,6 +286,7 @@ struct ForceBondedMPI {
                                     PS::F64vec*		__restrict F,
                                     const bool*		__restrict mask)
   {
+    (void) d_lap;
     const double cf_bond = Parameter::cf_spring<Parameter::bond_leng != 0.0>(inv_dr);
 
     const PS::F64vec Fbond(cf_bond * dr.x, cf_bond * dr.y, cf_bond * dr.z);
@@ -312,6 +313,7 @@ struct ForceBondedMPI {
                                     const bool*		    __restrict mask,
                                     const PS::F64       cf_b)
   {
+    (void) d_lap;
     const PS::F64	inv_dr_prod	= inv_dr[0] * inv_dr[1];
     const PS::F64	inv_dist[2]	= { inv_dr[0] * inv_dr[0],
                                   inv_dr[1] * inv_dr[1] };
