@@ -1,7 +1,6 @@
 #pragma once
 
 #include "saruprng.hpp"
-// #include "static_for.hpp"
 #include "ptcl_class.hpp"
 
 PS::F64 Parameter::cf_c[Parameter::prop_num][Parameter::prop_num];
@@ -11,10 +10,10 @@ PS::F64 Parameter::cf_m[Parameter::prop_num][Parameter::prop_num][Parameter::pro
 
 struct CalcDensity {
   void operator () (const EPI::Density* __restrict epi,
-		    const PS::S32 ni,
-		    const EPJ::Density* __restrict epj,
-		    const PS::S32 nj,
-		    RESULT::Density* __restrict result)
+                    const PS::S32 ni,
+                    const EPJ::Density* __restrict epj,
+                    const PS::S32 nj,
+                    RESULT::Density* __restrict result)
   {
     for (PS::S32 i = 0; i < ni; i++) {
       const PS::F64vec ri = epi[i].pos;
@@ -22,33 +21,33 @@ struct CalcDensity {
       PS::F64vec hypb_pos_sum(0.0, 0.0, 0.0), hypl_pos_sum = ri; // NOTE: cm_pos is only used when i particle's property is hydrophlic.
       PS::U32 hypb_cnt = 0, hypl_cnt = 1;
       for (PS::S32 j = 0; j < nj; j++) {
-	const PS::U32 propj = epj[j].prop;
-	const PS::F64vec drij = ri - epj[j].pos;
-	const PS::F64 dr2 = drij * drij;
-	
-	if (dr2 < Parameter::rn_c2 && dr2 != 0.0) {
-	  // calc cmpos of hyphob
-	  if (propj == Parameter::Hyphob) {
-	    hypb_pos_sum += epj[j].pos;
-	    hypb_cnt++;
-	  }
+        const PS::U32 propj = epj[j].prop;
+        const PS::F64vec drij = ri - epj[j].pos;
+        const PS::F64 dr2 = drij * drij;
 
-	  // density calc
-	  if (dr2 < Parameter::rc2) {
-	    const PS::F64 dr = std::sqrt(dr2);
-	    d_sum[propj] += (Parameter::rc - dr) * (Parameter::rc - dr);
+        if (dr2 < Parameter::rn_c2 && dr2 != 0.0) {
+          // calc cmpos of hyphob
+          if (propj == Parameter::Hyphob) {
+            hypb_pos_sum += epj[j].pos;
+            hypb_cnt++;
+          }
 
-	    // calc cmpos of hyphil
-	    if (propj == Parameter::Hyphil) {
-	      hypl_pos_sum += epj[j].pos;
-	      hypl_cnt++;
-	    }
-	  }
-	}
+          // density calc
+          if (dr2 < Parameter::rc2) {
+            const PS::F64 dr = std::sqrt(dr2);
+            d_sum[propj] += (Parameter::rc - dr) * (Parameter::rc - dr);
+
+            // calc cmpos of hyphil
+            if (propj == Parameter::Hyphil) {
+              hypl_pos_sum += epj[j].pos;
+              hypl_cnt++;
+            }
+          }
+        }
       }
-      
+
       for (PS::S32 k = 0; k < Parameter::prop_num; k++) {
-	result[i].dens[k] += d_sum[k];
+        result[i].dens[k] += d_sum[k];
       }
       result[i].nei_pos_sum[Parameter::Hyphil] += hypl_pos_sum;
       result[i].nei_cnt[Parameter::Hyphil] += hypl_cnt;
@@ -87,7 +86,6 @@ struct CalcForceEpEpDPD {
 	  const PS::F64vec dvij = vi - epj[j].vel;
 	  PS::F64 densij[Parameter::prop_num];
 
-#pragma novector
 	  for (PS::S32 k = 0; k < Parameter::prop_num; k++)
 	    densij[k] = densi[k] + epj[j].dens[k];
 	  
@@ -117,7 +115,7 @@ struct CalcForceEpEpDPD {
 
 	  const PS::F64 cf_co  = Parameter::cf_c[propi][propj] * (dr - Parameter::arc) * (dr - Parameter::rc) * (dr >= Parameter::arc);
 	  PS::F64 cf_mbd = 0.0;
-#pragma novector
+
 	  for (PS::S32 k = 0; k < Parameter::prop_num; k++)
 	    cf_mbd += densij[k] * Parameter::cf_m[propi][propj][k];
 	  cf_mbd *= one_m_dr;

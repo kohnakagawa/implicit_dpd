@@ -22,7 +22,7 @@ ifeq ($(CXX),mpicxx)
 OPENMP += -fopenmp
 endif
 
-WARNINGS = -Wall -Wextra -Wunused-variable -Wsign-compare #-Wnon-virtual-dtor -Woverloaded-virtual
+WARNINGS = -Wall -Wextra -Wunused-variable -Wsign-compare -Wnon-virtual-dtor -Woverloaded-virtual
 DEBUG = -O0 -g -DDEBUG
 RELEASE = -O3
 
