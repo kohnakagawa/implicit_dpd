@@ -189,6 +189,7 @@ void DrawSys::LoadParticleDat() {
   if (is_first_call) {
     const auto min_len = *std::min_element(box_size, box_size + 3);
     invL = 1.0 / min_len;
+    pN_init = pN;
     is_first_call = false;
   }
   
@@ -357,12 +358,17 @@ void DrawSys::RenderString3D(const char *str,const float r[3]) {
 }
 
 void DrawSys::RenderSphere(const particle& prtcl) {
-  const int prop = prtcl.prop;
+  int prop = prtcl.prop;
+  if (prtcl.idx >= pN_init) prop = 2;
+#if 1  
+  if (((prtcl.idx / 4) % 2) && (prop == 0)) prop = 2;
+#endif
   GLfloat color[3] = {p_color[prop][0], p_color[prop][1], p_color[prop][2]};
   glMaterialfv(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE, color);
   glPushMatrix();
   glTranslated(prtcl.r[0], prtcl.r[1], prtcl.r[2]);
-  glutSolidSphere(prtcl.rad, 10, 10);
+  // glutSolidSphere(prtcl.rad, 10, 10);
+  glutSolidSphere(0.02, 10, 10);
   glPopMatrix();
 }
 

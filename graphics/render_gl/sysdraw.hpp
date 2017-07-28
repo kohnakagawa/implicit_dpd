@@ -82,7 +82,7 @@ class DrawSys {
 protected:
   int cur_time = 0, time_step = 0, all_time = 0;
   bool swt_but = true, cut_but = false, cut_adv = false, crit_out = false, contined = true;
-  int pN = 0;
+  int pN = 0, pN_init = 0;
   std::vector<particle> Particle;
   std::ifstream fin;
   std::vector<int> core_amp_id;

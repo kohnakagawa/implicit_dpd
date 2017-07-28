@@ -97,9 +97,11 @@ int main(int argc, char* argv[]) {
   const GLfloat hyphil_c[] = {1.000, 0.188, 0.188};
   const GLfloat hyphob_c[] = {1.000, 1.000, 0.000};
   const GLfloat water_c[]  = {0.000, 0.000, 1.000};
+  const GLfloat orange_c[] = {1.000, 0.000, 1.000};
   callbacks::drawsys->SetColor(hyphil_c);
   callbacks::drawsys->SetColor(hyphob_c);
   callbacks::drawsys->SetColor(water_c);
+  callbacks::drawsys->SetColor(orange_c);
   
   const GLfloat light0pos[] = {0.0, 0.0, -1.0, 1.0};
   callbacks::drawsys->SetLightPos(light0pos);
