@@ -33,8 +33,8 @@ class Parameter {
     PS::S32 cnt = 0;
     for (PS::S32 i = 0; i < dim; i++) {
       for (PS::S32 j = i; j < dim; j++) {
-	array[i * dim + j] = buf[cnt];
-	cnt++;
+        array[i * dim + j] = buf[cnt];
+        cnt++;
       }
     }
   }
@@ -138,7 +138,7 @@ class Parameter {
 
     for (PS::S32 i = 0; i < prop_num; i++)
       for (PS::S32 j = i + 1; j < prop_num; j++)
-	cf_c[j][i] = cf_c[i][j];
+        cf_c[j][i] = cf_c[i][j];
 
     cf_m[Hyphob][Hyphob][Hyphob] = 1.5 * (kappa + 2.0) / (rho_co * rho_co);
     for (PS::S32 i = 0; i < prop_num; i++)
@@ -168,7 +168,7 @@ class Parameter {
     const PS::F64 arc5 = arc * arc * arc * arc * arc;
     for (PS::S32 i = 0; i < prop_num; i++)
       for (PS::S32 j = 0; j < prop_num; j++)
-	cf_c[i][j] *= (Reo * Reo * Reo) / (all_unit * all_unit) * (15.0 / (2.0 * M_PI * (2.0 * arc5 * arc - 3.0 * arc5 * rc + 3.0 * arc * rc2 * rc2 * rc - 2.0 * rc2 * rc2 * rc2))) * 6.0;
+        cf_c[i][j] *= (Reo * Reo * Reo) / (all_unit * all_unit) * (15.0 / (2.0 * M_PI * (2.0 * arc5 * arc - 3.0 * arc5 * rc + 3.0 * arc * rc2 * rc2 * rc - 2.0 * rc2 * rc2 * rc2))) * 6.0;
 
     for (PS::S32 i = 0; i < prop_num; i++)
       for (PS::S32 j = 0; j < prop_num; j++)
@@ -290,7 +290,7 @@ public:
 
   static void MatchingError(std::string tag,
                             std::map<std::string, std::vector<std::string> >& tag_val,
-			    const size_t num) {
+                            const size_t num) {
     if (tag_val.find(tag) == tag_val.end()) {
       std::cerr << "Unmatching occurs." << std::endl;
       std::cerr << "at " << __FILE__ << " " << __LINE__ << std::endl;
@@ -301,9 +301,9 @@ public:
   }
 
   static void Matching(PS::S32* val,
-		       std::string tag,
-		       std::map<std::string, std::vector<std::string> >& tag_val,
-		       const PS::S32 num)
+                       std::string tag,
+                       std::map<std::string, std::vector<std::string> >& tag_val,
+                       const PS::S32 num)
   {
     MatchingError(tag, tag_val, num);
     for (PS::S32 i = 0; i < num; i++)
@@ -311,9 +311,9 @@ public:
   }
 
   static void Matching(PS::U32* val,
-		       std::string tag,
-		       std::map<std::string, std::vector<std::string> >& tag_val,
-		       const PS::U32 num)
+                       std::string tag,
+                       std::map<std::string, std::vector<std::string> >& tag_val,
+                       const PS::U32 num)
   {
     MatchingError(tag, tag_val, num);
     for (PS::U32 i = 0; i < num; i++)
@@ -321,9 +321,9 @@ public:
   }
 
   static void Matching(PS::F64* val,
-		       std::string tag,
-		       std::map<std::string, std::vector<std::string> >& tag_val,
-		       const PS::S32 num)
+                       std::string tag,
+                       std::map<std::string, std::vector<std::string> >& tag_val,
+                       const PS::S32 num)
   {
     MatchingError(tag, tag_val, num);
     for (PS::S32 i = 0; i < num; i++)
@@ -331,9 +331,9 @@ public:
   }
 
   static void Matching(std::string* val,
-		       std::string tag,
-		       std::map<std::string, std::vector<std::string> >& tag_val,
-		       const PS::S32 num)
+                       std::string tag,
+                       std::map<std::string, std::vector<std::string> >& tag_val,
+                       const PS::S32 num)
   {
     MatchingError(tag, tag_val, num);
     for (PS::S32 i = 0; i < num; i++)
@@ -341,13 +341,13 @@ public:
   }
 
   static void ReadTagValues(std::ifstream& fin,
-			    std::map<std::string, std::vector<std::string> >& tag_val)
+                            std::map<std::string, std::vector<std::string> >& tag_val)
   {
     std::string line, tag;
     std::string::size_type comment_start = 0;
     while (std::getline(fin, line) ) {
       if ((comment_start = line.find(';')) != std::string::size_type(-1))
-	line = line.substr(0, comment_start);
+        line = line.substr(0, comment_start);
 
       if (line.empty()) continue;
 
@@ -358,9 +358,9 @@ public:
       ss >> tag;
       std::vector<std::string> values;
       while (!ss.eof()) {
-	std::string buf;
-	ss >> buf;
-	values.push_back(buf);
+        std::string buf;
+        ss >> buf;
+        values.push_back(buf);
       }
       tag_val[tag] = values;
     }
@@ -590,11 +590,11 @@ public:
     ost << "NOTE:\n";
     ost << "cf_r are multiplied by 1 / sqrt(dt).\n";
 
-#define DUMPINTRPARAM(val) ost << #val << ":\n";		\
-    for (PS::S32 i = 0; i < prop_num; i++) {        \
-      for (PS::S32 j = 0; j < prop_num; j++)        \
-        ost << val[i][j] << " ";                    \
-      ost << std::endl;                             \
+#define DUMPINTRPARAM(val) ost << #val << ":\n";  \
+    for (PS::S32 i = 0; i < prop_num; i++) {      \
+      for (PS::S32 j = 0; j < prop_num; j++)      \
+        ost << val[i][j] << " ";                  \
+      ost << std::endl;                           \
     }
 
     DUMPINTRPARAM(cf_c);
