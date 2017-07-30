@@ -33,8 +33,6 @@
 #warning "Chemical reaction occurs."
 #endif
 
-constexpr char Parameter::atom_type[21];
-
 PS::F64vec Parameter::box_leng, Parameter::ibox_leng;
 PS::U32 Parameter::time;
 PS::U32 Parameter::all_time, Parameter::step_mic, Parameter::step_mac;
@@ -104,13 +102,13 @@ int main(int argc, char *argv[]) {
   }
 #endif // end of PARTICLE_SIMULATOR_MPI_PARALLEL
 #endif // end of ENABLE_GPU_CUDA
-  
+
   // Initialize run input parameter
   const std::string cdir = argv[1];
   Parameter param(cdir);
   param.Initialize();
   if (PS::Comm::getRank() == 0) param.LoadParam();
-  
+
   // Read restart configuration
   PS::ParticleSystem<FPDPD> system;
   system.initialize();
@@ -120,7 +118,7 @@ int main(int argc, char *argv[]) {
   } else {
     system.setNumberOfParticleLocal(0);
   }
-  
+
   // Calc core id if needed.
   if (PS::Comm::getRank() == 0) param.CalcCorePtclId(system);
 
@@ -147,7 +145,7 @@ int main(int argc, char *argv[]) {
   PS::TreeForForceShort<RESULT::ForceDPD, EPI::DPD, EPJ::DPD>::Gather force_tree;
   dens_tree.initialize(est_max_ptcl_num);
   force_tree.initialize(est_max_ptcl_num);
-  
+
 #ifdef ENABLE_GPU_CUDA
   const PS::S32 n_walk_limit = 200;
   const PS::S32 tag_max = 1;
@@ -157,7 +155,7 @@ int main(int argc, char *argv[]) {
 					      system,
 					      dinfo,
 					      n_walk_limit);
-					      
+
   force_tree.calcForceAllAndWriteBackMultiWalk(DispatchKernel<Policy::Force, EPI::DPD, EPJ::DPD>,
 					       RetrieveKernel<Policy::Force, RESULT::ForceDPD>,
 					       tag_max,
@@ -180,7 +178,7 @@ int main(int argc, char *argv[]) {
   ForceBonded<PS::ParticleSystem<FPDPD> > fbonded(system, Parameter::all_unit * param.init_amp_num, param.init_amp_num, param.core_amp_id());
   fbonded.CalcListedForce(system, bonded_vir);
 #endif
-  
+
   Observer<PS::ParticleSystem<FPDPD> > observer(cdir);
   observer.Initialize();
   do_observe_macro(observer, system, param, bonded_vir);
@@ -190,7 +188,7 @@ int main(int argc, char *argv[]) {
   const PS::U32 seed = static_cast<PS::U32>(time(nullptr));
   ChemManager<FPDPD> chemmanag(seed);
   system.ExpandParticleBuffer(est_max_ptcl_num);
-  
+
 #ifndef PARTICLE_SIMULATOR_MPI_PARALLEL
   fbonded.ExpandTopolBuffer(param.max_amp_num * Parameter::all_unit);
   observer.MembNormalVect(system, chemmanag.h2t_vecs(), chemmanag.core_poss_h(), param.core_ptcl_id);
@@ -200,12 +198,12 @@ int main(int argc, char *argv[]) {
   kick(system, param.dt);
   Parameter::time++;
   // End of initial step.
-  
+
   // Main MD loop
   const PS::U32 atime = Parameter::time + Parameter::all_time - 1;
   for (; Parameter::time < atime; Parameter::time++) {
     drift_and_predict(system, param.dt, Parameter::box_leng, Parameter::ibox_leng);
-    
+
     if (Parameter::time % Parameter::decom_freq == 0) dinfo.decomposeDomainAll(system);
 
     system.exchangeParticle(dinfo);
@@ -217,7 +215,7 @@ int main(int argc, char *argv[]) {
 					        system,
 					        dinfo,
 					        n_walk_limit);
-					      
+
     force_tree.calcForceAllAndWriteBackMultiWalk(DispatchKernel<Policy::Force, EPI::DPD, EPJ::DPD>,
 						 RetrieveKernel<Policy::Force, RESULT::ForceDPD>,
 					         tag_max,
@@ -234,7 +232,7 @@ int main(int argc, char *argv[]) {
 #else
     fbonded.CalcListedForce(system, bonded_vir);
 #endif
-    
+
     kick(system, param.dt);
 
 #ifdef CHEM_MODE

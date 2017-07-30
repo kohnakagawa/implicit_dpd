@@ -198,7 +198,7 @@ public:
   static constexpr PS::F64 rn_c2      = rn_c * rn_c;
   static constexpr PS::F64 cf_b_rigid = 40.0;
 
-  static constexpr char atom_type[21] = {
+  static constexpr char atom_type[21] {
     'O', 'N', 'C', 'S', 'P', 'Z', 'X', 'O', 'N', 'C', 'S', 'P', 'Z', 'X', 'O', 'N', 'C', 'S', 'P', 'Z', 'X'
   };
 

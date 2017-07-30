@@ -6,7 +6,7 @@ namespace RESULT {
   struct ForceDPD {
     PS::F64vec acc;
     PS::F64vec press;
-  
+
     void clear(){
       acc   = 0.0;
       press = 0.0;
@@ -17,7 +17,7 @@ namespace RESULT {
     std::array<PS::F64, Parameter::prop_num> dens;
     PS::F64vec nei_pos_sum[2];
     PS::U32 nei_cnt[2];
-    
+
     void clear() {
       dens.fill(0.0);
       nei_pos_sum[0] = nei_pos_sum[1] = 0.0;
@@ -55,7 +55,7 @@ struct FPDPD {
     nei_cm_pos[Parameter::Hyphil] = dens.nei_pos_sum[Parameter::Hyphil] / dens.nei_cnt[Parameter::Hyphil];
     nei_cm_pos[Parameter::Hyphob] = dens.nei_pos_sum[Parameter::Hyphob] / dens.nei_cnt[Parameter::Hyphob];
   }
-  
+
   //for I/O
   void readAscii(FILE *fp) {
     char buf;
@@ -109,7 +109,7 @@ namespace EPI {
     }
 
   };
-  
+
   struct Density {
     PS::U32 prop;
     PS::F64vec pos;
@@ -121,7 +121,7 @@ namespace EPI {
     PS::F64 getRSearch() const {
       return Parameter::search_rad;
     }
-    
+
     void copyFromFP(const FPDPD& fp) {
       this->prop	= fp.prop;
       this->pos		= fp.pos;
@@ -134,7 +134,7 @@ namespace EPJ {
     PS::U32 id, prop, amp_id, unit;
     PS::F64vec pos, vel;
     std::array<PS::F64, Parameter::prop_num> dens;
-    
+
     void copyFromFP(const FPDPD& fp) {
       this->id			= fp.id;
       this->prop		= fp.prop;
@@ -144,11 +144,11 @@ namespace EPJ {
       this->vel			= fp.vel;
       this->dens = fp.density;
     }
-    
+
     PS::F64vec getPos() const {
       return this->pos;
     }
-    
+
     void setPos(const PS::F64vec& pos_) {
       this->pos = pos_;
     }
@@ -157,16 +157,16 @@ namespace EPJ {
   struct Density {
     PS::U32 prop;
     PS::F64vec pos;
-    
+
     void copyFromFP(const FPDPD& fp) {
       this->prop		= fp.prop;
       this->pos			= fp.pos;
     }
-    
+
     PS::F64vec getPos() const {
       return this->pos;
     }
-    
+
     void setPos(const PS::F64vec& pos_) {
       this->pos = pos_;
     }
