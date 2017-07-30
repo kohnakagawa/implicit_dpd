@@ -33,6 +33,8 @@
 #warning "Chemical reaction occurs."
 #endif
 
+constexpr char Parameter::atom_type[21];
+
 PS::F64vec Parameter::box_leng, Parameter::ibox_leng;
 PS::U32 Parameter::time;
 PS::U32 Parameter::all_time, Parameter::step_mic, Parameter::step_mac;

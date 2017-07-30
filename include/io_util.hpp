@@ -95,7 +95,8 @@ namespace io_util {
   inline void ReadXYZForm(FP* ptcl,
                           PS::U32& num,
                           PS::U32& cur_time,
-                          FILE* fp) {
+                          FILE* fp,
+                          PS::U32 max_buf) {
     char comment[4] = {'\0'}, buf = '0';
     CHECK_READED(fscanf(fp, "%u\n", &num));
     CHECK_READED(fscanf(fp, "%s %u\n", comment, &cur_time));
@@ -111,6 +112,11 @@ namespace io_util {
       PS::Abort();
     }
 
+    if (max_buf < num) {
+      std::cerr << "# of particles specified inx init_config.xyz exceeds maximum buffer.\n";
+      PS::Abort();
+    }
+
     for (PS::U32 i = 0; i < num; i++) {
       ptcl[i].readAscii(fp);
     }
@@ -123,7 +129,8 @@ namespace io_util {
 
   template<class FP>
   inline void ReadXYZForm(PS::ParticleSystem<FP>& sys, PS::U32& num, PS::U32& cur_time, FILE* fp) {
-    ReadXYZForm(&sys[0], num, cur_time, fp);
+    PS::U32 max_buf = PS::U32(sys.getNumberOfParticleGlobal());
+    ReadXYZForm(&sys[0], num, cur_time, fp, max_buf);
   }
 };
 
