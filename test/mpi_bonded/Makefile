@@ -16,7 +16,7 @@ CFLAGS += $(OPENMP)
 CFLAGS += -DPAIRWISE_DPD
 MPI_FLAGS = -DPARTICLE_SIMULATOR_MPI_PARALLEL
 
-INCLUDE = -I../../FDPS/src -I../../src
+INCLUDE = -isystem../../FDPS/src -I../../include
 
 TARGET = mpi_bonded.out bonded.out
 

@@ -12,10 +12,10 @@ WARNINGS = -Wall -Wnon-virtual-dtor -Woverloaded-virtual -Wunused-variable
 DEBUG = -O0 -g -DDEBUG
 
 ifeq ($(CXX),icpc)
-RELEASE = -O3 -ipo -no-prec-div -xHOST
+RELEASE = -O3 -ipo -no-prec-div -xHOST -g
 endif
 ifeq ($(CXX),g++)
-RELEASE = -O3 
+RELEASE = -O3 -g
 endif
 
 STDCPP11 = -std=c++11
@@ -28,9 +28,9 @@ CFLAGS += $(WARNINGS)
 CFLAGS += $(STDCPP11)
 CFLAGS += -DPAIRWISE_DPD
 
-INCLUDE = -I../../FDPS/src -I../../
+INCLUDE = -I../../FDPS/src -I../../include
 
-TARGET = test.out test_omp.out
+TARGET = test.out test_omp.out test_mpi.out
 
 all:$(TARGET)
 
@@ -39,6 +39,9 @@ test.out: increase_test.cpp
 
 test_omp.out: increase_test.cpp
 	$(CXX) $(CFLAGS) $(OPENMP) $(INCLUDE) $< $(LIBRARY) -o $@
+
+test_mpi.out: increase_test.cpp
+	mpicxx -DPARTICLE_SIMULATOR_MPI_PARALLEL $(CFLAGS) $(OPENMP) $(INCLUDE) $< $(LIBRARY) -o $@
 
 clean:
 	rm -f $(TARGET) core.* *~

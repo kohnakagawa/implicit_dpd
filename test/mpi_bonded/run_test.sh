@@ -8,17 +8,19 @@ dir=31x31
 mpiexec -np 4 ./mpi_bonded.out ./result_mpi/$dir
 ./bonded.out ./result/$dir
 
-awk '{if(NR >= 3) print $0}' ./result_mpi/$dir/traject.xyz > tmp_mpi.txt
-awk '{if(NR >= 3) print $0}' ./result/$dir/traject.xyz > tmp.txt
-sort -n -k5 tmp_mpi.txt > sort.txt
-if cmp -s sort.txt tmp.txt; then
+awk '{if(NF >= 5) print $0}' ./result_mpi/$dir/traject.xyz > tmp_mpi.txt
+awk '{if(NF >= 5) print $0}' ./result/$dir/traject.xyz > tmp.txt
+sort -n -k5 tmp_mpi.txt > sort_mpi.txt
+sort -n -k5 tmp.txt > sort.txt
+
+if cmp -s sort.txt sort_mpi.txt; then
    echo Success test.
 else
    echo Different. Show maximum error.
 fi
 
-awk '{print $2, $3, $4, $15, $16, $17}' sort.txt > 1.txt
-awk '{print $2, $3, $4, $15, $16, $17}' tmp.txt > 2.txt
+awk '{print $2, $3, $4, $15, $16, $17}' sort_mpi.txt > 1.txt
+awk '{print $2, $3, $4, $15, $16, $17}' sort.txt > 2.txt
 
 R --vanilla --slave <<EOF
 # check acc
@@ -29,7 +31,9 @@ dat     <- data.matrix(read.table("2.txt"))
 diff    <- abs(dat_mpi - dat) / abs(dat_mpi)
 max(diff)
 
+print("dat_mpi")
 dat_mpi[which.max(diff)]
+print("dat")
 dat[which.max(diff)]
 
 print("pressure error")

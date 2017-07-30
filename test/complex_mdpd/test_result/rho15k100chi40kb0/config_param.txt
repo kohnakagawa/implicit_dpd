@@ -1,5 +1,0 @@
-Temperature 1.0
-box_leng 30.0 30.0 32.0
-amp_num 1600 ;ASSUME all_unit=4
-lip_len 0.5
-mode flat

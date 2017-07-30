@@ -28,18 +28,18 @@ void check_val(const Tpsys& sys, const int tag) {
 int main(int argc, char *argv[]) {
   PS::Initialize(argc, argv);
 
-  const std::string cdir = argv[1];  
+  const std::string cdir = argv[1];
   Parameter param(cdir);
   param.Initialize();
   if(PS::Comm::getRank() == 0) param.LoadParam();
-  
+
   PS::ParticleSystem<FPDPD> system;
   system.initialize();
   if(PS::Comm::getRank() == 0) {
     system.setNumberOfParticleLocal(param.init_amp_num * Parameter::all_unit);
     Parameter::time = param.LoadParticleConfig(system);
   } else {
-    system.setNumberOfParticleLocal(0);    
+    system.setNumberOfParticleLocal(0);
   }
 
   if (PS::Comm::getRank() == 0) param.CalcCorePtclId(system);
@@ -81,11 +81,11 @@ int main(int argc, char *argv[]) {
 #endif
 
   check_val(system, 1);
-  
+
   Observer<PS::ParticleSystem<FPDPD> > observer(cdir);
   observer.Initialize();
   observer.Trajectory(system);
   observer.Pressure(system, bonded_vir, Parameter::ibox_leng);
-  
+
   PS::Finalize();
 }
