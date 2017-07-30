@@ -10,8 +10,6 @@
 
 constexpr char Parameter::atom_type[21];
 
-static_assert(Parameter::bond_leng != 0.0, "Please check Parameter::bond_leng != 0.0");
-
 class ConfigMaker {
   std::vector<FPDPD> prtcls;
 
@@ -23,6 +21,10 @@ class ConfigMaker {
   PS::U32 amp_num      = 0xffffffff;
   PS::U32 amp_ptcl_num = 0xffffffff;
   PS::F64 lip_len      = std::numeric_limits<PS::F64>::signaling_NaN();
+  PS::U32 head_unit    = 0xffffffff;
+  PS::U32 tail_unit    = 0xffffffff;
+  PS::U32 all_unit     = 0xffffffff;
+  PS::F64 bond_leng    = std::numeric_limits<PS::F64>::signaling_NaN();
 
   PS::F64 sph_rad      = std::numeric_limits<PS::F64>::signaling_NaN();
   PS::F64 upper_the    = std::numeric_limits<PS::F64>::signaling_NaN();
@@ -75,14 +77,14 @@ class ConfigMaker {
   }
 
   void SetAmphilPartPos(const PS::F64vec& base, const PS::F64vec& nv, PS::U32& idx) {
-    for (PS::U32 unit = 0; unit < Parameter::all_unit; unit++) {
-      PS::F64vec pos = base + Parameter::bond_leng * unit * nv;
+    for (PS::U32 unit = 0; unit < all_unit; unit++) {
+      PS::F64vec pos = base + bond_leng * unit * nv;
       ApplyPBC(pos);
       prtcls[idx].pos = pos;
       prtcls[idx].id = idx;
       prtcls[idx].unit = unit;
-      prtcls[idx].amp_id = idx / Parameter::all_unit;
-      if(unit < Parameter::head_unit)
+      prtcls[idx].amp_id = idx / all_unit;
+      if (unit < head_unit)
         prtcls[idx].prop = Parameter::Hyphil;
       else
         prtcls[idx].prop = Parameter::Hyphob;
@@ -120,12 +122,12 @@ class ConfigMaker {
     while (idx < end_idx) {
       PS::F64vec base = GenrandF64vec(len);
       const PS::F64 sign = flap ? 1.0 : -1.0;
-      base[axis] = 0.5 * len[axis] + ((Parameter::all_unit - 1) * Parameter::bond_leng + eps) * sign;
+      base[axis] = 0.5 * len[axis] + ((all_unit - 1) * bond_leng + eps) * sign;
       nv[axis] = -sign;
       SetAmphilPartPos(base, nv, idx);
 
       if (asym) {
-        const PS::U32 amp_id = idx / Parameter::all_unit;
+        const PS::U32 amp_id = idx / all_unit;
         if (((amp_id % 100) == rat) || ((amp_id % 100) == 0 && (amp_id != 0)))
           flap ^= true;
       } else {
@@ -140,7 +142,7 @@ class ConfigMaker {
                    const PS::F64 sign,
                    const PS::U32 end_idx,
                    PS::U32& idx) {
-    const PS::F64 q_thick = 0.5 * Parameter::all_unit * Parameter::bond_leng;
+    const PS::F64 q_thick = 0.5 * all_unit * bond_leng;
     const PS::F64 prj_rad = rad * std::sin(the);
 
     PS::F64 d_phi = lip_len / prj_rad;
@@ -186,7 +188,7 @@ class ConfigMaker {
 
     const PS::F64 up_the = upper_the * M_PI / 180.0; //NOTE: the unit of upper_theta is not radian.
 
-    const PS::F64 q_thick = 0.5 * Parameter::all_unit * Parameter::bond_leng;
+    const PS::F64 q_thick = 0.5 * all_unit * bond_leng;
     const PS::F64 out_rad = sph_rad + q_thick, in_rad  = sph_rad - q_thick;
     PS::F64 d_the_out = lip_len / out_rad, d_the_in = lip_len / in_rad;
     const PS::S32 out_the_elem = static_cast<PS::S32>(up_the / d_the_out), in_the_elem = static_cast<PS::S32>(up_the / d_the_in);
@@ -230,7 +232,7 @@ class ConfigMaker {
                        const PS::U32 offset) {
     assert(axis >= 0 && axis < 3);
 
-    const PS::F64 q_thick = 0.5 * Parameter::all_unit * Parameter::bond_leng;
+    const PS::F64 q_thick = 0.5 * all_unit * bond_leng;
     const PS::F64 out_rad = cyl_r + q_thick, in_rad  = cyl_r - q_thick;
     PS::F64 d_the_out = lip_len / out_rad, d_the_in = lip_len / in_rad;
     const PS::S32 out_the_elem = static_cast<PS::S32>(M_PI / d_the_out), in_the_elem  = static_cast<PS::S32>(M_PI / d_the_in);
@@ -240,7 +242,7 @@ class ConfigMaker {
     cent[axis] = 0.0;
 
     assert(cyl_l >= 0.0 && cyl_l <= box_leng[axis]);
-    assert(cyl_r >= 0.0 && (2.0 * cyl_r + Parameter::all_unit * Parameter::bond_leng) < box_leng[axis]);
+    assert(cyl_r >= 0.0 && (2.0 * cyl_r + all_unit * bond_leng) < box_leng[axis]);
 
     const PS::S32 z_elem = static_cast<PS::S32>(box_leng[axis] / lip_len);
     PS::U32 idx = offset;
@@ -293,10 +295,11 @@ class ConfigMaker {
                             const PS::U32 num,
                             const PS::U32 offset,
                             const PS::U32 dim,
-                            const PS::U32 axis) {
+                            const PS::U32 axis,
+                            const PS::F64 radius) {
     const PS::U32 beg_id = offset;
     const PS::U32 end_id = offset + num;
-    const PS::F64 h_thick = 0.5 * Parameter::all_unit * Parameter::bond_leng;
+    const PS::F64 h_thick = 0.5 * all_unit * bond_leng;
 
     PS::U32 idx = beg_id;
     while (idx < end_id) {
@@ -308,9 +311,9 @@ class ConfigMaker {
       }
       dist = std::sqrt(dist);
       if (is_in) {
-        if (dist < sph_rad - h_thick) SetSolventPos(pos, idx++);
+        if (dist < radius - h_thick) SetSolventPos(pos, idx++);
       } else {
-        if (dist > sph_rad + h_thick) SetSolventPos(pos, idx++);
+        if (dist > radius + h_thick) SetSolventPos(pos, idx++);
       }
     }
   }
@@ -328,13 +331,13 @@ class ConfigMaker {
     } else if (MODE_EQ("sphere")) {
       MakeSphSheet(amp_ptcl_num, 0);
       if (with_solvent) {
-        MakeSphericalSolvent(true, sol_num, amp_ptcl_num, 3, 0);
+        MakeSphericalSolvent(true, sol_num, amp_ptcl_num, 3, 0, sph_rad);
       }
     } else if (MODE_EQ("cylind")) {
       const PS::S32 axis = 2; // Z axis
       MakeCylindSheet(axis, amp_ptcl_num, 0);
       if (with_solvent) {
-        MakeSphericalSolvent(true, sol_num, amp_ptcl_num, 2, axis);
+        MakeSphericalSolvent(true, sol_num, amp_ptcl_num, 2, axis, cyl_r);
       }
     } else if (MODE_EQ("random")) {
       MakeRandomConfig(box_leng);
@@ -364,8 +367,13 @@ class ConfigMaker {
     Parameter::Matching(&Tempera, std::string("Temperature"), tag_val, 1);
     Parameter::Matching(&(box_leng[0]), std::string("box_leng"), tag_val, 3);
     Parameter::Matching(&amp_num, "amp_num", tag_val, 1);
-    amp_ptcl_num = Parameter::all_unit * amp_num;
     Parameter::Matching(&mode, "mode", tag_val, 1);
+    Parameter::Matching(&head_unit, "head_unit", tag_val, 1);
+    Parameter::Matching(&tail_unit, "tail_unit", tag_val, 1);
+    Parameter::Matching(&bond_leng, "bond_leng", tag_val, 1);
+
+    all_unit = head_unit + tail_unit;
+    amp_ptcl_num = all_unit * amp_num;
 
     if (tag_val.find("with_solvent") != tag_val.end()) {
       with_solvent = true;
@@ -441,7 +449,7 @@ class ConfigMaker {
           std::cerr << "amp_id is " << prtcl.amp_id << std::endl;
           std::exit(1);
         }
-        if (!(prtcl.unit < Parameter::all_unit)) {
+        if (!(prtcl.unit < all_unit)) {
           std::cerr << "amphiphile unit is invalid\n";
           std::cerr << "unit is " << prtcl.unit << std::endl;
           std::exit(1);
@@ -500,6 +508,21 @@ public:
     io_util::WriteXYZForm(&prtcls[0], prtcls.size(), 0, fout);
     fclose(fout);
   }
+
+  void ShowSystemParameter() const {
+    std::cout << "Show ConfigMaker Paramter\n";
+#define SHOW_WITH_TAG(val)                          \
+      std::cout << #val << " " << val << std::endl
+    SHOW_WITH_TAG(Tempera);
+    SHOW_WITH_TAG(box_leng);
+    SHOW_WITH_TAG(amp_num);
+    SHOW_WITH_TAG(head_unit);
+    SHOW_WITH_TAG(tail_unit);
+    SHOW_WITH_TAG(all_unit);
+    SHOW_WITH_TAG(bond_leng);
+    SHOW_WITH_TAG(mode);
+#undef SHOW_WITH_TAG
+  }
 };
 
 int main(int argc, char* argv[]) {
@@ -516,4 +539,5 @@ int main(int argc, char* argv[]) {
   cmaker.DumpParticleConfig();
 
   std::cout << "Initial configuration is generated at " << argv[1] << std::endl;
+  cmaker.ShowSystemParameter();
 }
