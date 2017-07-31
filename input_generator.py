@@ -42,9 +42,11 @@ def gen_submit_script(prog_name, prog_args, root_dir, use_slurm=True, nprocs=1, 
         exec_command = "%s %s" % (run_script_name, prog_name)
         if use_slurm:
             exec_command = "sbatch " + exec_command
+        else:
+            exec_command = "nohup " + exec_command
 
         for prog_arg in prog_args:
-            f.write("%s %s\n" % (exec_command, prog_arg))
+            f.write("%s %s &\n" % (exec_command, prog_arg))
 
     os.chmod(submit_script_name, 0775)
     os.chmod(run_script_name, 0775)
