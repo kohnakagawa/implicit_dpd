@@ -14,6 +14,55 @@ def gen_input_script(param, root_dir, name):
         for key, value in param.items():
             f.write(" ".join([key, stringize_value(value)]) + "\n")
 
+def gen_submit_script(prog_name, prog_args, root_dir, use_slurm=True, nprocs=1, nthreads=1, nnodes=1):
+    submit_script_name = "./submit.sh"
+    submit_script      = os.path.join(root_dir, submit_script_name)
+    run_script_name    = "./run.sh"
+    run_script         = os.path.join(root_dir, run_script_name)
+
+    queue = "hwq" # "defq" "sbq" "wmq"
+    with open(run_script, "w") as f:
+        f.write("#!/bin/sh\n")
+
+        if use_slurm:
+            options = slurm_options(nprocs, nthreads, nnodes, queue)
+            write_slurm_options(options, f)
+
+        if nthreads != 1:
+            f.write("export OMP_NUM_THREADS=%d\n" % nthreads)
+
+        if nprocs != 1:
+            f.write("mpirun -np %d " % nprocs)
+
+        f.write("$@\n")
+
+    with open(submit_script, "w") as f:
+        f.write("#!/bin/sh\n")
+
+        exec_command = "%s %s" % (run_script_name, prog_name)
+        if use_slurm:
+            exec_command = "sbatch " + exec_command
+
+        for prog_arg in prog_args:
+            f.write("%s %s\n" % (exec_command, prog_arg))
+
+    os.chmod(submit_script_name, 0775)
+    os.chmod(run_script_name, 0775)
+
+def slurm_options(nprocs, nthreads, nnodes, queue):
+    return {
+        "-p" : queue,
+        "-n" : nprocs,
+        "-N" : nnodes,
+        "-c" : nthreads,
+        "-o" : "./out_%J.log",
+        "-e" : "./err_%J.log",
+    }
+
+def write_slurm_options(options, f_hand):
+    for key, value in options.items():
+        f_hand.write(" ".join(["#SBATCH", key, stringize_value(value)]) + "\n")
+
 def run_input_base():
     return {
         "box_leng"     : [0.0, 0.0, 0.0],
@@ -64,9 +113,8 @@ def generate_inputs(root_dir):
     leng = [27.0, 27.5, 28.0, 28.5, 29.0]
     area_per_lipid = 0.333
 
-    dir_names = ["box" + str(l) + "x" + str(l) for l in leng]
-
-    for l, d_name in zip(leng, dir_names):
+    dir_names = [os.path.join(root_dir, "box" + str(l) + "x" + str(l)) for l in leng]
+    for l, param_dir in zip(leng, dir_names):
         run_params  = run_input_base()
         conf_params = conf_input_base()
         if with_solvent:
@@ -81,12 +129,19 @@ def generate_inputs(root_dir):
         conf_params["box_leng"] = box_leng
         conf_params["amp_num"]  = amp_num
 
-        param_dir = os.path.join(root_dir, d_name)
         if not os.path.exists(param_dir):
             os.mkdir(param_dir)
 
         gen_input_script(run_params, param_dir, "run_param.txt")
         gen_input_script(conf_params, param_dir, "config_param.txt")
+
+    gen_submit_script(prog_name = "./implicit_dpd.out", \
+                      prog_args = dir_names,            \
+                      root_dir  = root_dir,             \
+                      use_slurm = True,                 \
+                      nprocs    = 1,                    \
+                      nthreads  = 4,                    \
+                      nnodes    = 1)
 
 def main(argv):
     if len(argv) != 2:
