@@ -136,10 +136,6 @@ class Parameter {
     cf_c[Solvent][Hyphob] = cf_c[Hyphob][Solvent] = cf_c[Hyphil][Hyphob];
     cf_c[Solvent][Hyphil] = cf_c[Hyphil][Solvent] = cf_c[Hyphil][Hyphil];
 
-    for (PS::S32 i = 0; i < prop_num; i++)
-      for (PS::S32 j = i + 1; j < prop_num; j++)
-        cf_c[j][i] = cf_c[i][j];
-
     cf_m[Hyphob][Hyphob][Hyphob] = 1.5 * (kappa + 2.0) / (rho_co * rho_co);
     for (PS::S32 i = 0; i < prop_num; i++)
       for (PS::S32 j= 0; j < prop_num; j++)
@@ -160,20 +156,27 @@ class Parameter {
       for (PS::S32 j = i + 1; j < prop_num; j++)
         CalcGammaWithHarmonicMean(i, j);
 
-    //NOTE: multiplied by normalize coef.
+    // NOTE: multiplied by normalize coef.
     for (PS::S32 i = 0; i < prop_num; i++)
       for (PS::S32 j = 0; j < prop_num; j++)
         cf_r[i][j] /= std::sqrt(dt);
 
-    const PS::F64 arc5 = arc * arc * arc * arc * arc;
+    // NOTE: multiplied by normalize coef.
+    const PS::F64 mol_energy        = (Reo * Reo * Reo) / (all_unit * all_unit); // NOTE: k_B T = 1
+    const PS::F64 arc5              = arc * arc * arc * arc * arc;
+    const PS::F64 w2_norml_factor   = -45.0 / ((arc5 * (2.0 * arc - 3.0) + (3.0 * arc - 2.0)) * M_PI);
+    const PS::F64 w3_norml_factor   = 15.0 / M_PI;
+    const PS::F64 dens_unit_monomer = ((Reo * Reo * Reo * 15.0) / (2.0 * M_PI * all_unit));
+
+    // normalize two body potential
     for (PS::S32 i = 0; i < prop_num; i++)
       for (PS::S32 j = 0; j < prop_num; j++)
-        cf_c[i][j] *= (Reo * Reo * Reo) / (all_unit * all_unit) * (15.0 / (2.0 * M_PI * (2.0 * arc5 * arc - 3.0 * arc5 * rc + 3.0 * arc * rc2 * rc2 * rc - 2.0 * rc2 * rc2 * rc2))) * 6.0;
+        cf_c[i][j] *= mol_energy * w2_norml_factor;
 
     for (PS::S32 i = 0; i < prop_num; i++)
       for (PS::S32 j = 0; j < prop_num; j++)
         for (PS::S32 k = 0; k < prop_num; k++)
-          cf_m[i][j][k] *= ((Reo * Reo * Reo) / (all_unit * all_unit)) * (2.0 / 3.0) * (15.0 / (M_PI * rc2 * rc2)) * (15.0 / (2.0 * M_PI * rc2 * rc2 * rc)) * (Reo * Reo * Reo / all_unit);
+          cf_m[i][j][k] *= mol_energy * (2.0 / 3.0) * w3_norml_factor * dens_unit_monomer;
   }
 
 public:
@@ -190,9 +193,6 @@ public:
 #endif
   static constexpr PS::F64 arc        = 0.9;
   static constexpr PS::F64 Reo        = 1.4;
-  static constexpr PS::F64 rc         = 1.0;
-  static constexpr PS::F64 rc2        = rc * rc;
-  static constexpr PS::F64 irc        = 1.0 / rc;
   static constexpr PS::U32 decom_freq = 16;
   static constexpr PS::F64 rn_c       = 1.2; // used for calculate bilayer normal vector
   static constexpr PS::F64 rn_c2      = rn_c * rn_c;
@@ -547,9 +547,6 @@ public:
     DUMPTAGANDVAL(Reo);
 
     DUMPTAGANDVAL(prop_num);
-    DUMPTAGANDVAL(rc);
-    DUMPTAGANDVAL(rc2);
-    DUMPTAGANDVAL(irc);
 
     DUMPTAGANDVAL(rn_c);
     DUMPTAGANDVAL(rn_c2);

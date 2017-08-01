@@ -17,25 +17,28 @@ struct CalcDensity {
   {
     for (PS::S32 i = 0; i < ni; i++) {
       const PS::F64vec ri = epi[i].pos;
-      PS::F64 d_sum[Parameter::prop_num] = {0.0};
-      PS::F64vec hypb_pos_sum(0.0, 0.0, 0.0), hypl_pos_sum = ri; // NOTE: cm_pos is only used when i particle's property is hydrophlic.
-      PS::U32 hypb_cnt = 0, hypl_cnt = 1;
-      for (PS::S32 j = 0; j < nj; j++) {
-        const PS::U32 propj = epj[j].prop;
-        const PS::F64vec drij = ri - epj[j].pos;
-        const PS::F64 dr2 = drij * drij;
+      PS::F64 d_sum[Parameter::prop_num] {};
 
-        if (dr2 < Parameter::rn_c2 && dr2 != 0.0) {
+      // NOTE: cm_pos is only used when i particle's property is hydrophlic.
+      PS::F64vec hypb_pos_sum(0.0, 0.0, 0.0), hypl_pos_sum = ri;
+      PS::U32 hypb_cnt = 0, hypl_cnt = 1;
+
+      for (PS::S32 j = 0; j < nj; j++) {
+        const PS::U32 propj   = epj[j].prop;
+        const PS::F64vec drij = ri - epj[j].pos;
+        const PS::F64 dr2     = drij * drij;
+
+        if (dr2 < Parameter::rn_c2) {
           // calc cmpos of hyphob
           if (propj == Parameter::Hyphob) {
             hypb_pos_sum += epj[j].pos;
             hypb_cnt++;
           }
 
-          // density calc
-          if (dr2 < Parameter::rc2) {
+          if (dr2 < 1.0) {
+            // density calc
             const PS::F64 dr = std::sqrt(dr2);
-            d_sum[propj] += (Parameter::rc - dr) * (Parameter::rc - dr);
+            d_sum[propj] += (1.0 - dr) * (1.0 - dr);
 
             // calc cmpos of hyphil
             if (propj == Parameter::Hyphil) {
@@ -62,10 +65,10 @@ struct CalcForceEpEpDPD {
   static PS::U32 m_seed;
 
   void operator () (const EPI::DPD* __restrict epi,
-		    const PS::S32 ni,
-		    const EPJ::DPD* __restrict epj,
-		    const PS::S32 nj,
-		    RESULT::ForceDPD* __restrict result)
+                    const PS::S32 ni,
+                    const EPJ::DPD* __restrict epj,
+                    const PS::S32 nj,
+                    RESULT::ForceDPD* __restrict result)
   {
     for (PS::S32 i = 0; i < ni; i++) {
       const PS::F64vec ri = epi[i].pos;
@@ -81,53 +84,50 @@ struct CalcForceEpEpDPD {
         if (idi == epj[j].id) continue;
 
         const PS::F64vec drij = ri - epj[j].pos;
-        const PS::F64 dr2 = drij * drij;
-        if (dr2 < Parameter::rc2) {
+        const PS::F64    dr2  = drij * drij;
+        if (dr2 < 1.0) {
           const PS::F64vec dvij = vi - epj[j].vel;
+          const PS::U32    idj  = epj[j].id;
+
+          // density term
           PS::F64 densij[Parameter::prop_num];
-
-          for (PS::S32 k = 0; k < Parameter::prop_num; k++)
+          for (PS::S32 k = 0; k < Parameter::prop_num; k++) {
             densij[k] = densi[k] + epj[j].dens[k];
+          }
 
-          const PS::U32 idj = epj[j].id;
-
+          // get random noise
           PS::U32 m_i = idi, m_j = idj;
-          if (idi > idj){ // m_i <= m_j
+          if (idi > idj){
             m_i = idj;
             m_j = idi;
           }
-
           Saru saru(m_i, m_j, m_seed + Parameter::time);
           const PS::F64 rnd = saru.nrml();
 
           //kernel for thermostat
-          const PS::F64 dr = std::sqrt(dr2);
-          const PS::F64 inv_dr = 1.0 / dr;
-          const PS::U32 propj  = epj[j].prop;
-          const PS::F64 one_m_dr = 1.0 - dr * Parameter::irc;
+          const PS::F64 dr      = std::sqrt(dr2);
+          const PS::F64 inv_dr  = 1.0 / dr;
+          const PS::U32 propj   = epj[j].prop;
+          const PS::F64 rc_m_dr = 1.0 - dr;
 
           //kernel for conservative force
 #ifdef PAIRWISE_DPD
           (void) densij;
-          const PS::F64 cf_co = 25.0 * one_m_dr;
-          const PS::F64 cf_mbd = 0.0;
-          assert(std::isfinite(rnd));
+          const PS::F64 cf_pair = 25.0;
+          const PS::F64 cf_mbd  = 0.0;
 #else
-          const PS::F64 cf_co  = Parameter::cf_c[propi][propj] * (dr - Parameter::arc) * (dr - Parameter::rc) * (dr >= Parameter::arc);
+          const PS::F64 cf_pair = Parameter::cf_c[propi][propj] * (dr - Parameter::arc) * (dr >= Parameter::arc);
           PS::F64 cf_mbd = 0.0;
-
-          for (PS::S32 k = 0; k < Parameter::prop_num; k++)
-            cf_mbd += densij[k] * Parameter::cf_m[propi][propj][k];
-          cf_mbd *= one_m_dr;
+          for (PS::S32 k = 0; k < Parameter::prop_num; k++) {
+            cf_mbd += Parameter::cf_m[propi][propj][k] * densij[k];
+          }
 #endif
-
-          const PS::F64 wrij = one_m_dr; // pow = 1
-          //const PS::F64 wrij = std::sqrt(one_m_dr); //pow = 1 / 2
+          const PS::F64 wrij    = rc_m_dr; // pow = 1
+          //const PS::F64 wrij = std::sqrt(rc_m_dr); //pow = 1 / 2
           const PS::F64 sq_wrij = std::sqrt(wrij);
 
           const PS::F64 drij_dvij = drij * dvij;
-
-          const PS::F64 all_cf = (cf_co + cf_mbd +  //conservative
+          const PS::F64 all_cf = ((cf_pair + cf_mbd) * rc_m_dr +  //conservative
                                   Parameter::cf_r[propi][propj] * sq_wrij * rnd - //random
                                   Parameter::cf_g[propi][propj] * wrij * drij_dvij * inv_dr) * inv_dr; //dissipation
 
@@ -143,5 +143,5 @@ struct CalcForceEpEpDPD {
     }
   }
 };
-  
+
 PS::U32 CalcForceEpEpDPD::m_seed = 0;
