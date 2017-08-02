@@ -41,7 +41,7 @@ namespace io_util {
     INT capacity = 0;
 
     template<typename T>
-    DataBuffer(T init_size) {
+    explicit DataBuffer(T init_size) {
       capacity = static_cast<INT>(init_size) * 10;
       data = new FP [capacity];
     }
