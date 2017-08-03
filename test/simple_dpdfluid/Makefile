@@ -12,10 +12,10 @@ WARNINGS = -Wall -Wnon-virtual-dtor -Woverloaded-virtual -Wunused-variable
 DEBUG = -O0 -g -DDEBUG
 
 ifeq ($(CXX),icpc)
-RELEASE = -O3 -ipo -no-prec-div -xHOST
+RELEASE = -O3 -ipo -no-prec-div -xHOST -g
 endif
 ifeq ($(CXX),g++)
-RELEASE = -O3 
+RELEASE = -O3 -g
 endif
 
 STDCPP11 = -std=c++11
@@ -28,7 +28,7 @@ CFLAGS += $(WARNINGS)
 CFLAGS += $(STDCPP11)
 CFLAGS += -DPAIRWISE_DPD
 
-INCLUDE = -I../../FDPS/src -I../../
+INCLUDE = -isystem ../../FDPS/src -I../../include
 
 TARGET = groot_warren.out groot_warren_omp.out
 
