@@ -1,7 +1,8 @@
 box_leng 16.0 16.0 16.0
 init_amp_num 3072
+sol_num 0
 dt 0.001
-cf_r 3.0 3.0 3.0
+cf_r 3.0 3.0 3.0 3.0 3.0 3.0
 cf_s 0.0
 cf_b 0.0
 rc 1.0
@@ -11,3 +12,11 @@ rho_co 20.0
 all_time 1000000
 step_mac 1
 step_mic 10000
+p_thresld -0.1
+eps 0.2
+max_amp_num 88000
+core_amp_id 0
+influ_vol 162
+influ_hei 0.8
+influ_dep 4.0
+upside_rad 3.9
