@@ -106,7 +106,7 @@ def submit_template(scheduler, script, prog_name, prog_arg):
     elif scheduler == "pbs":
         return "%s -sargs \"%s %s\" %s\n" % (cmd, prog_name, prog_arg, script)
     else:
-        return "%s %s %s %s\n" % (cmd, script, prog_name, prog_arg)
+        return "%s %s %s %s &\n" % (cmd, script, prog_name, prog_arg)
 
 def gen_submit_script(prog_name, prog_args, scheduler, run_script, submit_script):
     if prog_name[0:2] != './':
