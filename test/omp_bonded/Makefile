@@ -27,7 +27,7 @@ CFLAGS = $(RELEASE)
 CFLAGS += $(WARNINGS)
 CFLAGS += $(STDCPP11)
 
-INCLUDE = -I../../FDPS/src -I../../
+INCLUDE = -isystem ../../FDPS/src -I../../include
 
 TARGET = btest.out btest_omp.out
 

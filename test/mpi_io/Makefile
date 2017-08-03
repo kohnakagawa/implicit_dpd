@@ -16,7 +16,7 @@ CFLAGS += $(STDCPP11)
 CFLAGS += -DPAIRWISE_DPD
 CFLAGS += -DPARTICLE_SIMULATOR_MPI_PARALLEL
 
-INCLUDE = -I../../FDPS/src -I../../
+INCLUDE = -I../../FDPS/src -I../../include
 
 TARGET = io_test_mpi.out
 

@@ -16,8 +16,8 @@ CUDA_HOME = /usr/local/cuda
 
 LIBRARY = -L$(CUDA_HOME)/lib64 -lcudart
 
-INCLUDE = -I../../FDPS/src -I../../
-INCLUDE += -I$(CUDA_HOME)/include/ -I$(CUDA_HOME)/samples/common/inc/ -Xcompiler "-std=c++11 -O3"
+INCLUDE = -isystem ../../FDPS/src -I../../include
+INCLUDE += -I$(CUDA_HOME)/include/ -I$(CUDA_HOME)/samples/common/inc/ -Xcompiler "-O3"
 
 TARGET = near_list.out
 

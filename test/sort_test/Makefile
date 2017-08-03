@@ -17,7 +17,7 @@ ifeq ($(CXX),icpc)
 RELEASE = -O3 -ipo -no-prec-div -xHOST
 endif
 ifeq ($(CXX),g++)
-RELEASE = -O3 
+RELEASE = -O3
 endif
 
 STDCPP11 = -std=c++11

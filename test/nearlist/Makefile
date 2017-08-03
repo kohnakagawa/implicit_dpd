@@ -15,7 +15,7 @@ ifeq ($(CXX),icpc)
 RELEASE = -O3 -ipo -no-prec-div -xHOST
 endif
 ifeq ($(CXX),g++)
-RELEASE = -O3 
+RELEASE = -O3
 endif
 
 STDCPP11 = -std=c++11
@@ -28,7 +28,7 @@ CFLAGS += $(WARNINGS)
 CFLAGS += $(STDCPP11)
 CFLAGS += -DPAIRWISE_DPD
 
-INCLUDE = -I../../FDPS/src -I../../src
+INCLUDE = -isystem ../../FDPS/src -I../../include
 
 TARGET = near_list.out near_list_omp.out
 

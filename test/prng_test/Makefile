@@ -16,7 +16,7 @@ ifeq ($(CXX),icpc)
 RELEASE = -O3 -ipo -no-prec-div -xHOST
 endif
 ifeq ($(CXX),g++)
-RELEASE = -O3 
+RELEASE = -O3
 endif
 
 STDCPP11 = -std=c++11
@@ -31,7 +31,7 @@ CFLAGS += $(STDCPP11)
 CFLAGS += -DPAIRWISE_DPD
 
 CUDA_HOME = /usr/local/cuda
-INCLUDE = -I../../FDPS/src -I../../ -I$(CUDA_HOME)/include/ -I$(CUDA_HOME)/samples/common/inc/
+INCLUDE = -isystem ../../FDPS/src -I../../include -I$(CUDA_HOME)/include/ -I$(CUDA_HOME)/samples/common/inc/
 
 OBJECTS = prng_test.o
 

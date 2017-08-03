@@ -10,6 +10,11 @@
 #error "MPI is not supported yet!"
 #endif
 
+constexpr char Parameter::atom_type[21];
+PS::F64vec Parameter::box_leng, Parameter::ibox_leng;
+PS::U32 Parameter::time;
+PS::U32 Parameter::all_time, Parameter::step_mic, Parameter::step_mac;
+
 static_assert(Parameter::Reo == 3.5, "Reo should be 3.5.");
 static_assert(Parameter::arc == 0.9, "arc should be 0.9.");
 
@@ -162,7 +167,7 @@ int main(int argc, char *argv[]) {
   CHECK_VAL(system, F_CALC_NB);
 
   PS::F64vec bonded_vir(0.0, 0.0, 0.0);
-  ForceBonded<PS::ParticleSystem<FPDPD> > fbonded(system, Parameter::all_unit * param.init_amp_num);
+  ForceBonded<PS::ParticleSystem<FPDPD> > fbonded(system, Parameter::all_unit * param.init_amp_num, param.init_amp_num, param.core_amp_id());
   fbonded.CalcListedForceWithCheck(system, bonded_vir);
   CHECK_VAL(system, F_CALC_BO);
 
@@ -210,7 +215,7 @@ int main(int argc, char *argv[]) {
   observer.FinConfig(system);
   
   observer.CleanUp();
-  param.DumpAllParam();
+  param.DebugDumpAllParam();
   
   const PS::S32 beg_time = std::atoi(argv[2]);
   calc_mean_pressure(cdir, beg_time, param.box_leng, param.init_amp_num * param.ibox_leng.x * param.ibox_leng.y * 0.5);
