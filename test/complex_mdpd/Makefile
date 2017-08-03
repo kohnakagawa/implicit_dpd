@@ -1,5 +1,5 @@
-#CXX = g++
-CXX = icpc
+CXX = g++
+# CXX = icpc
 
 ifeq ($(CXX),icpc)
 OPENMP = -openmp -DPARTICLE_SIMULATOR_THREAD_PARALLEL
@@ -12,10 +12,10 @@ WARNINGS = -Wall -Wnon-virtual-dtor -Woverloaded-virtual -Wunused-variable
 DEBUG = -O0 -g -DDEBUG
 
 ifeq ($(CXX),icpc)
-RELEASE = -O3 -ipo -no-prec-div -xHOST
+RELEASE = -O3 -ipo -no-prec-div -xHOST -g
 endif
 ifeq ($(CXX),g++)
-RELEASE = -O3 
+RELEASE = -O3 -g
 endif
 
 STDCPP11 = -std=c++11
@@ -27,7 +27,7 @@ CFLAGS = $(RELEASE)
 CFLAGS += $(WARNINGS)
 CFLAGS += $(STDCPP11)
 
-INCLUDE = -I../../FDPS/src -I../../
+INCLUDE = -isystem ../../FDPS/src -I../../include
 
 TARGET = complex_mdpd.out complex_mdpd_omp.out
 
