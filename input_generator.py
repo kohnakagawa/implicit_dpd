@@ -257,9 +257,22 @@ def gen_initconfig(confmaker_path, dir_names):
         print "You should specify confmaker_path manually."
         return
 
+    is_first   = True
+    be_written = True
     for d in dir_names:
-        cmd = [confmaker, d]
-        subprocess.call(cmd)
+        config = os.path.join(d, "init_config.xyz")
+        if os.path.exists(config) and is_first:
+            is_first   = False
+            be_written = False
+            print "init_config.xyz exits at %s" % d
+            print "Do you overwrite this file [y/N]?"
+            y_or_n = raw_input()
+            if y_or_n == "y":
+                be_written = True
+
+        if be_written:
+            cmd = [confmaker, d]
+            subprocess.call(cmd)
 
 def main(argv):
     if len(argv) != 4:
