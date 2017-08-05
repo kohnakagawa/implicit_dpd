@@ -28,7 +28,7 @@ struct CalcDensity {
         const PS::F64vec drij = ri - epj[j].pos;
         const PS::F64 dr2     = drij * drij;
 
-        if (dr2 < Parameter::rn_c2) {
+        if (dr2 < Parameter::rn_c2 && dr2 != 0.0) {
           // calc cmpos of hyphob
           if (propj == Parameter::Hyphob) {
             hypb_pos_sum += epj[j].pos;
