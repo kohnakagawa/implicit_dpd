@@ -17,8 +17,10 @@ calc.pressure <- function(pxyz, begin) {
 }
 
 observe.beg <- 30000
-print(calc.pressure(load.pressure("./mol_dens20.0"), observe.beg))
-print(calc.pressure(load.pressure("./mol_dens30.0"), observe.beg))
-print(calc.pressure(load.pressure("./mol_dens40.0"), observe.beg))
-print(calc.pressure(load.pressure("./mol_dens50.0"), observe.beg))
-print(calc.pressure(load.pressure("./mol_dens60.0"), observe.beg))
+print(calc.pressure(load.pressure("./exclude_myself/mol_dens20.0"), observe.beg))
+print(calc.pressure(load.pressure("./exclude_myself/mol_dens30.0"), observe.beg))
+print(calc.pressure(load.pressure("./exclude_myself/mol_dens35.0"), observe.beg))
+print(calc.pressure(load.pressure("./exclude_myself/mol_dens40.0"), observe.beg))
+print(calc.pressure(load.pressure("./exclude_myself/mol_dens45.0"), observe.beg))
+print(calc.pressure(load.pressure("./exclude_myself/mol_dens50.0"), observe.beg))
+print(calc.pressure(load.pressure("./exclude_myself/mol_dens60.0"), observe.beg))
