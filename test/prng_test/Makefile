@@ -16,7 +16,7 @@ ifeq ($(CXX),icpc)
 RELEASE = -O3 -ipo -no-prec-div -xHOST
 endif
 ifeq ($(CXX),g++)
-RELEASE = -O3
+RELEASE = -O3 -march=native
 endif
 
 STDCPP11 = -std=c++11
@@ -35,17 +35,17 @@ INCLUDE = -isystem ../../FDPS/src -I../../include -I$(CUDA_HOME)/include/ -I$(CU
 
 OBJECTS = prng_test.o
 
-TARGET = prng_test.out
+TARGET = prng_test.out saru_simd.out
 
-all:$(TARGET) cuda_prng.out
+all:$(TARGET)
 
 .SUFFIXES:
 .SUFFIXES: .cpp .o
-.cpp.o:
-	$(CXX) $(CFLAGS) $(INCLUDE) -c $< $(LIBRARY) -o $@
+prng_test.out: prng_test.cpp
+	$(CXX) $(CFLAGS) $(INCLUDE) $< $(LIBRARY) -o $@
 
-$(TARGET): $(OBJECTS)
-	$(CXX) $(CFLAGS) $(OBJECTS) $(LIBRARY) -o $@
+saru_simd.out: saru_simd.cpp
+	$(CXX) $(CFLAGS) $(INCLUDE) $< $(LIBRARY) -o $@
 
 cuda_prng.out: prng_test.cu
 	$(NVCC) -O3 -std=c++11 -arch=sm_35 $(INCLUDE) $< -o $@
