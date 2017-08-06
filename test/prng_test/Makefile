@@ -35,16 +35,13 @@ INCLUDE = -isystem ../../FDPS/src -I../../include -I$(CUDA_HOME)/include/ -I$(CU
 
 OBJECTS = prng_test.o
 
-TARGET = prng_test.out saru_simd.out
+TARGET = prng_test.out
 
 all:$(TARGET)
 
 .SUFFIXES:
 .SUFFIXES: .cpp .o
 prng_test.out: prng_test.cpp
-	$(CXX) $(CFLAGS) $(INCLUDE) $< $(LIBRARY) -o $@
-
-saru_simd.out: saru_simd.cpp
 	$(CXX) $(CFLAGS) $(INCLUDE) $< $(LIBRARY) -o $@
 
 cuda_prng.out: prng_test.cu
