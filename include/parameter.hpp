@@ -181,10 +181,10 @@ class Parameter {
 
 public:
   static constexpr PS::F64 Tempera    = 1.0;
-  static constexpr PS::U32 head_unit	= 4;
-  static constexpr PS::U32 tail_unit	= 12;
+  static constexpr PS::U32 head_unit	= 1;
+  static constexpr PS::U32 tail_unit	= 3;
   static constexpr PS::U32 all_unit   = head_unit + tail_unit;
-  static constexpr PS::F64 bond_leng	= 0.0;
+  static constexpr PS::F64 bond_leng	= 0.5;
   static constexpr PS::F64 ibond      = (bond_leng != 0.0) ? 1.0 / bond_leng : 0.0;
 #ifndef PARTICLE_SIMULATOR_MPI_PARALLEL
   static constexpr PS::F64 search_rad = 1.2;
@@ -192,11 +192,11 @@ public:
   static constexpr PS::F64 search_rad = 1.7;
 #endif
   static constexpr PS::F64 arc        = 0.9;
-  static constexpr PS::F64 Reo        = 3.5;
+  static constexpr PS::F64 Reo        = 1.4;
   static constexpr PS::U32 decom_freq = 16;
   static constexpr PS::F64 rn_c       = 1.2; // used for calculate bilayer normal vector
   static constexpr PS::F64 rn_c2      = rn_c * rn_c;
-  static constexpr PS::F64 cf_b_rigid = 5.0;
+  static constexpr PS::F64 cf_b_rigid = 40.0;
 
   static constexpr char atom_type[21] {
     'O', 'N', 'C', 'S', 'P', 'Z', 'X', 'O', 'N', 'C', 'S', 'P', 'Z', 'X', 'O', 'N', 'C', 'S', 'P', 'Z', 'X'
