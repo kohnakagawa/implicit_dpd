@@ -42,9 +42,9 @@ class TrjAnalysisLocStress : public TrjAnalysis<FPDPD, Particle> {
 	const auto propj = ptcls_[j].prop;
 	const auto drji = rj - ri;
 	const auto dr2 = drji * drji;
-	if (dr2 < Parameter::rc2) {
+	if (dr2 < 1.0) {
 	  const auto dr = std::sqrt(dr2);
-	  d_sum[propj] += (Parameter::rc - dr) * (Parameter::rc - dr);
+	  d_sum[propj] += (1.0 - dr) * (1.0 - dr);
 	}
       }
       
@@ -75,7 +75,7 @@ class TrjAnalysisLocStress : public TrjAnalysis<FPDPD, Particle> {
 	const auto idj = ptcls_[j].id;
 	const auto drji = rj - ri;
 	const auto dr2 = drji * drji;
-	if (dr2 < Parameter::rc2) {
+	if (dr2 < 1.0) {
 	  const auto dvji = ptcls_[j].v - vi;
 
 	  for (int k = 0; k < 3; k++) atoms_pos[1][k] = rj[k];
@@ -96,9 +96,9 @@ class TrjAnalysisLocStress : public TrjAnalysis<FPDPD, Particle> {
 	  const auto dr = std::sqrt(dr2);
 	  const auto inv_dr = 1.0 / dr;
 	  const auto propj = ptcls_[j].prop;
-	  const auto one_m_dr = 1.0 - dr * Parameter::irc;
+	  const auto one_m_dr = 1.0 - dr;
 	  
-	  const auto cf_co  = Parameter::cf_c[propi][propj] * (dr - Parameter::arc) * (dr - Parameter::rc) * (dr >= Parameter::arc);
+	  const auto cf_co  = Parameter::cf_c[propi][propj] * (dr - Parameter::arc) * (dr - 1.0) * (dr >= Parameter::arc);
 	  double cf_mbd = 0.0;
 	  for (PS::S32 k = 0; k < Parameter::prop_num; k++)
 	    cf_mbd += densij[k] * Parameter::cf_m[propi][propj][k];

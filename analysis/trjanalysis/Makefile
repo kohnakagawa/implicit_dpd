@@ -6,7 +6,7 @@ DEBUG = -O0 -g -DDEBUG
 RELEASE = -O3 -DEIGEN_NO_DEBUG
 STDCPP11 = -std=c++11
 
-INCLUDE = -I../../FDPS/src -I../../src
+INCLUDE = -I../../FDPS/src -I../../include
 
 ifeq ($(CXX), icpc)
 LIBRARY = -L./mdstresslib/build -lmdstress -lmkl_intel_lp64 -lmkl_sequential -lmkl_core -lpthread
