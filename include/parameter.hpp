@@ -85,6 +85,11 @@ class Parameter {
     Matching(&cf_s, std::string("cf_s"), tag_val, 1);
     Matching(&cf_b, std::string("cf_b"), tag_val, 1);
 
+    if (tag_val.find("vbb") != tag_val.end()) {
+      std::cerr << "vbb is specified.\n";
+      Matching(&vbb, std::string("vbb"), tag_val, 1);
+    }
+
     Matching(&chi, std::string("chi"), tag_val, 1);
     Matching(&kappa, std::string("kappa"), tag_val, 1);
     Matching(&rho_co, std::string("rho_co"), tag_val, 1);
@@ -131,7 +136,7 @@ class Parameter {
 
   void CalcInterCoef() {
     cf_c[Hyphob][Hyphob] = -2.0 * (kappa + 3.0) / rho_co;
-    cf_c[Hyphil][Hyphil] = cf_c[Solvent][Solvent] = 0.1;
+    cf_c[Hyphil][Hyphil] = cf_c[Solvent][Solvent] = vbb;
     cf_c[Hyphil][Hyphob] = cf_c[Hyphob][Hyphil] = chi / (rho_co) + 0.5 * (cf_c[Hyphil][Hyphil] + cf_c[Hyphob][Hyphob]);
     cf_c[Solvent][Hyphob] = cf_c[Hyphob][Solvent] = cf_c[Hyphil][Hyphob];
     cf_c[Solvent][Hyphil] = cf_c[Hyphil][Solvent] = cf_c[Hyphil][Hyphil];
@@ -217,6 +222,7 @@ public:
   static PS::F64 cf_m[prop_num][prop_num][prop_num];
   static PS::F64 cf_s;
   static PS::F64 cf_b;
+  PS::F64 vbb = 0.1;
 
   //region info
   static PS::F64vec box_leng, ibox_leng;
@@ -225,8 +231,8 @@ public:
   PS::F64 dt = std::numeric_limits<PS::F64>::signaling_NaN();
 
   //macroscopic val
-  PS::F64 chi = std::numeric_limits<PS::F64>::signaling_NaN();
-  PS::F64 kappa = std::numeric_limits<PS::F64>::signaling_NaN();
+  PS::F64 chi    = std::numeric_limits<PS::F64>::signaling_NaN();
+  PS::F64 kappa  = std::numeric_limits<PS::F64>::signaling_NaN();
   PS::F64 rho_co = std::numeric_limits<PS::F64>::signaling_NaN();
 
   //for chemical reaction
@@ -545,6 +551,8 @@ public:
     DUMPTAGANDVAL(search_rad);
     DUMPTAGANDVAL(arc);
     DUMPTAGANDVAL(Reo);
+
+    DUMPTAGANDVAL(vbb);
 
     DUMPTAGANDVAL(prop_num);
 
