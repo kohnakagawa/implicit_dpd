@@ -25,6 +25,7 @@ def run_input_base():
         "cf_r"         : [3.0, 3.0, 3.0, 3.0, 3.0, 3.0],
         "cf_s"         : 19.0,
         "cf_b"         : 5.0,
+        "vbb"          : 0.1,
         "chi"          : 30.0,
         "kappa"        : 100.0,
         "rho_co"       : 40.0,
@@ -114,11 +115,13 @@ def gen_submit_script(prog_name, prog_args, scheduler, run_script, submit_script
 
     with open(submit_script, "w") as f:
         f.write("#!/bin/sh\n")
+        if scheduler != "pbs_bulk":
+            for prog_arg in prog_args:
+                f.write(submit_template(scheduler, run_script, prog_name, prog_arg))
+        else:
+            f.write("qsub %s\n" % run_script)
 
-        for prog_arg in prog_args:
-            f.write(submit_template(scheduler, run_script, prog_name, prog_arg))
-
-def gen_run_script(scheduler, nprocs, nthreads, nnodes, qname, run_script):
+def gen_run_script(scheduler, nprocs, nthreads, nnodes, qname, run_script, joblist_file):
     with open(run_script, "w") as f:
         f.write("#!/bin/sh\n")
 
@@ -134,6 +137,14 @@ def gen_run_script(scheduler, nprocs, nthreads, nnodes, qname, run_script):
             jobname = "Test"
             options = pbs_options(walltime, jobname)
             write_pbs_options(options, f)
+        elif scheduler == "pbs_bulk":
+            check_qname(qname, sekirei_qnames())
+            options = qsub_bulk_options(nnodes, qname)
+            write_qsub_options(options, f)
+            walltime = get_walltime_from_queue(qname)
+            jobname = "Bulk"
+            options = pbs_options(walltime, jobname)
+            write_pbs_options(options, f)
         else:
             print "job scheduler is not specified"
 
@@ -145,8 +156,46 @@ def gen_run_script(scheduler, nprocs, nthreads, nnodes, qname, run_script):
 
         if scheduler == "pbs":
             f.write("${SCRIPT_ARGS}\n")
+        elif scheduler == "pbs_bulk":
+            f.write("bulkjob %s\n" % joblist_file)
         else:
             f.write("$@\n")
+
+def get_program_type(nprocs, nthreads):
+    if nprocs != 1 and nthreads != 1:
+        return 'H'
+    elif nprocs == 1:
+        return 'O'
+    elif nthreads == 1:
+        return 'M'
+    else:
+        return 'S'
+
+def get_parallel_procs(prog_type, nprocs, nthreads):
+    if prog_type == 'H':
+        return 'H' + str(nthreads)
+    elif prog_type == 'O':
+        return nthreads
+    elif prog_type == 'M':
+        return nprocs
+    elif prog_type == 'S':
+        return 1
+    else:
+        print "Unknown program type %s\n" % prog_type
+        sys.exit()
+
+def bulkjob_list_template(prog_name, prog_arg, nprocs, nthreads, exec_dir):
+    command_line = "%s %s" % (prog_name, prog_arg)
+    program_type = get_program_type(nprocs, nthreads)
+    parallel_procs = str(get_parallel_procs(program_type, nprocs, nthreads))
+    return ";".join((command_line, parallel_procs, program_type, exec_dir)) + "\n"
+
+def gen_bulkjob_list(prog_name, prog_args, nprocs, nthreads, joblist):
+    with open(joblist, "w") as f:
+        for prog_arg in prog_args:
+            f.write(bulkjob_list_template(prog_name, \
+                                          stringize_value(prog_arg), \
+                                          nprocs, nthreads, "./"))
 
 def check_qname(name, qname_sets):
     if not name in qname_sets:
@@ -173,6 +222,12 @@ def qsub_options(nprocs, nthreads, nnodes, queue):
         "-omp"   : nthreads,
         "-place" : "distribute",
         "-over"  : "false",
+    }
+
+def qsub_bulk_options(nnodes, queue):
+    return {
+        "-queue" : queue,
+        "-node"  : nnodes,
     }
 
 def pbs_options(walltime, jobname):
@@ -215,39 +270,63 @@ def write_qsub_options(options, f_hand):
 def write_pbs_options(options, f_hand):
     return write_jobscheduler_options(options, f_hand, "#PBS")
 
+def omp_mpi_node_info():
+    return {
+        "nprocs"   : 1,
+        "nthreads" : 4,
+        "nnodes"   : 1,
+    }
+
 def gen_scripts(root_dir, dir_names, prog_name):
     run_script    = os.path.join(root_dir, "run.sh")
     submit_script = os.path.join(root_dir, "submit.sh")
+    joblist_file  = os.path.join(root_dir, "joblist.txt")
 
     # for nox00
     # scheduler = "slurm"
     # qname     = "hwq"
 
-    # for sekirei
-    scheduler = "pbs"
-    qname     = "F18acc"
+    # for sekirei no bulk job
+    # scheduler = "pbs"
+    # qname     = "F18acc"
+
+    # for sekirei bulk job
+    scheduler = "pbs_bulk"
+    qname     = "F36cpu"
 
     # other
     # scheduler = None
     # qname     = None
 
+    # program arguments
     observe_beg_time = 100000
     prog_args = [[d, observe_beg_time] for d in dir_names]
+
+    # omp mpi node info
+    run_info = omp_mpi_node_info()
 
     gen_submit_script(prog_name = prog_name,        \
                       prog_args = prog_args,        \
                       scheduler = scheduler,        \
                       run_script = run_script,      \
                       submit_script = submit_script)
-    gen_run_script(scheduler = scheduler,  \
-                   nprocs    = 1,          \
-                   nthreads  = 4,          \
-                   nnodes    = 1,          \
-                   qname     = qname,      \
-                   run_script = run_script)
+    gen_run_script(scheduler = scheduler,            \
+                   nprocs    = run_info["nprocs"],   \
+                   nthreads  = run_info["nthreads"], \
+                   nnodes    = run_info["nnodes"],   \
+                   qname     = qname,                \
+                   run_script = run_script,          \
+                   joblist_file = joblist_file)
+    if scheduler == "pbs_bulk":
+        gen_bulkjob_list(prog_name = prog_name,           \
+                         prog_args = prog_args,           \
+                         nprocs = run_info["nprocs"],     \
+                         nthreads = run_info["nthreads"], \
+                         joblist = joblist_file)
 
     os.chmod(run_script, 0775)
     os.chmod(submit_script, 0775)
+    os.chmod(joblist_file, 0775)
 
 def gen_initconfig(confmaker_path, dir_names):
     confmaker = os.path.join(confmaker_path, "config_maker.out")
