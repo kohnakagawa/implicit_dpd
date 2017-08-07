@@ -13,7 +13,7 @@ calc.pressure <- function(pxyz, begin) {
   py <- mean(slice(pxyz[,2], begin))
   pz <- mean(slice(pxyz[,3], begin))
   p.tot <- mean(slice((pxyz[,1] + pxyz[,2] + pxyz[,3]) / 3.0, begin))
-  return (c(px, py, pz, p.tot))
+  return (c(px, py, pz, p.tot, (pz - (px + py) * 0.5)))
 }
 
 observe.beg <- 30000
