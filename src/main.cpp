@@ -41,7 +41,6 @@ PS::U32 Parameter::all_time, Parameter::step_mic, Parameter::step_mac;
 
 static_assert(Parameter::head_unit == 1, "head_unit should be 1.");
 static_assert(Parameter::tail_unit == 3, "tail_unit should be 3.");
-static_assert(Parameter::bond_leng != 0.0, "bond_leng should be not 0.0.");
 static_assert(Parameter::Reo < 3.0, "Reo should be less than 3.0.");
 
 namespace {
@@ -85,6 +84,10 @@ namespace {
 
 int main(int argc, char *argv[]) {
   PS::Initialize(argc, argv);
+  if (argc != 2) {
+    std::cerr << "argv[1] = target directory.\n";
+    PS::Abort();
+  }
 
   timer_start();
 #ifdef ENABLE_GPU_CUDA
