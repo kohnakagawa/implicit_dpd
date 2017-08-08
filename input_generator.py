@@ -326,7 +326,8 @@ def gen_scripts(root_dir, dir_names, prog_name):
 
     os.chmod(run_script, 0775)
     os.chmod(submit_script, 0775)
-    os.chmod(joblist_file, 0775)
+    if scheduler == "pbs_bulk":
+        os.chmod(joblist_file, 0775)
 
 def gen_initconfig(confmaker_path, dir_names):
     confmaker = os.path.join(confmaker_path, "config_maker.out")
