@@ -84,6 +84,7 @@ class Parameter {
 
     Matching(&cf_s, std::string("cf_s"), tag_val, 1);
     Matching(&cf_b, std::string("cf_b"), tag_val, 1);
+    Matching(&cf_b_rigid, std::string("cf_b_rigid"), tag_val, 1);
 
     if (tag_val.find("vbb") != tag_val.end()) {
       std::cerr << "vbb is specified.\n";
@@ -201,7 +202,6 @@ public:
   static constexpr PS::U32 decom_freq = 16;
   static constexpr PS::F64 rn_c       = 1.2; // used for calculate bilayer normal vector
   static constexpr PS::F64 rn_c2      = rn_c * rn_c;
-  static constexpr PS::F64 cf_b_rigid = 40.0;
 
   static constexpr char atom_type[21] {
     'O', 'N', 'C', 'S', 'P', 'Z', 'X', 'O', 'N', 'C', 'S', 'P', 'Z', 'X', 'O', 'N', 'C', 'S', 'P', 'Z', 'X'
@@ -222,6 +222,8 @@ public:
   static PS::F64 cf_m[prop_num][prop_num][prop_num];
   static PS::F64 cf_s;
   static PS::F64 cf_b;
+  static PS::F64 cf_b_rigid;
+
   PS::F64 vbb = 0.1;
 
   //region info
@@ -285,7 +287,7 @@ public:
         for (PS::S32 k = 0; k < prop_num; k++)
           cf_m[i][j][k] = std::numeric_limits<PS::F64>::signaling_NaN();
 
-    cf_s = cf_b = std::numeric_limits<PS::F64>::signaling_NaN();
+    cf_s = cf_b = cf_b_rigid = std::numeric_limits<PS::F64>::signaling_NaN();
 
     box_leng.x	= box_leng.y = box_leng.z = std::numeric_limits<PS::F64>::signaling_NaN();
     ibox_leng.x = ibox_leng.y = ibox_leng.z = std::numeric_limits<PS::F64>::signaling_NaN();
@@ -494,6 +496,7 @@ public:
 
     assert(std::isfinite(cf_s));
     assert(std::isfinite(cf_b));
+    assert(std::isfinite(cf_b_rigid));
 
     assert(std::isfinite(box_leng.x));
     assert(std::isfinite(box_leng.y));
@@ -644,8 +647,9 @@ public:
     PS::Comm::broadcast(&(cf_g[0][0]), num_two_body, 0);
     PS::Comm::broadcast(&(cf_r[0][0]), num_two_body, 0);
     PS::Comm::broadcast(&(cf_m[0][0][0]), num_thre_body, 0);
-    PS::Comm::broadcast(&cf_s, Parameter::prop_num, 0);
-    PS::Comm::broadcast(&cf_b, Parameter::prop_num, 0);
+    PS::Comm::broadcast(&cf_s, 1, 0);
+    PS::Comm::broadcast(&cf_b, 1, 0);
+    PS::Comm::broadcast(&cf_b_rigid, 1, 0);
 
     PS::Comm::broadcast(&box_leng, 1, 0);
     PS::Comm::broadcast(&ibox_leng, 1, 0);

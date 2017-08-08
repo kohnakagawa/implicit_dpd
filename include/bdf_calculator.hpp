@@ -6,6 +6,7 @@
 
 PS::F64 Parameter::cf_s;
 PS::F64 Parameter::cf_b;
+PS::F64 Parameter::cf_b_rigid;
 
 template<class Tpsys>
 struct ForceBonded {
