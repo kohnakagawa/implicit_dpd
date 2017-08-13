@@ -186,6 +186,8 @@ def get_parallel_procs(prog_type, nprocs, nthreads):
         sys.exit()
 
 def bulkjob_list_template(prog_name, prog_arg, nprocs, nthreads, exec_dir):
+    prog_name = os.path.abspath(prog_name)
+    exec_dir  = os.path.abspath(exec_dir)
     command_line = "%s %s" % (prog_name, prog_arg)
     program_type = get_program_type(nprocs, nthreads)
     parallel_procs = str(get_parallel_procs(program_type, nprocs, nthreads))
