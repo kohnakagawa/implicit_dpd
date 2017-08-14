@@ -241,6 +241,8 @@ int main(int argc, char *argv[]) {
 
     kick(system, param.dt);
 
+    if (Parameter::time % Parameter::cm_corr == 0) remove_cmdrift_global(system);
+
 #ifdef CHEM_MODE
     if (Parameter::time >= Parameter::beg_chem) {
 #ifdef PARTICLE_SIMULATOR_MPI_PARALLEL

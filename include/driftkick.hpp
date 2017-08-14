@@ -34,7 +34,21 @@ void kick(Tpsys& sys,
 	  const PS::F64 dt)
 {
   PS::S32 n = sys.getNumberOfParticleLocal();
-  for(PS::S32 i = 0; i < n; i++)
+  for (PS::S32 i = 0; i < n; i++) {
     sys[i].vel = sys[i].vel_buf + dt * 0.5 * sys[i].acc;
+  }
 }
 
+template <class Tpsys>
+void remove_cmdrift_global(Tpsys& sys) {
+  PS::F64vec vel_sum_loc(0.0, 0.0, 0.0);
+  const PS::S32 n_loc = sys.getNumberOfParticleLocal();
+  for (PS::S32 i = 0; i < n_loc; i++) {
+    vel_sum_loc += sys[i].vel;
+  }
+  const PS::S32 n = sys.getNumberOfParticleGlobal();
+  const PS::F64vec vel_sum = PS::Comm::getSum(vel_sum_loc) / PS::F64(n);
+  for (PS::S32 i = 0; i < n_loc; i++) {
+    sys[i].vel -= vel_sum;
+  }
+}

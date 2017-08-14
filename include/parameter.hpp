@@ -200,6 +200,7 @@ public:
   static constexpr PS::F64 arc        = 0.9;
   static constexpr PS::F64 Reo        = 1.4;
   static constexpr PS::U32 decom_freq = 16;
+  static constexpr PS::U32 cm_corr    = 100;
   static constexpr PS::F64 rn_c       = 1.2; // used for calculate bilayer normal vector
   static constexpr PS::F64 rn_c2      = rn_c * rn_c;
 
@@ -386,7 +387,7 @@ public:
   }
 
   template<class Tpsys>
-  void RemoveCMDrift(Tpsys& sys) const {
+  void RemoveCMDriftLocal(Tpsys& sys) const {
     PS::F64vec cmvel(0.0, 0.0, 0.0);
     const PS::S32 num = sys.getNumberOfParticleLocal();
     for (PS::S32 i = 0; i < num; i++)
@@ -427,7 +428,7 @@ public:
       PS::Abort();
     }
     fclose(fp);
-    RemoveCMDrift(sys);
+    RemoveCMDriftLocal(sys);
     AdjustCMToBoxCenter(sys);
     return cur_time;
   }

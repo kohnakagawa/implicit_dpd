@@ -91,6 +91,7 @@ namespace io_util {
 
 #define CHECK_READED(func) assert(0 != func)
 
+  // NOTE: Only one process can call this function.
   template<class FP>
   inline void ReadXYZForm(FP* ptcl,
                           PS::U32& num,
@@ -127,9 +128,10 @@ namespace io_util {
     }
   }
 
+  // NOTE: Only one process can call this function.
   template<class FP>
   inline void ReadXYZForm(PS::ParticleSystem<FP>& sys, PS::U32& num, PS::U32& cur_time, FILE* fp) {
-    PS::U32 max_buf = PS::U32(sys.getNumberOfParticleGlobal());
+    PS::U32 max_buf = PS::U32(sys.getNumberOfParticleLocal());
     ReadXYZForm(&sys[0], num, cur_time, fp, max_buf);
   }
 };
