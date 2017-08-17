@@ -9,20 +9,20 @@
 #include "user_defs.h"
 #include "parameter.hpp"
 
-#define FILE_OPEN_WITH_CHECK(f, fname)				\
-  do {								\
-    f.open(fname.c_str());					\
-    if (f.fail()) {						\
-      std::cerr << "Cannot open file: " << fname << ".\n";	\
+#define FILE_OPEN_WITH_CHECK(f, fname)                        \
+  do {                                                        \
+    f.open(fname.c_str());                                    \
+    if (f.fail()) {                                           \
+      std::cerr << "Cannot open file: " << fname << ".\n";    \
       std::cerr << __FILE__ << " " << __LINE__ << std::endl;	\
-      std::exit(1);						\
-    }								\
+      std::exit(1);                                           \
+    }                                                         \
   } while(false)
 
 template<class PtclOrg, class Ptcl>
 class TrjAnalysis {
 protected:
-  std::ifstream fin_trj, fin_run;  
+  std::ifstream fin_trj, fin_run;
   const std::string cur_dir_;
   std::unique_ptr<PtclConnector<PtclOrg, Ptcl> > ptr_connector;
 
@@ -32,13 +32,13 @@ protected:
   // ptcl data
   std::vector<Ptcl> ptcls_;
   std::vector<PtclOrg> ptcls_org_;
-  
+
   // for neighbor search
   double est_grid_leng_ = 1.0, cutof_leng_ = 1.0;
 
   virtual void DebugDump()  {
     std::ofstream fout_trj("trj.xyz");
-    
+
     fout_trj << ptcls_.size() << std::endl;
     fout_trj << "revised image\n";
     for (const auto& ptcl : ptcls_)
@@ -59,7 +59,7 @@ protected:
     PS::F64 min_x = std::numeric_limits<PS::F64>::max(), max_x = std::numeric_limits<PS::F64>::min();
     PS::F64 min_y = std::numeric_limits<PS::F64>::max(), max_y = std::numeric_limits<PS::F64>::min();
     PS::F64 min_z = std::numeric_limits<PS::F64>::max(), max_z = std::numeric_limits<PS::F64>::min();
-    
+
     for (const auto& ptcl : ptcls_) {
       if (ptcl.r.x < min_x) min_x = ptcl.r.x;
       if (ptcl.r.x > max_x) max_x = ptcl.r.x;
@@ -80,7 +80,7 @@ protected:
   void ChangeCoordOrigin(const PS::F64vec box_org) {
     for (auto& ptcl : ptcls_) ptcl.r -= box_org;
   }
-  
+
 public:
   TrjAnalysis(const std::string cur_dir,
 	      const char* trj_fname,
@@ -90,7 +90,7 @@ public:
     FILE_OPEN_WITH_CHECK(fin_trj, fname_trj);
     FILE_OPEN_WITH_CHECK(fin_run, fname_run);
   }
-  
+
   virtual ~TrjAnalysis() {}
 
   void Initialize() {
@@ -98,7 +98,7 @@ public:
     ptr_parameter->LoadParam();
     ptr_connector.reset(new PtclConnector<PtclOrg, Ptcl>);
   }
-  
+
   void SetSearchRadius(const double gl, const double cl) {
     assert(gl >= cl && "est_grid_leng_ should be greater than cutof_leng.");
     est_grid_leng_ = gl;
@@ -120,7 +120,7 @@ public:
       std::getline(fin_trj, line);
       ptcls_org_[i].readFromString(line.c_str());
     }
-  
+
     // copy to buffer
     ptcls_.clear();
     Ptcl p;
@@ -130,7 +130,7 @@ public:
     }
     return false;
   }
-  
+
   virtual void DoAnalysis() = 0;
 };
 

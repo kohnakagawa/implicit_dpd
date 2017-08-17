@@ -32,17 +32,17 @@ PS::F64vec gen_thermal_vel() {
 		    gen_thermal_vel(T));
 }
 
-#define CHECK_DIM(dim, axis)					\
-  do {								\
-    if (dim == 2) {						\
-      assert(axis < 3);						\
-    } else if (dim == 3) {					\
-      assert(axis == 0xffffffff);				\
-    } else {							\
-      std::cerr << "Please check dimenstion.\n";		\
+#define CHECK_DIM(dim, axis)                                  \
+  do {                                                        \
+    if (dim == 2) {                                           \
+      assert(axis < 3);                                       \
+    } else if (dim == 3) {                                    \
+      assert(axis == 0xffffffff);                             \
+    } else {                                                  \
+      std::cerr << "Please check dimenstion.\n";              \
       std::cerr << __FILE__ << " " << __LINE__ << std::endl;	\
-      std::exit(1);						\
-    }								\
+      std::exit(1);                                           \
+    }                                                         \
   } while(false)
 
 PS::F64vec gen_pos(const PS::F64vec& leng) {
@@ -90,7 +90,7 @@ void add_solvents_sph(std::vector<FP>& ptcls,
 		      const PS::U32 dim,
 		      const PS::U32 axis) {
   CHECK_DIM(dim, axis);
-  
+
   PS::U32 added_num = 0, new_id = ptcls.size();
   while (added_num < num) {
     const PS::F64vec pos = gen_pos(box_leng);
@@ -104,7 +104,7 @@ void add_solvents_sph(std::vector<FP>& ptcls,
     if (is_in ^ (!add_in)) {
       const PS::F64vec vel = gen_thermal_vel();
       append_solvent(ptcls, new_id++, pos, vel);
-      added_num++;      
+      added_num++;
     }
   }
 }
@@ -150,13 +150,13 @@ void guess_bilayer_cent_and_rad(const std::vector<FP>& ptcls,
   // ASSUME: spherical vesicle is located in box center.
   // NOTE: Do not check a connectivity of this vesicle.
   CHECK_DIM(dim, axis);
-  
+
   cent = 0.0;
   for (const auto& ptcl : ptcls) {
     cent += ptcl.pos;
   }
   cent /= ptcls.size();
-  
+
   rad = 0.0;
   for (const auto& ptcl : ptcls) {
     const auto cent2ptcl = ptcl.pos - cent;
@@ -184,7 +184,6 @@ void check_config_is_valid(std::vector<FP>& ptcls, const PS::F64vec& box) {
     Tempera += (ptcl.vel * ptcl.vel) / 3.0;
   }
   Tempera /= ptcls.size();
-  
   std::cerr << "System temperature is " << Tempera << std::endl;
 }
 
@@ -234,7 +233,7 @@ void read_trj(std::vector<FP>& ptcls,
     }
   }
   fclose(fp);
-  
+
   if (time != tar_time) {
     std::cerr << "Error!\n";
     std::cerr << "Tried to find the frame at time = " << tar_time << ".\n";
@@ -251,18 +250,18 @@ void search_near_ptcl_id(std::vector<PS::U32>& near_ids,
 			 const PS::S32 core_ptcl_id) {
   near_ids.reserve(100);
   near_ptcls.reserve(100);
-  
+
   const PS::F64vec tar_pos = ptcls[core_ptcl_id].pos;
   const PS::F64 rad2 = rad * rad;
-  
+
   const PS::S32 ptcl_size = ptcls.size();
-  
+
   for (PS::S32 i = 0; i < ptcl_size; i++) {
     const PS::S32 prop = ptcls[i].prop;
     PS::F64vec core2ptcl = ptcls[i].pos - tar_pos;
     ForceBonded<PS::ParticleSystem<FPDPD> >::MinImage(core2ptcl);
     const PS::F64 core2ptcl_dist2 = core2ptcl * core2ptcl;
-    
+
     if ((core2ptcl_dist2 < rad2) && (prop == Parameter::Hyphil)) {
       near_ids.push_back(ptcls[i].amp_id);
       near_ptcls.push_back(ptcls[i]);
@@ -279,7 +278,7 @@ int main(int argc, char* argv[]) {
   const std::string fname = argv[1];
   const std::string cur_dir = argv[2];
   PS::MT::init_genrand(100);
-  
+
   Parameter param(cur_dir);
   param.Initialize();
   param.LoadParam();
@@ -294,7 +293,7 @@ int main(int argc, char* argv[]) {
     read_config(ptcls, num, time, fname.c_str());
     std::cout << "Successfully load particle data.\n";
   }
-  
+
   if (mode == "solvent") {
     std::string shape;
     std::cout << "Choose membrane shape [flat/sphere/cylind].\n";
@@ -315,32 +314,32 @@ int main(int argc, char* argv[]) {
     }
 
     const PS::F64 est_memb_thick = Parameter::all_unit * Parameter::bond_leng;
-  
+
     if (shape == "flat") {
       std::cerr << "Choose upper side / downer side [up/dw].\n";
       std::string side;
       std::cin >> side;
       const bool b_up = (side == "up");
-    
+
       PS::F64 memb_up = 0.0, memb_dw = 0.0;
       const auto axis = guess_bilayer_axis(ptcls, memb_dw, memb_up,
 					   [](const PS::F64* beg, const PS::F64* end) { return std::min_element(beg, end); });
       std::cerr << "Bilayer normal axis is " << axis_name[axis] << ".\n";
-    
+
       PS::F64vec up_pos = Parameter::box_leng, dw_pos = 0.0;
       if (b_up) {
-	dw_pos[axis] = memb_up;
+        dw_pos[axis] = memb_up;
       } else {
-	up_pos[axis] = memb_dw;
+        up_pos[axis] = memb_dw;
       }
       add_solvents_cuboid(ptcls, up_pos, dw_pos, added_sol_num);
     } else if ((shape == "sphere") || (shape == "cylind")) {
       PS::U32 dim = 3, axis = 0xffffffff;
       if (shape == "cylind") {
-	dim = 2;
-	PS::F64 memb_up = 0.0, memb_dw = 0.0;
-	axis = guess_bilayer_axis(ptcls, memb_dw, memb_up,
-				  [](const PS::F64* beg, const PS::F64* end) { return std::max_element(beg, end);	});
+        dim = 2;
+        PS::F64 memb_up = 0.0, memb_dw = 0.0;
+        axis = guess_bilayer_axis(ptcls, memb_dw, memb_up,
+                                  [](const PS::F64* beg, const PS::F64* end) { return std::max_element(beg, end);	});
       }
       PS::F64 rad = 0.0;
       PS::F64vec cent = 0.0;
@@ -348,30 +347,30 @@ int main(int argc, char* argv[]) {
 
       std::cerr << "Vesicle radius is " << rad << std::endl;
       std::cerr << "Center position is " << cent << std::endl;
-    
+
       std::string side;
       std::cerr << "Choose inside or outside [in/out].\n";
       std::cin >> side;
       const bool b_in = (side == "in");
-    
+
       if (b_in) {
-	rad -= est_memb_thick;
+        rad -= est_memb_thick;
       } else {
-	rad += est_memb_thick;
+        rad += est_memb_thick;
       }
-    
+
       add_solvents_sph(ptcls, cent, rad, added_sol_num, Parameter::box_leng, b_in, dim, axis);
     }
-    
+
     remove_cm_drift(ptcls);
     check_config_is_valid(ptcls, Parameter::box_leng);
-  
+
     const std::string out_fname = cur_dir + "/rev_config.xyz";
     FILE* fp = io_util::xfopen(out_fname.c_str(), "w");
     io_util::WriteXYZForm(&(ptcls[0]), ptcls.size(), time, fp);
     fclose(fp);
     fp = nullptr;
-  
+
     std::cout << "revised configuration is generaged at " << out_fname << std::endl;
   } else if (mode == "search") {
     PS::S32 core_ptcl_id = -1;
@@ -380,17 +379,17 @@ int main(int argc, char* argv[]) {
     CHECK_GE(core_ptcl_id, 0);
     CHECK_LT(core_ptcl_id, static_cast<int>(ptcls.size()));
     CHECK_EQ(core_ptcl_id % Parameter::all_unit, 0);
-    
+
     PS::F64 s_rad = 0.0;
     std::cout << "Now search particle ids which are located near id " << core_ptcl_id << ".\n";
     std::cout << "Search radius ?\n";
     std::cin >> s_rad;
     CHECK_GT(s_rad, 0.0);
-    
+
     std::vector<PS::U32> near_ids;
     std::vector<FPDPD> near_ptcls;
     search_near_ptcl_id(near_ids, near_ptcls, ptcls, s_rad, core_ptcl_id);
-    
+
     std::cout << "Detected # of near particle ids is " << near_ids.size() << std::endl << std::endl;;
     const std::string fname_conf = cur_dir + "/ptcl_ids_near_core.xyz";
     const std::string fname_ids  = cur_dir + "/nearid_lists.txt";
@@ -402,7 +401,7 @@ int main(int argc, char* argv[]) {
     std::ofstream fout(fname_ids.c_str());
     for (PS::U32 i = 0; i < near_ids.size(); i++) fout << near_ids[i] << " ";
     fout << std::endl;
-    
+
     std::cout << "The configuration of these particles are written in " << fname_conf << std::endl;
     std::cout << "Particle ids near core amphiphile are written in " << fname_ids << std::endl << std::endl;;
   } else if (mode == "trjextract") {
@@ -422,12 +421,12 @@ int main(int argc, char* argv[]) {
 
   } else if (mode == "extractcore") {
     const std::string fname = cur_dir + "/core_amp_coord.xyz";
-    
+
     std::vector<FPDPD> core_ptcls;
     for (const auto& ptcl : ptcls)
       for (auto j = 0u; j < param.core_amp_id_.size(); j++)
-	if (ptcl.amp_id == param.core_amp_id_[j])
-	  core_ptcls.push_back(ptcl);
+        if (ptcl.amp_id == param.core_amp_id_[j])
+          core_ptcls.push_back(ptcl);
 
     FILE* fp = io_util::xfopen(fname.c_str(), "w");
     io_util::WriteXYZForm(&(core_ptcls[0]), core_ptcls.size(), 0, fp);
