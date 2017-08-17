@@ -6,15 +6,17 @@
 #include "density_map.hpp"
 #include "Reo.hpp"
 #include "thickness.hpp"
+#include "extract_assmbly.hpp"
 
 // static members in Parameter
 constexpr char Parameter::atom_type[21];
 PS::F64vec Parameter::box_leng, Parameter::ibox_leng;
 PS::U32 Parameter::time, Parameter::all_time, Parameter::step_mic, Parameter::step_mac;
+PS::F64 Parameter::cf_b_rigid;
 
 namespace {
-  const std::string suppording_mode = "Rg/Ade/LocStress/Rtube/Density/Reo/Thickness";
-  
+  const std::string suppording_mode = "Rg/Ade/LocStress/Rtube/Density/Reo/Thickness/Extract";
+
   TrjAnalysis<FPDPD, Particle>* trjana_factory(const std::string& mode_name,
 					       const std::string& cur_dir,
 					       const char* trj_fname,
@@ -33,6 +35,8 @@ namespace {
       return new TrjAnalysisReo(cur_dir, trj_fname, run_fname);
     } else if (mode_name == "Thickness") {
       return new TrjAnalysisThickness(cur_dir, trj_fname, run_fname);
+    } else if (mode_name == "Extract") {
+      return new TrjAnalysisExtractAssmbly(cur_dir, trj_fname, run_fname);
     } else {
       std::cerr << "Unknown mode " << mode_name << std::endl;
       std::cerr << "Only suport " << suppording_mode << std::endl;
@@ -49,10 +53,10 @@ int main(int argc, char* argv[]) {
     std::cerr << "argv[2] is execution mode " << suppording_mode << "." << std::endl;
     std::exit(1);
   }
-  
+
   const std::string cur_dir   = argv[1], mode_name = argv[2];
   const std::string trj_fname = "/traject.xyz", param_fname = "/run_param.txt";
-  
+
   std::unique_ptr<TrjAnalysis<FPDPD, Particle> > ptr_analysis(trjana_factory(mode_name, cur_dir, trj_fname.c_str(), param_fname.c_str()));
   ptr_analysis->Initialize();
   ptr_analysis->DoAnalysis();
