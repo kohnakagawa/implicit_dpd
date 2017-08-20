@@ -7,8 +7,6 @@ use_mpi = yes
 endif
 
 # use_omp = yes
-# use_gpu_cuda = yes
-# gpu_profile = yes
 
 MPI = -DPARTICLE_SIMULATOR_MPI_PARALLEL
 OPENMP = -DPARTICLE_SIMULATOR_THREAD_PARALLEL
@@ -31,10 +29,6 @@ INCLUDE = -isystem ./FDPS/src -I./include
 # COMMON_FLAGS = $(DEBUG)
 COMMON_FLAGS = $(RELEASE)
 
-ifeq ($(COMMON_FLAGS), $(DEBUG))
-CUDA_DEBUG = -G
-endif
-
 COMMON_FLAGS += -std=c++11
 
 ifeq ($(CXX),icpc)
@@ -45,28 +39,6 @@ OPT_FLAGS = -ffast-math -funroll-loops
 endif
 ifeq ($(CXX),mpicxx)
 OPT_FLAGS = -ffast-math -funroll-loops
-endif
-
-OBJECTS_DPD = ./src/main.o
-OBJECTS_CMAKE = ./src/config_maker.o
-
-ifeq ($(use_gpu_cuda),yes)
-COMMON_FLAGS += -DENABLE_GPU_CUDA
-CUDA_HOME = /usr/local/cuda
-NVCC = $(CUDA_HOME)/bin/nvcc
-NVCCFLAGS = $(COMMON_FLAGS) -arch=sm_35 -Xcompiler "$(COMMON_FLAGS) $(WARNINGS) $(OPT_FLAGS)" $(CUDA_DEBUG)
-
-ifeq ($(gpu_profile),yes)
-NVCCFLAGS += -lineinfo -Xptxas -v
-endif
-
-LIBRARY = -L$(CUDA_HOME)/lib64 -lcudart
-ifeq ($(use_mpi),yes)
-LIBRARY += -lmpi
-endif
-
-INCLUDE += -I$(CUDA_HOME)/include/ -I$(CUDA_HOME)/samples/common/inc/
-OBJECTS_DPD += ./src/f_calculator_gpu.o
 endif
 
 CXX_FLAGS = $(COMMON_FLAGS) $(WARNINGS) $(OPT_FLAGS)
@@ -80,27 +52,23 @@ CXX_FLAGS += $(OPENMP)
 endif
 
 TARGET_DPD = implicit_dpd.out
+TARGET_DPD_CHEM = implicit_dpd_chem.out
 TARGET_CMAKE = config_maker.out
 TARGET_ECONF = edit_config.out
 
-all:$(TARGET_DPD) $(TARGET_CMAKE) $(TARGET_ECONF)
+all:$(TARGET_DPD) $(TARGET_DPD_CHEM) $(TARGET_CMAKE) $(TARGET_ECONF)
 
-.SUFFIXES:
-.SUFFIXES: .cpp .o
-.cpp.o:
-	$(CXX) $(CXX_FLAGS) $(INCLUDE) -c $< $(LIBRARY) -o $@
-.SUFFIXES: .cu .o
-.cu.o:
-	$(NVCC) $(NVCCFLAGS) $(INCLUDE) -c $< $(LIBRARY) -o $@
+$(TARGET_DPD): ./src/main.cpp
+	$(CXX) $(CXX_FLAGS) $(INCLUDE) $< $(LIBRARY) -o $@
 
-$(TARGET_DPD): $(OBJECTS_DPD)
-	$(CXX) $(CXX_FLAGS) $(OBJECTS_DPD) $(LIBRARY) -o $@
+$(TARGET_DPD_CHEM): ./src/main.cpp
+	$(CXX) $(CXX_FLAGS) $(INCLUDE) -DCHEM_MODE $< $(LIBRARY) -o $@
 
-$(TARGET_CMAKE): $(OBJECTS_CMAKE)
-	$(CXX) $(CXX_FLAGS) $(OBJECTS_CMAKE) $(LIBRARY) -o $@
+$(TARGET_CMAKE): ./src/config_maker.cpp
+	$(CXX) $(CXX_FLAGS) $(INCLUDE) $< $(LIBRARY) -o $@
 
 $(TARGET_ECONF): ./src/edit_config.cpp
 	$(CXX) $(CXX_FLAGS) $(INCLUDE) $< $(LIBRARY) -o $@
 
 clean:
-	rm -f $(OBJECTS_DPD) $(OBJECTS_CMAKE) $(TARGET_DPD) $(TARGET_CMAKE) $(TARGET_ECONF) core.* *~
+	rm -f $(TARGET_DPD) $(TARGET_DPD_CHEM) $(TARGET_CMAKE) $(TARGET_ECONF) core.* *~
