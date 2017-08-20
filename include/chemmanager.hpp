@@ -34,11 +34,11 @@ class ChemManager {
 
   template<PS::U32 part_num, PS::U32 unit_beg>
   void CreateAmpPart(PS::ParticleSystem<FP>& sys,
-		     const PS::U32 prop,
-		     PS::U32& new_ptcl_id,
-		     const PS::U32 new_amp_id,
-		     const PS::F64vec& copied_pos,
-		     const PS::F64vec& h2e) {
+                     const PS::U32 prop,
+                     PS::U32& new_ptcl_id,
+                     const PS::U32 new_amp_id,
+                     const PS::F64vec& copied_pos,
+                     const PS::F64vec& h2e) {
     FP new_ptcl;
     new_ptcl.prop = prop;
     new_ptcl.amp_id = new_amp_id;
@@ -67,9 +67,9 @@ class ChemManager {
   }
 
   void DetermineTargetId(const PS::U32 amp_num,
-			 const PS::ReallocatableArray<PS::U32>& topol,
-			 const PS::U32 loc_num,
-			 Parameter& param) {
+                         const PS::ReallocatableArray<PS::U32>& topol,
+                         const PS::U32 loc_num,
+                         Parameter& param) {
     for (PS::U32 i = 0; i < amp_num; i++) {
       const PS::F64 rnd = PS::MT::genrand_real1();
       const PS::U32 head_id = topol[Parameter::all_unit * i];
@@ -82,12 +82,12 @@ class ChemManager {
   }
 
   void GetCorePos(PS::ParticleSystem<FP>& sys,
-		  const PS::U32 loc_num,
-		  const PS::U32 core_id,
-		  PS::F64vec& core_pos_h,
-		  PS::F64vec& core_pos_t,
-		  PS::F64vec& core_pos_cm,
-		  const Parameter& param) {
+                  const PS::U32 loc_num,
+                  const PS::U32 core_id,
+                  PS::F64vec& core_pos_h,
+                  PS::F64vec& core_pos_t,
+                  PS::F64vec& core_pos_cm,
+                  const Parameter& param) {
     core_pos_h = -1.0;
     core_pos_t = -1.0;
     core_pos_cm = -1.0;
@@ -99,14 +99,14 @@ class ChemManager {
         break;
       }
     }
-    
+
     PS::S32 rank = PS::Comm::getRank();
     if ((core_pos_h.x < 0.0) &&
         (core_pos_h.y < 0.0) &&
         (core_pos_h.z < 0.0)) {
       rank = -1;
     }
-    
+
     const PS::S32 root_rank = PS::Comm::getMaxValue(rank);
     PS::Comm::broadcast(&core_pos_h, 1, root_rank);
     PS::Comm::broadcast(&core_pos_t, 1, root_rank);
@@ -163,6 +163,19 @@ class ChemManager {
     }
   }
 
+  PS::F64vec GetMembraneTangRandomVec(const PS::F64vec& h2e) const {
+#ifdef CHEM_TEST
+    const PS::F64 theta = M_PI * 0.5;
+#else
+    const PS::F64 theta = 2.0 * M_PI * PS::MT::genrand_real1();
+#endif
+    const PS::F64vec base(std::cos(theta), std::sin(theta), 0.0);
+    const PS::F64 base_dot_h2e = base * h2e;
+    PS::F64vec tang_vec = base - h2e * base_dot_h2e;
+    Normalize(tang_vec);
+    return tang_vec;
+  }
+
 public:
   explicit ChemManager(const PS::U32 seed) {
     // NOTE: This PRNG is not thread safe.
@@ -209,17 +222,9 @@ public:
       PS::F64vec h2e = epj_org[target_id[2 * i + 1]].pos - epj_org[target_id[2 * i]].pos;
       ForceBonded<PS::ParticleSystem<FP> >::MinImage(h2e);
       Normalize(h2e);
-
-      PS::F64vec base_vec0(PS::MT::genrand_real1(), PS::MT::genrand_real1(), 0.0);
-      base_vec0.z = -(h2e.x * base_vec0.x + h2e.y * base_vec0.y) / h2e.z;
-      Normalize(base_vec0);
-      const PS::F64vec base_vec1 = CrossVecWithNormalize(base_vec0, h2e);
-
-      const PS::F64 theta = 2.0 * M_PI * PS::MT::genrand_real1();
-      const PS::F64vec tang_vec = (base_vec0 * std::cos(theta) + base_vec1 * std::sin(theta)) * param.eps;
+      const PS::F64vec tang_vec = GetMembraneTangRandomVec(h2e) * param.eps;
 
       h2e *= Parameter::bond_leng;
-
       const PS::F64vec copied_pos = tang_vec + epj_org[target_id[2 * i]].pos;
       const PS::U32 new_amp_id = offset + i;
       CreateAmpPart<Parameter::head_unit, 0                   >(sys, Parameter::Hyphil, new_ptcl_id,
@@ -293,17 +298,9 @@ public:
         PS::F64vec h2e = sys[tail_id].pos - sys[head_id].pos;
         ForceBonded<PS::ParticleSystem<FP> >::MinImage(h2e);
         Normalize(h2e);
-
-        PS::F64vec base_vec0(PS::MT::genrand_real1(), PS::MT::genrand_real1(), 0.0);
-        base_vec0.z = -(h2e.x * base_vec0.x + h2e.y * base_vec0.y) / h2e.z;
-        Normalize(base_vec0);
-        const PS::F64vec base_vec1 = CrossVecWithNormalize(base_vec0, h2e);
-
-        const PS::F64 theta = 2.0 * M_PI * PS::MT::genrand_real1();
-        const PS::F64vec tang_vec = (base_vec0 * std::cos(theta) + base_vec1 * std::sin(theta)) * param.eps;
+        const PS::F64vec tang_vec = GetMembraneTangRandomVec(h2e) * param.eps;
 
         h2e *= Parameter::bond_leng;
-
         const PS::F64vec copied_pos = tang_vec + sys[head_id].pos;
         AppendTopol(glob_topol, Parameter::head_unit, new_ptcl_id);
         CreateAmpPart<Parameter::head_unit, 0                   >(sys, Parameter::Hyphil, new_ptcl_id,
