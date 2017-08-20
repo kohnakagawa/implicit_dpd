@@ -3,7 +3,7 @@
 #include "io_util.hpp"
 
 class TrjAnalysisExtractAssmbly : public TrjAnalysis<FPDPD, Particle> {
-  void WriteOneFrame(FILE* fp, const int num_patch) {
+  void WriteOneFrame(FILE* fp, const int num_patch, const PS::U32 time) {
     const auto& ptch_id = ptr_connector->patch_id();
     const int tar_patch_id = GetLargestPatchId(ptch_id, num_patch);
 
@@ -35,7 +35,7 @@ class TrjAnalysisExtractAssmbly : public TrjAnalysis<FPDPD, Particle> {
 
     // NOTE: We do not consider solvent particles
     fprintf(fp, "%u\n", ptcls_buffer.size());
-    fprintf(fp, "molecular self-assembled structure is extracted.\n");
+    fprintf(fp, "time %u\n", time);
     for (size_t i = 0; i < ptcls_buffer.size(); i++) {
       ptcls_buffer[i].writeAscii(fp);
     }
@@ -62,7 +62,7 @@ public:
 
       const auto num_patch = gen_connected_image(ptr_connector.get(), ptcls_, Parameter::box_leng, false);
       std::cout << "# of patch is " << num_patch << std::endl;
-      WriteOneFrame(fp, num_patch);
+      WriteOneFrame(fp, num_patch, time);
     }
     fclose(fp);
   }
