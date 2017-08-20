@@ -496,8 +496,8 @@ struct ForceBondedMPI {
     cmplt_amp_ = imcmplt_amp_ = 0;
     cf_bend_cmpl.clearSize(); cf_bend_imcmpl.clearSize();
     PS::U32 id_cmpl = 0, id_imcmpl = 0, cnt_real = ampid[0].is_real, cnt = 1, id_bef = ampid[0].amp_id, id_cur;
-    PS::U32 imcmpl_buf[Parameter::all_unit] = {0xffffffff};
-    bool    isreal_buf[Parameter::all_unit] = {false};
+    PS::U32 imcmpl_buf[Parameter::all_unit] {};
+    bool    isreal_buf[Parameter::all_unit] {};
     for (PS::U32 i = 1; i < amp_ptcl_loc + 1; i++) {
       id_cur = ampid[i].amp_id;
 
@@ -513,7 +513,7 @@ struct ForceBondedMPI {
           AppendCfBend(cf_bend_cmpl, core_amp_id, id_bef);
           cmplt_amp_++;
         } else {
-          //initialize buffer
+          // initialize buffer
           for (PS::U32 j = 0; j < Parameter::all_unit; j++) {
             imcmpl_buf[j] = 0xffffffff;
             isreal_buf[j] = false;
