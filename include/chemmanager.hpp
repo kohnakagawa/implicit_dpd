@@ -164,7 +164,7 @@ class ChemManager {
   }
 
 public:
-  ChemManager(const PS::U32 seed) {
+  explicit ChemManager(const PS::U32 seed) {
     // NOTE: This PRNG is not thread safe.
     PS::MT::init_genrand(seed);
     target_id.resizeNoInitialize(10000);
