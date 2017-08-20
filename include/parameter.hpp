@@ -555,13 +555,12 @@ public:
     DUMPTAGANDVAL(search_rad);
     DUMPTAGANDVAL(arc);
     DUMPTAGANDVAL(Reo);
-
-    DUMPTAGANDVAL(vbb);
-
-    DUMPTAGANDVAL(prop_num);
-
+    DUMPTAGANDVAL(decom_freq);
+    DUMPTAGANDVAL(cm_corr);
     DUMPTAGANDVAL(rn_c);
     DUMPTAGANDVAL(rn_c2);
+
+    DUMPTAGANDVAL(vbb);
 
     DUMPTAGANDVAL(box_leng.x);
     DUMPTAGANDVAL(box_leng.y);
@@ -573,6 +572,7 @@ public:
 
     DUMPTAGANDVAL(init_amp_num);
     DUMPTAGANDVAL(amp_num);
+    DUMPTAGANDVAL(sol_num);
     DUMPTAGANDVAL(dt);
 
     DUMPTAGANDVAL(chi);
@@ -582,13 +582,18 @@ public:
     DUMPTAGANDVAL(p_thresld);
     DUMPTAGANDVAL(eps);
     DUMPTAGANDVAL(max_amp_num);
-    DUMPTAGANDVAL(beg_chem);
     DUMPTAGANDVAL(influ_rad);
     DUMPTAGANDVAL(influ_hei);
     DUMPTAGANDVAL(influ_dep);
     DUMPTAGANDVAL(influ_grd);
     DUMPTAGANDVAL(influ_vol);
+
     DUMPTAGANDVAL(upside_rad);
+
+    DUMPTAGANDVAL(time);
+    DUMPTAGANDVAL(all_time);
+    DUMPTAGANDVAL(step_mic);
+    DUMPTAGANDVAL(step_mac);
 
     ost << "core_amp_id core_ptcl_id:\n";
     for (PS::U32 i = 0; i < core_amp_id_.size(); i++) {
@@ -607,8 +612,8 @@ public:
     }
 
     DUMPINTRPARAM(cf_c);
-    DUMPINTRPARAM(cf_r);
     DUMPINTRPARAM(cf_g);
+    DUMPINTRPARAM(cf_r);
 
     ost << "cf_m:\n";
     for (PS::S32 i = 0; i < prop_num; i++)
@@ -661,6 +666,7 @@ public:
     PS::Comm::broadcast(&step_mac, 1, 0);
 
     // non static member
+    PS::Comm::broadcast(&vbb, 1, 0);
     PS::Comm::broadcast(&init_amp_num, 1, 0);
     PS::Comm::broadcast(&amp_num, 1, 0);
     PS::Comm::broadcast(&sol_num, 1, 0);
@@ -676,6 +682,8 @@ public:
     PS::Comm::broadcast(&influ_hei, 1, 0);
     PS::Comm::broadcast(&influ_dep, 1, 0);
     PS::Comm::broadcast(&influ_grd, 1, 0);
+    PS::Comm::broadcast(&influ_vol, 1, 0);
+    PS::Comm::broadcast(&upside_rad, 1, 0);
 
     PS::U32 core_amp_id_size = core_amp_id_.size();
     PS::U32 core_ptcl_id_size = core_ptcl_id.size();
