@@ -7,19 +7,37 @@ class TrjAnalysisExtractAssmbly : public TrjAnalysis<FPDPD, Particle> {
     const auto& ptch_id = ptr_connector->patch_id();
     const int tar_patch_id = GetLargestPatchId(ptch_id, num_patch);
 
-    int num_tar_ptcl = 0;
-    for (size_t i = 0; i < ptcls_.size(); i++) {
+    std::vector<FPDPD> ptcls_buffer;
+    for (size_t i = 0; i < ptcls_org_.size(); i++) {
       if (ptch_id[i] == tar_patch_id) {
-        num_tar_ptcl++;
+        ptcls_buffer.push_back(ptcls_org_[i]);
+      }
+    }
+    std::sort(ptcls_buffer.begin(), ptcls_buffer.end(),
+              [](const FPDPD& fp1, const FPDPD& fp2) -> bool {
+                return (fp1.amp_id * Parameter::all_unit + fp1.unit) < (fp2.amp_id * Parameter::all_unit + fp2.unit);
+              }
+              );
+
+    for (size_t i = 0; i < ptcls_buffer.size(); i++) {
+      ptcls_buffer[i].id     = i;
+      const size_t new_amp_id   = i / Parameter::all_unit;
+      const size_t new_amp_unit = i % Parameter::all_unit;
+      ptcls_buffer[i].amp_id = new_amp_id;
+      ptcls_buffer[i].unit   = new_amp_unit;
+
+      if (new_amp_unit < Parameter::head_unit) {
+        assert(ptcls_buffer[i].prop == Parameter::Hyphil);
+      } else {
+        assert(ptcls_buffer[i].prop == Parameter::Hyphob);
       }
     }
 
-    fprintf(fp, "%d\n", num_tar_ptcl);
+    // NOTE: We do not consider solvent particles
+    fprintf(fp, "%u\n", ptcls_buffer.size());
     fprintf(fp, "molecular self-assembled structure is extracted.\n");
-    for (size_t i = 0; i < ptcls_.size(); i++) {
-      if (ptch_id[i] == tar_patch_id) {
-        ptcls_org_[i].writeAscii(fp);
-      }
+    for (size_t i = 0; i < ptcls_buffer.size(); i++) {
+      ptcls_buffer[i].writeAscii(fp);
     }
   }
 
@@ -29,6 +47,7 @@ public:
                             const char* param_fname) : TrjAnalysis(cur_dir, trj_fname, param_fname) {}
   ~TrjAnalysisExtractAssmbly() override {}
 
+  // ASSUME: there are no solvent particles.
   void DoAnalysis() override {
     SetSearchRadius(1.5, 1.5);
     ptr_connector->Initialize(est_grid_leng_, cutof_leng_, Parameter::box_leng);
