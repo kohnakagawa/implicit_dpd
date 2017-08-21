@@ -164,11 +164,7 @@ class ChemManager {
   }
 
   PS::F64vec GetMembraneTangRandomVec(const PS::F64vec& h2e) const {
-#ifdef CHEM_TEST
-    const PS::F64 theta = M_PI * 0.5;
-#else
     const PS::F64 theta = 2.0 * M_PI * PS::MT::genrand_real1();
-#endif
     const PS::F64vec base(std::cos(theta), std::sin(theta), 0.0);
     const PS::F64 base_dot_h2e = base * h2e;
     PS::F64vec tang_vec = base - h2e * base_dot_h2e;
@@ -244,85 +240,43 @@ public:
     }
   }
 
-  // normal ver
+  // single core ver
   bool RandomChemEvent(PS::ParticleSystem<FP>& sys,
                        PS::ReallocatableArray<PS::U32>& glob_topol,
                        Parameter& param) {
-    PS::U32 new_ptcl_id = sys.getNumberOfParticleLocal();
-    PS::U32 new_amp_id = param.amp_num;
-    const PS::U32 old_amp_num = param.amp_num;
+    target_id.clearSize();
+
+    const PS::U32 glb_num = sys.getNumberOfParticleGlobal();
 #ifdef LOCAL_CHEM_EVENT
-    const PS::U32 num_core_amp_id = param.core_amp_id().size();
-    core_poss_h_.resizeNoInitialize(num_core_amp_id);
-    h2t_vecs_.resizeNoInitialize(num_core_amp_id);
-    for (PS::U32 i = 0; i < num_core_amp_id; i++) {
-      const PS::S32 core_id = param.core_ptcl_id[i];
-
-      // calc bilayer normal vector
-      const PS::F64vec core_pos = sys[core_id].pos;
-      PS::F64vec h2t = sys[core_id].nei_cm_pos[Parameter::Hyphob] - core_pos;
-      ForceBonded<PS::ParticleSystem<FP> >::MinImage(h2t);
-      Normalize(h2t);
-      h2t_vecs_[i] = h2t;
-
-      // calc core position
-      PS::F64vec core2cmpos = sys[core_id].nei_cm_pos[Parameter::Hyphil] - core_pos;
-      ForceBonded<PS::ParticleSystem<FP> >::MinImage(core2cmpos);
-      const PS::F64 prj_cf = core2cmpos * h2t;
-      core_poss_h_[i] = core_pos + prj_cf * h2t;
-      ApplyPBC(core_poss_h_[i]);
-    }
-#endif
-
-    for (PS::U32 i = 0; i < old_amp_num; i++) {
-      PS::F64 rnd = 2.0;
-#ifdef LOCAL_CHEM_EVENT
-      for (PS::U32 j = 0; j < num_core_amp_id; j++) {
-        PS::F64vec core2ptcl = sys[glob_topol[Parameter::all_unit * i]].pos - core_poss_h_[j];
-        ForceBonded<PS::ParticleSystem<FP> >::MinImage(core2ptcl);
-        const PS::F64 depth = h2t_vecs_[j] * core2ptcl;
-        const PS::F64vec tang_vec = core2ptcl - depth * h2t_vecs_[j];
-        const PS::F64 rad = std::sqrt(tang_vec * tang_vec);
-
-        const PS::F64 rad_thresld = param.influ_grd * depth + param.influ_rad;
-
-        if ((rad <= rad_thresld) && (depth >= -param.influ_hei) && (depth <= param.influ_dep))
-          rnd = PS::MT::genrand_real1();
-      }
+    DetermineTargetIdWithCorePos(sys, param.amp_num, glob_topol, glb_num, param);
 #else
-      rnd = PS::MT::genrand_real1();
-#endif
-      if (rnd <= param.p_thresld) {
-        const PS::U32 head_id = glob_topol[Parameter::all_unit * i    ];
-        const PS::U32 tail_id = glob_topol[Parameter::all_unit * i + 2];
-        PS::F64vec h2e = sys[tail_id].pos - sys[head_id].pos;
-        ForceBonded<PS::ParticleSystem<FP> >::MinImage(h2e);
-        Normalize(h2e);
-        const PS::F64vec tang_vec = GetMembraneTangRandomVec(h2e) * param.eps;
-
-        h2e *= Parameter::bond_leng;
-        const PS::F64vec copied_pos = tang_vec + sys[head_id].pos;
-        AppendTopol(glob_topol, Parameter::head_unit, new_ptcl_id);
-        CreateAmpPart<Parameter::head_unit, 0                   >(sys, Parameter::Hyphil, new_ptcl_id,
-                                                                  new_amp_id, copied_pos, h2e);
-        AppendTopol(glob_topol, Parameter::tail_unit, new_ptcl_id);
-        CreateAmpPart<Parameter::tail_unit, Parameter::head_unit>(sys, Parameter::Hyphob, new_ptcl_id,
-                                                                  new_amp_id, copied_pos, h2e);
-        param.amp_num++;
-        new_amp_id++;
-
-#ifdef DEBUG
-        assert(param.amp_num == new_amp_id);
-        assert(sys.getNumberOfParticleLocal() == new_ptcl_id);
+    DetermineTargetId(param.amp_num, glob_topol, glb_num, param);
 #endif
 
-        if (param.amp_num >= param.max_amp_num) {
-          std::cout << "Now param.amp_num >= param.max_amp_num.\n";
-          std::cout << "So, simulation will stop.\n";
-          return false;
-        }
-      }
+    const PS::U32 incr_num = target_id.size() / 2;
+    PS::U32 new_ptcl_id = glb_num;
+    for (PS::U32 i = 0; i < incr_num; i++) {
+      PS::F64vec h2e = sys[target_id[2 * i + 1]].pos - sys[target_id[2 * i]].pos;
+      ForceBonded<PS::ParticleSystem<FP>>::MinImage(h2e);
+      Normalize(h2e);
+      const PS::F64vec tang_vec = GetMembraneTangRandomVec(h2e) * param.eps;
+
+      h2e *= Parameter::bond_leng;
+      const PS::F64vec copied_pos = tang_vec + sys[target_id[2 * i]].pos;
+      const PS::U32 new_amp_id = param.amp_num + i;
+      CreateAmpPart<Parameter::head_unit, 0                   >(sys, Parameter::Hyphil, new_ptcl_id,
+                                                                new_amp_id, copied_pos, h2e);
+      CreateAmpPart<Parameter::tail_unit, Parameter::head_unit>(sys, Parameter::Hyphob, new_ptcl_id,
+                                                                new_amp_id, copied_pos, h2e);
     }
-    return true;
+    param.amp_num += incr_num;
+
+    if (param.amp_num >= param.max_amp_num) {
+      std::cout << "Now param.amp_num >= param.max_amp_num.\n";
+      std::cout << "So, simulation will stop.\n";
+      return false;
+    } else {
+      return true;
+    }
   }
 };
