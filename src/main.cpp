@@ -3,16 +3,7 @@
 #include "particle_simulator.hpp"
 #include "user_defs.h"
 #include "parameter.hpp"
-
-#ifdef ENABLE_GPU_CUDA
-#warning "will use gpu."
-#include "ptcl_class.hpp"
-#include "bdf_calculator.hpp"
-#include "f_calculator_gpu.cuh"
-#include "device_inform.cuh"
-#else
 #include "f_calculator.hpp"
-#endif
 
 #ifdef CHEM_MODE
 #include "chemmanager.hpp"
@@ -91,23 +82,6 @@ int main(int argc, char *argv[]) {
   }
 
   timer_start();
-#ifdef ENABLE_GPU_CUDA
-#ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
-  // Multi GPU case
-  const PS::S32 dev_id = PS::Comm::getRank() % NUM_GPU_IN_ONE_NODE;
-  checkCudaErrors(cudaSetDevice(dev_id));
-#else
-  // Single GPU case
-  if (argc == 3) {
-    const PS::S32 dev_id = std::atoi(argv[2]);
-    checkCudaErrors(cudaSetDevice(dev_id));
-    print_device_inform(dev_id);
-  } else {
-    std::cerr << "gpu device id is not specified.\n";
-    PS::Abort();
-  }
-#endif // end of PARTICLE_SIMULATOR_MPI_PARALLEL
-#endif // end of ENABLE_GPU_CUDA
 
   // Initialize run input parameter
   const std::string cdir = argv[1];
@@ -152,28 +126,10 @@ int main(int argc, char *argv[]) {
   dens_tree.initialize(est_max_ptcl_num);
   force_tree.initialize(est_max_ptcl_num);
 
-#ifdef ENABLE_GPU_CUDA
-  const PS::S32 n_walk_limit = 200;
-  const PS::S32 tag_max = 1;
-  dens_tree.calcForceAllAndWriteBackMultiWalk(DispatchKernel<Policy::Density, EPI::Density, EPJ::Density>,
-					      RetrieveKernel<Policy::Density, RESULT::Density>,
-					      tag_max,
-					      system,
-					      dinfo,
-					      n_walk_limit);
-
-  force_tree.calcForceAllAndWriteBackMultiWalk(DispatchKernel<Policy::Force, EPI::DPD, EPJ::DPD>,
-					       RetrieveKernel<Policy::Force, RESULT::ForceDPD>,
-					       tag_max,
-					       system,
-					       dinfo,
-					       n_walk_limit);
-#else
   CalcForceEpEpDPD::m_seed = static_cast<PS::U32>(time(nullptr));
   // CalcForceEpEpDPD::m_seed = 100;
   dens_tree.calcForceAllAndWriteBack(CalcDensity(), system, dinfo);
   force_tree.calcForceAllAndWriteBack(CalcForceEpEpDPD(), system, dinfo);
-#endif
 
   PS::F64vec bonded_vir(0.0, 0.0, 0.0);
 #ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
@@ -214,24 +170,8 @@ int main(int argc, char *argv[]) {
 
     system.exchangeParticle(dinfo);
 
-#ifdef ENABLE_GPU_CUDA
-    dens_tree.calcForceAllAndWriteBackMultiWalk(DispatchKernel<Policy::Density, EPI::Density, EPJ::Density>,
-					        RetrieveKernel<Policy::Density, RESULT::Density >,
-					        tag_max,
-					        system,
-					        dinfo,
-					        n_walk_limit);
-
-    force_tree.calcForceAllAndWriteBackMultiWalk(DispatchKernel<Policy::Force, EPI::DPD, EPJ::DPD>,
-						 RetrieveKernel<Policy::Force, RESULT::ForceDPD>,
-					         tag_max,
-					         system,
-					         dinfo,
-					         n_walk_limit);
-#else
     dens_tree.calcForceAllAndWriteBack(CalcDensity(), system, dinfo);
     force_tree.calcForceAllAndWriteBack(CalcForceEpEpDPD(), system, dinfo);
-#endif
 
 #ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
     fbonded.CalcListedForce(system, force_tree.epj_org(), bonded_vir, param.core_amp_id());
@@ -277,8 +217,5 @@ int main(int argc, char *argv[]) {
   // cleanup
   observer.CleanUp();
   param.DumpAllParam(CalcForceEpEpDPD::m_seed);
-#ifdef ENABLE_GPU_CUDA
-  clean_up_gpu();
-#endif
   PS::Finalize();
 }
