@@ -1,3 +1,4 @@
+CXX = g++
 MPICXX = mpicxx
 
 OPENMP = -fopenmp -DPARTICLE_SIMULATOR_THREAD_PARALLEL
