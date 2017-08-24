@@ -79,15 +79,19 @@ public:
     hei_elem.resize(Nxy, 0.0);
   }
 
-  void LoadHeight() {
+  bool LoadHeight() {
     double grid_pos[2], loc_hei;
     for (int i = 0; i < Nxy; i++) {
       fin >> grid_pos[0] >> grid_pos[1] >> loc_hei;
+      if (IsEof()) return true;
       hei[GenHash(grid_pos)] = loc_hei;
     }
+    return false;
   }
 
-  bool IsEof() { return fin.eof(); }
+  bool IsEof() {
+    return fin.eof();
+  }
 
   void SortbyNormq(const bool is_count) {
     for (int ix = 0; ix < Nx; ix++) {
@@ -235,8 +239,7 @@ int main(int argc, char *argv[]) {
   int cnt = 0;
   while (1) {
     bendcalc.AllClear();
-    bendcalc.LoadHeight();
-    if (bendcalc.IsEof()) break;
+    if (bendcalc.LoadHeight()) break;
     bendcalc.Exefftw2d();
     bendcalc.Normalize();
     bendcalc.SortbyNormq(cnt >= skip_line);
