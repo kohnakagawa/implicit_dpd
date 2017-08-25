@@ -152,8 +152,11 @@ def gen_run_script(scheduler, nprocs, nthreads, nnodes, qname, run_script, jobli
         if nthreads != 1:
             f.write("export OMP_NUM_THREADS=%d\n" % nthreads)
 
-        if nprocs != 1:
-            f.write("mpirun -np %d " % nprocs)
+        if nprocs != 1 and scheduler != "pbs_bulk":
+            if scheduler == "pbs":
+                f.write("mpijob ")
+            else:
+                f.write("mpirun -np %d " % nprocs)
 
         if scheduler == "pbs":
             f.write("${SCRIPT_ARGS}\n")
