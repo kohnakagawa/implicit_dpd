@@ -1,11 +1,11 @@
 CXX = g++
 
-CFLAGS = -std=c++11 -O3 -ffast-math -funroll-loops
+CFLAGS = -std=c++11 -g -O3 -ffast-math -funroll-loops -pthread
 # CFLAGS = -std=c++11 -O0 -g
 
 OBJECTS = sysdraw.o mousehandle.o jpegout.o main.o
 TARGET = cDraw
-LOADLIBES = -lglut -lGLU -L/usr/lib/nvidia-340-updates -lGL -ljpeg -lGLEW
+LOADLIBES = -lpthread -lglut -lGLU -lGL -ljpeg -lGLEW
 
 .SUFFIXES:
 .SUFFIXES: .cpp .o
