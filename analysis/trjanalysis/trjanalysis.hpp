@@ -95,6 +95,7 @@ public:
 
   void Initialize() {
     ptr_parameter.reset(new Parameter(cur_dir_));
+    ptr_parameter->Initialize();
     ptr_parameter->LoadParam();
     ptr_connector.reset(new PtclConnector<PtclOrg, Ptcl>);
   }

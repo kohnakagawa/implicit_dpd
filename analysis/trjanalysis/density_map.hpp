@@ -40,18 +40,18 @@ class TrjAnalysisDensity : public TrjAnalysis<FPDPD, Particle> {
     fout << "LOOKUP_TABLE default\n";
     for (const auto data : num_in_box_) fout << data << std::endl;
   }
-  
+
 public:
   TrjAnalysisDensity(const std::string cur_dir,
 		     const char* trj_fname,
 		     const char* param_fname) : TrjAnalysis(cur_dir, trj_fname, param_fname) {}
-  
+
   ~TrjAnalysisDensity() override {}
-  
+
   void DoAnalysis() override {
     SetSearchRadius(1.2, 1.2);
     ptr_connector->Initialize(est_grid_leng_, cutof_leng_, Parameter::box_leng);
-    
+
     PS::U32 time = 0;
     AxisAdjuster<Particle> aadjuster;
     while (true) {
@@ -66,22 +66,22 @@ public:
       aadjuster.CreateMomInertia(ptcls_, ptch_id, tar_patch_id);
       aadjuster.MakeNewBaseVector(ptcls_);
       aadjuster.ChangeBaseVector(ptcls_);
-      
+
       PS::F64vec box_org(0.0, 0.0, 0.0), box_top(0.0, 0.0, 0.0);
       GetNewBox(box_org, box_top);
       ChangeCoordOrigin(box_org);
       const auto box_leng = box_top - box_org;
       for (auto i = 0; i < 3; i++) {
-	grid_n_[i] = static_cast<int>(box_leng[i] / grid_len_est);
-	grid_len_[i] = box_leng[i] / grid_n_[i];
+        grid_n_[i] = static_cast<int>(box_leng[i] / grid_len_est);
+        grid_len_[i] = box_leng[i] / grid_n_[i];
       }
       const auto grid_n_all = grid_n_[0] * grid_n_[1] * grid_n_[2];
       num_in_box_.resize(grid_n_all, 0.0);
       AddGridDensity();
     }
-    
+
     for (const auto g : grid_n_) std::cout << g << std::endl;
-    
+
     const std::string fname = cur_dir_ + "/density_map.vtk";
     WriteVTKForm(fname);
   }
