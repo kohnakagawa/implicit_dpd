@@ -21,25 +21,25 @@ public:
   void DoAnalysis() override {
     SetSearchRadius(1.1, 1.05);
     ptr_connector->Initialize(est_grid_leng_, cutof_leng_, Parameter::box_leng);
-    
+
     const std::string name_fout = cur_dir_ + "/elem_in_each.txt";
     std::ofstream fout(name_fout.c_str());
     fout << "#time\tnum0\tnum1\thyphil_all\n";
-    
+
     PS::U32 time = 0;
     while (true) {
       if (ReadOneFrame(time, [] (const Particle& p) -> bool { return (p.prop == Parameter::Hyphil); })) break;
       std::cout << "time = " << time << std::endl;
       ptr_connector->ResizeIfNeeded(ptcls_.size());
-      
+
       const auto num_patch = gen_connected_image(ptr_connector.get(), ptcls_, Parameter::box_leng, true);
       std::cout << "# of patch is " << num_patch << std::endl;
-      
+
       const auto elem_in_each = CalcInOutElem(ptr_connector->patch_id(), num_patch);
       fout << time;
       for (const auto e : elem_in_each) fout << "\t" << e;
       fout << std::endl;
-      
+
       ptr_connector->ClearForNextStep();
     }
   }
